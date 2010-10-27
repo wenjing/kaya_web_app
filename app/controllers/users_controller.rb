@@ -11,9 +11,14 @@ class UsersController < ApplicationController
   
   def show
     @user = User.find(params[:id])
-    @microposts = @user.microposts.paginate(:page => params[:page])
-    @mposts = @user.mposts.paginate(:page => params[:page])
-    @title = @user.name
+    respond_to do |format|
+      format.html {
+        @microposts = @user.microposts.paginate(:page => params[:page])
+        @mposts = @user.mposts.paginate(:page => params[:page])
+        @title = @user.name
+      }
+      format.json { render :json => @user.to_json(:except => [:updated_at, :salt, :encrypted_password]) }
+    end
   end
 
   def following
