@@ -126,6 +126,27 @@ describe UsersController do
                                     :content => @user.microposts.count.to_s)
     end
     
+    it "should show the user's mposts" do
+      mp1 = Factory(:mpost, :user => @user, :time => 1.day.ago)
+      mp2 = Factory(:mpost, :user => @user, :time => 1.hour.ago)
+      get :show, :id => @user
+      response.should have_selector('span.time', :time => mp1.time)
+      response.should have_selector('span.time', :time => mp2.time)
+    end
+
+    it "should paginate mposts" do
+      35.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
+      get :show, :id => @user
+      response.should have_selector('div.pagination')
+    end
+
+    it "should display the mpost count" do
+      10.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
+      get :show, :id => @user
+      response.should have_selector('td.sidebar',
+                                    :time => @user.mposts.count.to_s)
+    end
+
     describe "when signed in as another user" do
       it "should be successful" do
         test_sign_in(Factory(:user, :email => Factory.next(:email)))

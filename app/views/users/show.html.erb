@@ -12,11 +12,20 @@
         </table>
         <%= will_paginate @microposts %>
       <% end %>
+      
+      <% if @user.mposts.any? %>
+        <table class="mposts" summary="User mposts">
+          <%= render @mposts %>
+        </table>
+        <%= will_paginate @mposts %>
+      <% end %>
+
     </td>
     <td class="sidebar round">
       <strong>Name</strong> <%= @user.name %><br />
       <strong>URL</strong>  <%= link_to user_path(@user), @user %>
       <strong>Microposts</strong> <%= @user.microposts.count %>
+      <strong>Mposts</strong> <%= @user.mposts.count %>
       <%= render 'shared/stats' %>
     </td>
   </tr>

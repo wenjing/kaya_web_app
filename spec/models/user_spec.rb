@@ -271,4 +271,30 @@ describe User do
       @followed.followers.should include(@user)
     end
   end
+
+  describe "mpost associations" do
+
+    before(:each) do
+      @user = User.create(@attr)
+      @mp1 = Factory(:mpost, :user => @user, :created_at => 1.day.ago)
+      @mp2 = Factory(:mpost, :user => @user, :created_at => 1.hour.ago)
+    end
+
+    it "should have a microposts attribute" do
+      @user.should respond_to(:mposts)
+    end
+
+    it "should have the right mposts in the right order" do
+      @user.mposts.should == [@mp2, @mp1]
+    end
+
+    it "should destroy associated mposts" do
+      @user.destroy
+      [@mp1, @mp2].each do |mpost|
+        lambda do
+          Mpost.find(mpost)
+        end.should raise_error(ActiveRecord::RecordNotFound)
+      end
+    end
+  end
 end
