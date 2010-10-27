@@ -8,7 +8,7 @@ class MpostsController < ApplicationController
     if @mpost.save
       respond_to do |format|
         format.html { redirect_to root_path, :flash => { :success => "Mpost created!" } }
-        format.json { render :json => @mpost.to_json(:except => [:updated_at]) }
+        format.json { render :json => @mpost.to_json(:except => [:updated_at, :encrypted_password, :salt]) }
       end
     else
       @feed_items = []

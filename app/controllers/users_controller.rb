@@ -1,4 +1,5 @@
 class UsersController < ApplicationController
+  skip_before_filter :verify_authenticity_token
   before_filter :authenticate, :except => [:show, :new, :create]
   before_filter :correct_user, :only => [:edit, :update]
   before_filter :admin_user,   :only => :destroy
@@ -35,13 +36,23 @@ class UsersController < ApplicationController
   end
   
   def create
-    @user = User.new(params[:user])
+    if params[:user].nil?
+      @user = User.new(params)
+    else
+      @user = User.new(params[:user])
+    end
     if @user.save
       sign_in @user
-      redirect_to @user, :flash => { :success => "Welcome to the Kaya App!" }
+      respond_to do |format|
+        format.html { redirect_to @user, :flash => { :success => "Welcome to the Kaya App!" } }
+        format.json { render :json => @user.to_json(:except => [:updated_at]) }
+      end
     else
       @title = "Sign up"
-      render 'new'
+      respond_to do |format|
+        format.html { render 'new' }
+        format.json { render :json => User.new.to_json(:except => [:updated_at]) }
+      end
     end
   end
   

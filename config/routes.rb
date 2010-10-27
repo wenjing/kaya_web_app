@@ -1,5 +1,7 @@
 KayaWebApp::Application.routes.draw do
 
+  get "meets/new"
+
   resources :users do
     member do
       get :following, :followers
