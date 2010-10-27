@@ -15,10 +15,17 @@ class SessionsController < ApplicationController
     if user.nil?
       flash.now[:error] = "Invalid email/password combination."
       @title = "Sign in"
-      render 'new'
+      respond_to do |format|
+        format.html { render 'new' }
+        format.json { render :json => new.to_json }
+      end
     else
       sign_in user
-      redirect_back_or user
+
+      respond_to do |format|
+        format.html { redirect_back_or user }
+        format.json { render :json => user.to_json(:except => [:admin,:created_at,:encrypted_password,:salt,:updated_at]) }
+      end
     end
   end
   

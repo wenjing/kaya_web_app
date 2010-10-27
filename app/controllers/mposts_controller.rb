@@ -6,7 +6,10 @@ class MpostsController < ApplicationController
   def create
     @mpost = current_user.mposts.build(params)
     if @mpost.save
-      redirect_to root_path, :flash => { :success => "Mpost created!" }
+      respond_to do |format|
+        format.html { redirect_to root_path, :flash => { :success => "Mpost created!" } }
+        format.json { render :json => @mpost.to_json(:except => [:updated_at]) }
+      end
     else
       @feed_items = []
       render 'pages/home'
