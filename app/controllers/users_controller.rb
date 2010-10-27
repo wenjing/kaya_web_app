@@ -45,7 +45,7 @@ class UsersController < ApplicationController
       sign_in @user
       respond_to do |format|
         format.html { redirect_to @user, :flash => { :success => "Welcome to the Kaya App!" } }
-        format.json { render :json => @user.to_json(:except => [:updated_at]) }
+        format.json { render :json => @user.to_json(:except => [:updated_at, :salt, :encrypted_password]) }
       end
     else
       @title = "Sign up"
