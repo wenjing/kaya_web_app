@@ -11,6 +11,7 @@ class CreateMposts < ActiveRecord::Migration
       t.timestamps
     end
     add_index :mposts, :user_id
+    add_index :mposts, :meet_id
   end
 
   def self.down

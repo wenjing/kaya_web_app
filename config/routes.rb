@@ -12,7 +12,8 @@ KayaWebApp::Application.routes.draw do
   resources :microposts,    :only => [:create, :destroy]
   resources :mposts,	    :only => [:create, :destroy]
   resources :relationships, :only => [:create, :destroy]
-  
+  resources :meet
+
   root :to => "pages#home"
 
   match '/contact', :to => 'pages#contact'

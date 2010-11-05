@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101027191028) do
+ActiveRecord::Schema.define(:version => 20101104073122) do
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -50,6 +50,7 @@ ActiveRecord::Schema.define(:version => 20101027191028) do
     t.datetime "updated_at"
   end
 
+  add_index "mposts", ["meet_id"], :name => "index_mposts_on_meet_id"
   add_index "mposts", ["user_id"], :name => "index_mposts_on_user_id"
 
   create_table "relationships", :force => true do |t|

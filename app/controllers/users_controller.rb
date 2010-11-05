@@ -17,7 +17,10 @@ class UsersController < ApplicationController
         @mposts = @user.mposts.paginate(:page => params[:page])
         @title = @user.name
       }
-      format.json { render :json => @user.to_json(:except => [:updated_at, :salt, :encrypted_password]) }
+      format.json { 
+        render :json => 
+          @user.to_json(:except => [:updated_at, :salt, :encrypted_password], :include => [:meets]) 
+      } 
     end
   end
 
