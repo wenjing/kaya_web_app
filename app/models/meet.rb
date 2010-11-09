@@ -23,22 +23,87 @@
 
 class Meet < ActiveRecord::Base
 
-    attr_accessible :name, :description, :time, 
-                    :location, :street_address, :city, 
-                    :state, :zip, :country, 
-                    :users_count, :lng, :lat,
-                    :image_url
+  attr_accessible :name, :description, :time, 
+                  :location, :street_address, :city, 
+                  :state, :zip, :country, 
+                  :users_count, :lng, :lat,
+                  :image_url
 
-    has_many :mposts
-    has_many :users,  :through => :mposts
+  has_many :mposts
+  has_many :users,  :through => :mposts
 
-    validates :name,  :presence => true,
-                      :length   => { :maximum => 250 }
-    validates :time,  :presence => true
-    validates :lng,  :presence => true
-    validates :lat,  :presence => true
-    validates :users_count, :presence => true
+  validates :name,  :presence => true,
+                    :length   => { :maximum => 250 }
+  #validates :time,  :presence => true
+  #validates :lng,  :presence => true
+  #validates :lat,  :presence => true
+  validates :users_count, :presence => true
 
-    default_scope :order => 'meets.created_at DESC'
+  default_scope :order => 'meets.created_at DESC'
+
+  # Following functions are by hong.zhao
+  # They are required by backend processer.
+  # Eearliest and oldest occure time of the meet. Use the :time instead but have
+  # to make sure it is converted into utc time. It can also be extracted from
+  # mpost dynamically.
+  def occured_earliest
+    return time ? time.utc : nil
+  end
+  def occured_oldest
+    return time ? time.utc : nil
+  end
+  def extract_information
+    # Get users information, make sure it is unique. Extract time (average time as well)
+    users.clear
+    unique_users = Set.new
+    times = Array.new
+    mposts.each {|mpost| unique_user << mpost.user; times << mpost.time.to_i}
+    unique_users.each {|user| users << user}
+    users_count = users.size 
+    time = !times.empty ? Time.at(times.average) : nil
+    # Extract location
+    extract_location
+  end
+  def extract_location
+    # Calculate weighted average lng+lat
+    lngs, lats = Array.new, Array.new
+    # Fist we try to get from mpost with accurate location info, which is defined as error
+    # is less than 30feet
+    mposts.each {|mpost|
+      if (mpost.lng && mpost.lat && mpost.lerror < 30.0)
+        lngs << mpost.lng
+        lats << mpost.lat
+      end
+    }
+    if !lngs.empty?
+      mposts.each {|mpost|
+        if (mpost.lng && mpost.lat)
+          lngs << mpost.lng
+          lats << mpost.lat
+        end
+      }
+    end
+    if !lngs.empty?
+      lng, lat = lngs.average, lats.average
+    else
+      lng, lat = nil, nil
+    end
+    extract_geocode
+  end
+  def extract_geocode(retry=0)
+    # Pending
+    location = ""
+    street_address = ""
+    city= "" 
+    state = ""
+    zip = ""
+    country = "" 
+    users_count = ""
+  end
+  def check_geocode # check geocode information, try to aquire if missing
+    if (!location || location == "")
+      extract_geocode(0)
+    end
+  end
 
 end
