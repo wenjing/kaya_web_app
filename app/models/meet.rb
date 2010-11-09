@@ -34,12 +34,13 @@ class Meet < ActiveRecord::Base
 
   validates :name,  :presence => true,
                     :length   => { :maximum => 250 }
-  #validates :time,  :presence => true
+  validates :time,  :presence => true
   #validates :lng,  :presence => true
   #validates :lat,  :presence => true
   validates :users_count, :presence => true
 
-  default_scope :order => 'meets.created_at DESC'
+  #default_scope :order => 'meets.created_at DESC'
+  default_scope :order => 'meets.time DESC'
 
   # Following functions are by hong.zhao
   # They are required by backend processer.
@@ -47,10 +48,10 @@ class Meet < ActiveRecord::Base
   # to make sure it is converted into utc time. It can also be extracted from
   # mpost dynamically.
   def occured_earliest
-    return time ? time.utc : nil
+    return time ? time.getutc : nil
   end
   def occured_oldest
-    return time ? time.utc : nil
+    return time ? time.getutc : nil
   end
   def extract_information
     # Get users information, make sure it is unique. Extract time (average time as well)
@@ -59,10 +60,16 @@ class Meet < ActiveRecord::Base
     times = Array.new
     mposts.each {|mpost| unique_user << mpost.user; times << mpost.time.to_i}
     unique_users.each {|user| users << user}
-    users_count = users.size 
-    time = !times.empty ? Time.at(times.average) : nil
+    self.users_count = users.size 
+    self.time = !times.empty ? Time.at(times.average) : Time.now
     # Extract location
     extract_location
+    # Create a default name
+    self.name = format("Meeting on %s %swith %d %s",
+                       strftime("on %m/%d/%Y"),
+                       location ? location : "",
+                       users.size, pluralize(users.size, "attendent"))
+
   end
   def extract_location
     # Calculate weighted average lng+lat
@@ -84,25 +91,25 @@ class Meet < ActiveRecord::Base
       }
     end
     if !lngs.empty?
-      lng, lat = lngs.average, lats.average
+      self.lng, self.lat = lngs.average, lats.average
     else
-      lng, lat = nil, nil
+      self.lng, self.lat = nil, nil
     end
     extract_geocode
   end
   def extract_geocode(retry=0)
     # Pending
-    location = ""
-    street_address = ""
-    city= "" 
-    state = ""
-    zip = ""
-    country = "" 
-    users_count = ""
+    self.location = ""
+    self.street_address = ""
+    self.city= "" 
+    self.state = ""
+    self.zip = ""
+    self.country = "" 
+    self.users_count = ""
   end
-  def check_geocode # check geocode information, try to aquire if missing
+  def check_geocode(retry=0) # check geocode information, try to aquire if missing
     if (!location || location == "")
-      extract_geocode(0)
+      extract_geocode(retry)
     end
   end
 
