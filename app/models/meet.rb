@@ -97,7 +97,7 @@ class Meet < ActiveRecord::Base
     end
     extract_geocode
   end
-  def extract_geocode(retry=0)
+  def extract_geocode(retry_times=0)
     # Pending
     self.location = ""
     self.street_address = ""
@@ -107,9 +107,9 @@ class Meet < ActiveRecord::Base
     self.country = "" 
     self.users_count = ""
   end
-  def check_geocode(retry=0) # check geocode information, try to aquire if missing
+  def check_geocode(retry_times=0) # check geocode information, try to aquire if missing
     if (!location || location == "")
-      extract_geocode(retry)
+      extract_geocode(retry_times)
     end
   end
 

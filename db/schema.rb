@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101104073122) do
+ActiveRecord::Schema.define(:version => 20101109025524) do
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -30,6 +30,8 @@ ActiveRecord::Schema.define(:version => 20101104073122) do
     t.datetime "updated_at"
   end
 
+  add_index "meets", ["time"], :name => "index_meets_on_time"
+
   create_table "microposts", :force => true do |t|
     t.string   "content"
     t.integer  "user_id"
@@ -38,6 +40,15 @@ ActiveRecord::Schema.define(:version => 20101104073122) do
   end
 
   add_index "microposts", ["user_id"], :name => "index_microposts_on_user_id"
+
+  create_table "mpost_records", :force => true do |t|
+    t.integer  "mpost_id"
+    t.datetime "time"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "mpost_records", ["time"], :name => "index_mpost_records_on_time"
 
   create_table "mposts", :force => true do |t|
     t.integer  "user_id"
@@ -48,9 +59,12 @@ ActiveRecord::Schema.define(:version => 20101104073122) do
     t.text     "devs"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.float    "lerror"
+    t.string   "user_dev"
   end
 
   add_index "mposts", ["meet_id"], :name => "index_mposts_on_meet_id"
+  add_index "mposts", ["time"], :name => "index_mposts_on_time"
   add_index "mposts", ["user_id"], :name => "index_mposts_on_user_id"
 
   create_table "relationships", :force => true do |t|

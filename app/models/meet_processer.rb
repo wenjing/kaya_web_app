@@ -1,10 +1,11 @@
 # This is main meet processing class.
-# It is supposedly used as singleton class which will keep necessary data remain in memory.
+# It is supposy used as singleton class which will keep necessary data remain in memory.
 # It implements and hosts KayaTQueue module which allows outside objects to use queued mpost
 # processing and also a timer to periodly invoke a certain method.
 # It shall be initialized first, probally at the time when it is first invoked. When it is
 # initialied, KayaTQueue is also created and started ready to be used rightway.
 
+require 'singleton'
 require 'kaya_base'
 require 'kaya_tqueue'
 
@@ -23,28 +24,15 @@ require 'kaya_tqueue'
 #   occured_latest
 #   indexed by time
 
-
-# Use database to record history to be replayed for debugging purpose
-# Has to index basing on :time
-class MpostRecord < ActiveRecord::Base
-
-  def initialize
-    self.mpost_id = nil
-    self.time = nil
-  end
-
-end
-
-
-# Since KayaMeetProcesser is a singleton, it can not be used by delayed job (DJ)
+# Since MeetProcesser is a singleton, it can not be used by delayed job (DJ)
 # directly. Use this wrapper to bridge the gap. This wrap will be the one to pass
-# on jobs and call function in KayaMeetProcesser singleton.
+# on jobs and call function in MeetProcesser singleton.
 # Usage:
-#   KayaMeetWrapper.new.delayed.process_mpost(mpost)
-#   KayaMeetWrapper.new.delayed.setup_parameters(options)
-#   KayaMeetWrapper.new.delayed.start_record(1.day)
-#   KayaMeetWrapper.new.delayed.start_replay(Time.now-2.days, Time.now)
-class KayaMeetWrapper
+#   MeetWrapper.new.delayed.process_mpost(mpost)
+#   MeetWrapper.new.delayed.setup_parameters(options)
+#   MeetWrapper.new.delayed.start_record(1.day)
+#   MeetWrapper.new.delayed.start_replay(Time.now-2.days, Time.now)
+class MeetWrapper
 
   def initialize
   end
@@ -54,35 +42,35 @@ class KayaMeetWrapper
   end
 
   def process_mposts(mposts)
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcessor.instance
     meet_processer.queue.process_mpost(mpost)
   end
 
   def setup_parameters(options)
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcesser.instance
     meet_processer.queue.setup_parameters(options)
   end
 
   def start_record(duration)
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcesser.instance
     meet_processer.queue.start_record(duration)
   end
 
   def stop_record
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcesser.instance
     meet_processer.queue.stop_record(duration)
   end
 
   def start_replay(from_time, end_time)
     from_time = from_time.getutc if from_time
     to_time = to_time.getutc if to_time
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcesser.instance
     meet_processer.queue.start_replay(from_time, end_time)
   end
 
   # Terminate replay, called asynchronously
   def stop_replay
-    meet_processer = KayaMeetProcessor.meet_processer
+    meet_processer = MeetProcesser.instance
     meet_processer.terminate_replay
   end
 
@@ -101,20 +89,11 @@ class KayaMeetWrapper
 end
 
 
-class KayaMeetProcessor
+class MeetProcesser
 
+  include Singleton
   include KayaTQueue
 
-  # Make sure it only accept singleton
-  private_class_method :new
-
-  #tqueue_asynchronously :mpost_processer
-  # Do not specify for meet_processer, because it is called internally
-  # inside mpost_processer. We have to very careful not to queue a method
-  # inside a queued method.
-  # However, it is required to be queued for timer. Call queue.method directly.
-
-  @@meet_processer      = nil  # singelton meet processer
   @@timer_interval       = 1.0  # timer internal
   @@meet_duration_tight = 20   # fully counted if 2 mposts are trigger within time period
   @@meet_duration_loose = 60   # discounted within time period, different meets if exceed
@@ -132,16 +111,6 @@ class KayaMeetProcessor
   @@uni_connection_discount = 0.8 # discount if A see B but B does not see A
   # A member's coeff to the group can not be less than 20% of average
   @@coeff_vs_avg_threshold = 0.2
-
-  def self.meet_processer
-    if !@@meet_processer
-      @@meet_processer = KayaMeetProcessor.new
-      @@meet_processer.tqueue_start(@@timer_interval) {
-        @@meet_processer.queue.process_meets(true)
-      }
-    end
-    return @@meet_processer
-  end
 
   def setup_paramters(options)
     @@timer_interval       = options[:timer_interval]       if options[:timer_interval]
@@ -161,13 +130,15 @@ class KayaMeetProcessor
     @time_now = nil
     @last_meets_process_time = nil
     @cold_time = 0.0 # cold_time does not automatically start from limit, it grow from 0
-    @meet_pool = KayaMeetPool.new
+    @meet_pool = MeetPool.new
 
     @record_start_time = nil
     @record_end_time = nil
     @replay_start_time = nil
     @replay_end_time = nil
     @history_mutex = Mutex.new
+
+    tqueue_start(@@timer_interval) {queue.process_meets(true)}
   end
 
   # Mpost processer, right now, queued from controller directly.
@@ -216,7 +187,7 @@ class KayaMeetProcessor
   end
 
   def start_record(duration)
-    @record_start_time, @record_end_time = nil, nil
+    stop_record
     if (duration && duration > 0.0)
       stop_replay
       @record_start_time = Time.now.getutc
@@ -228,50 +199,54 @@ class KayaMeetProcessor
 
   def stop_record
     if is_recoding?
-      debug(:record, 1, "stop record at %s", Time.now.getutc)
-      start_record(nil)
+      debug(:record, 1, "stop recording at %s", Time.now.getutc)
+      @record_start_time, @record_end_time = nil, nil
     end
   end
 
   def start_replay(start_time, end_time)
-    @replay_start_time, @replay_end_time = nil, nil
-    @replay_terminated = false
-    if (start_time && !end_time || (start_time < end_time))
+    end_time ||= Time.now.getutc
+    stop_replay
+    if (start_time && (start_time < end_time))
       stop_record
-      @replay_start_time = start_time
-      @replay_end_time = end_time ? end_time : Time.now.getutc
-      @tqueue_timer.pause
-      debug(:replay, 1, "start recording from %s to %s",
-            @record_start_time, @record_end_time)
+      @replay_start_time, @replay_end_time = start_time, end_time
       records = MpostRecord.where(":timer >= ? AND :time <= ?",
-                                        @replay_start_time, @replay_end_time)
-      debug(:replay, 2, "replaying %d %s",
-            records.size, pluralize(records.size, "record"))
-      for record in records
-        # Check if it is stopped (asynchronously)
-        @history_mutex.safe_lock {stop_replay if @replay_terminated}
-        break unless is_replaying?
-        if record.mpost_id
-          process_mposts([record.mpost_id], record.time)
-        else
-          process_meets(false, record.time)
+                                  @replay_start_time, @replay_end_time)
+      if !records.empty?
+        @tqueue_timer.pause
+        flash_cached
+        debug(:replay, 1, "replaying %d %s from %s to %s",
+              records.size, pluralize(records.size, "record"),
+              @replay_start_time, @replay_end_time)
+        @history_mutex.safe_run {@replay_terminated = false}
+        for record in records
+          # Check if it is stopped (asynchronously)
+          terminated = false
+          @history_mutex.safe_run {stop_replay if @replay_terminated}
+          break unless is_replaying?
+          if record.mpost_id
+            process_mposts([record.mpost_id], record.time)
+          else
+            process_meets(false, record.time)
+          end
         end
+        stop_replay
+        flash_cached
+        @tqueue_timer.resume
       end
-      stop_replay
-      @tqueue_timer.resume
       debug(:replay, 2, "done replaying")
     end
   end
 
   def stop_replay
     if is_replaying?
-      debug(:replay, 1, "stop replay at %s", Time.now.getutc)
-      start_replay(nil, nil)
+      debug(:replay, 1, "stop replaying at %s", Time.now.getutc)
+      @replay_start_time, @replay_end_time = nil, nil
     end
   end
 
   def terminate_replay
-    @replay_mutex.safe_lock {@replay_terminated = true}
+    @replay_mutex.safe_run {@replay_terminated = true}
   end
 
   def is_recording?
@@ -283,6 +258,14 @@ class KayaMeetProcessor
   end
 
 private
+
+  # Get rid of cached data
+  def flash_cached
+    @time_now = nil
+    @last_meets_process_time = nil
+    @cold_time = 0.0 # cold_time does not automatically start from limit, it grow from 0
+    @meet_pool = MeetPool.new
+  end
 
   def record_mposts(mpost_ids)
     # Can not record during replay
@@ -463,7 +446,7 @@ private
   def assign_mpost_to_meets_if_possible(mpost, meets)
     candidates = Hash.new
     meets.each {|meet|
-      relation = KayaRelation.new
+      relation = MeetRelation.new
       relation.populate_from_meet_for_mposts(meet, [mpost], method(:coeff_calculator))
       coeff_gain = relation.proceed(method(:pass_coeff_criteria_simple?))
       if (coeff_gain > 0.0)
@@ -518,7 +501,7 @@ private
           # Too early, wait until it cool down a bit
           skipped_clusters << cluster
         else
-          relation = KayaRelation.new
+          relation = MeetRelation.new
           relation.populate_from_clusers(cluster, method(:coeff_calculator))
           coeff_gain = relation.proceed(method(:pass_coeff_criteria_normal?))
           if coeff_gain > 0.0
@@ -583,7 +566,7 @@ private
 
 end
 
-class KayaMasterMpost
+class MeetMasterMpost
 
   attr_accessor :self_mpost, :device_mpost
 
@@ -603,7 +586,7 @@ class KayaMasterMpost
 
 end
 
-class KayaCluster
+class MeetCluster
 
   attr_accessor :meet, :youngest_mpost, :older_mpost, :mposts, :master_mpost
 
@@ -612,7 +595,7 @@ class KayaCluster
     self.youngest_mpost = nil
     self.oldest_mpost = nil
     self.mposts = Set.new
-    self.master_mpost = Mpost.new
+    self.master_mpost = MeetMasterMpost.new
     if options[:mpost]
       self << options[:mpost]
     end
@@ -647,7 +630,7 @@ class KayaCluster
 end
 
 
-class KayaMeetPool
+class MeetPool
 
   attr_accessor :raw_clusters, :processed_clusters, :pending_mposts
 
@@ -660,12 +643,12 @@ class KayaMeetPool
   def dump_debug(type)
     if is_debug?(type, 1)
       debug(type, 1, "meet pool information:")
-      nondebug("\thas %d %s", 
-               raw_cluster.size, pluralize(raw_clusters.size, "raw_cluster"))
-      nondebug("\thas %d %s", 
-               processed_cluster.size, pluralize(processed_clusters.size, "processed_cluster"))
-      nondebug("\thas %d %s", 
-               pending_mposts.size, pluralize(pending_mposts.size, "pending_mpost"))
+      cdebug("\thas %d %s", 
+             raw_cluster.size, pluralize(raw_clusters.size, "raw_cluster"))
+      cdebug("\thas %d %s", 
+             processed_cluster.size, pluralize(processed_clusters.size, "processed_cluster"))
+      cdebug("\thas %d %s", 
+             pending_mposts.size, pluralize(pending_mposts.size, "pending_mpost"))
       dump_debug_clusters(type, "raw", raw_clusters)
       dump_debug_clusters(type, "processed", processed_clusters)
       dump_debug_mposts(type, "pending", pending_mposts)
@@ -678,13 +661,12 @@ class KayaMeetPool
       index = 0
       clusters.each {|cluster|
         # :meet, :youngest_mpost, :older_mpost, :mposts, :master_mpost
-        nondebug("\tcluster %d:", index)
-        nondebug("\t  %s with %d %s from %s to %s",
-                 (cluster.is_procesed? ? "processed" : "raw"),
-                 cluster.mposts.size, 
-                 pluralize(cluster.mposts.size, "mpost"),
-                 (cluster.oldest_mpost?cluster.oldest_mpost.trigger_time:"---"),
-                 (cluster.youngest_mpost?cluster.youngest_mpost.trigger_time:"---"))
+        cdebug("\tcluster %d:", index)
+        cdebug("\t  %s with %d %s from %s to %s",
+               (cluster.is_procesed? ? "processed" : "raw"),
+               cluster.mposts.size, pluralize(cluster.mposts.size, "mpost"),
+               (cluster.oldest_mpost?cluster.oldest_mpost.trigger_time:"---"),
+               (cluster.youngest_mpost?cluster.youngest_mpost.trigger_time:"---"))
         index += 1
       }
     end
@@ -696,12 +678,11 @@ class KayaMeetPool
       index = 0
       mposts.each {|mpost|
         # :trigger_time, :devs, :location
-        nondebug("\tmpost %d:", index)
-        nondebug("\t  %s %d with %d %s triggered at %s",
-                 (mpost.is_procesed? ? "processed" : "raw"),
-                 mpost.devs.size, 
-                 pluralize(mpost.devs.size, "device"),
-                 mpost.trigger_time)
+        cdebug("\tmpost %d:", index)
+        cdebug("\t  %s %d with %d %s triggered at %s",
+               (mpost.is_procesed? ? "processed" : "raw"),
+               mpost.devs.size, pluralize(mpost.devs.size, "device"),
+               mpost.trigger_time)
         index += 1
       }
     end
@@ -717,7 +698,7 @@ class KayaMeetPool
   end
 
   def create_raw_cluster(options)
-    cluster = KayaCluster.new(options)
+    cluster = MeetCluster.new(options)
     raw_clusters << cluster
     return cluster
   end
@@ -779,7 +760,7 @@ class KayaMeetPool
       break if !cluster.mposts.empty? # all processed
       # Get a new set of related mposts from remaining mposts
       mposts = Set.new
-      master_mpost = KayaMasterMessge.new
+      master_mpost = MeetMasterMpost.new
       cluster.mposts.each {|mpost|
         if (mposts.empty? || master_mpost.see_or_be_seen?(mpost))
           mposts << mpost
@@ -799,7 +780,7 @@ class KayaMeetPool
 
 end
 
-class KayaRelation
+class MeetRelation
 
   attr_accessor :graph, :pending, :seeded, :coeff_stats
 
@@ -821,7 +802,7 @@ class KayaRelation
       graph[mpost] = Array.new
       # Fillin seeds with meet.mposts. Since meet can not be re-configured, they
       # all have infinite coeff values.
-      seeded[mpost] = KayaMeetProcessor.infinite_coeff
+      seeded[mpost] = MeetProcessor.infinite_coeff
     }
 
     messgaes.each {|mpost|

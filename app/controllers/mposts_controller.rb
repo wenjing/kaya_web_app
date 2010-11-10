@@ -1,3 +1,4 @@
+require 'meet_processer'
 
 class MpostsController < ApplicationController
   skip_before_filter :verify_authenticity_token

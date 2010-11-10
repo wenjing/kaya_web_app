@@ -7,6 +7,7 @@
 # lifting shall only be done by process thread.
 
 require 'active_support/core_ext/module/aliasing'
+require 'kaya_base'
 require 'kaya_timer'
 
 module KayaTQueue
@@ -28,19 +29,31 @@ module KayaTQueue
       @tqueue_options = options
       @tqueue_queue = Queue.new
       @tqueue_process_thread = Thread.new {
-        performable_method = @tqueue_queue.pop
-        performable_method.perform
+        while true
+          payload = @tqueue_queue.pop
+          performable_method = payload[:payload_object]
+          #options = payload.delete(:payload_object)
+          performable_method.perform
+        end
       }
-      if interval > 0.0
+      if interval > 0.0 && timer_block
         @tqueue_timer = KayaTimer.new(:interval=>interval)
         @tqueue_timer.start({}, &timer_block)
       end
+      debug(:tqueue, 1, "started tqueue %sat %s",
+            (@tqueue_timer ? "with timer #{format("%.2fs", interval.to_f)}" : ""),
+            Time.now.getutc)
+
     end
   end
 
   def tqueue_end
-    @tqueue_process_thread.terminate
-    @tqueue_timer.stop
+    if tqueue_started?
+      @tqueue_process_thread.terminate
+      @tqueue_process_thread.terminate.join
+      @tqueue_timer.stop if @tqueue_timer
+      debug(:tqueue, 1, "ended tqueue at %s", Time.now.getutc)
+    end
     @tqueue_options = nil
     @tqueue_queue = nil
     @tqueue_process_thread = nil
@@ -50,33 +63,46 @@ module KayaTQueue
   alias_method :tqueue_check_start, :tqueue_start
 
   # Proxy class so we can call a method of myclass.mymethod by myclass.tqueue.mymethod
-  class TQueueProxy < Struct.new(:queue, :target, :options)
+  class TQueueProxy
+    attr_accessor :queue, :target, :options
     def initialize(queue, target, options)
       self.queue   = queue
       self.target  = target
       self.options = options
     end
-    def method_missing(method, *args)
-      queue.push({:payload_object => PreformableMethod.new(target, method.to_sym, args)}.merge(options))
+    def method_missing(method, *args, &block)
+      # This could be call when tqueue is not started yet. In such case, the queue will be nil.
+      # We shall not panic, just simply ignore it.
+      if queue
+        performable = PerformableMethod.new(target, method, args, block)
+        queue.push(options.merge(:payload_object=>performable))
+        debug(:tqueue, 2, "pushed into queue for method %s %s %s on class %s",
+              method.to_s, args.to_s, block.to_s, target.class.to_s)
+      end
     end
   end
 
   def tqueue(options={})
     queue = options.delete(:queue)
     queue ||= @tqueue_queue
-    all_options = @tqueue_options.clone; all_options.merge!(@options)
+    all_options = options.clone
+    all_options.merge!(@tqueue_options) if @tqueue_options
     TQueueProxy.new(queue, self, all_options)
   end
 
-  class PerformableMethod < Struct.new(:object, :method_name, :args)
-    def initialize(object, method_name, args)
-      raise NoMethodError, "undefined method `#{method_name}' for #{object.inspect}" unless object.respond_to?(method_name, true)
+  class PerformableMethod
+    attr_accessor :object, :method, :args, :block
+    def initialize(object, method, args, block)
+      raise NoMethodError, "undefined method `#{method}' for #{object.inspect}" unless object.respond_to?(method, true)
       self.object       = object
+      self.method       = method.to_sym
       self.args         = args
-      self.method_name  = method_name.to_sym
+      self.block        = block
     end
     def perform
-      object.send(method_name, *args) if object
+      object.send(method, *args, &block) if object
+      debug(:tqueue, 2, "invoked method %s %s %s on class %s from queue",
+            method.to_s, args.to_s, block.to_s, object.class.to_s)
     end
     def respond_to?(symbol, include_private=false)
       super || object.respond_to?(symbol, include_private)
@@ -101,4 +127,12 @@ module KayaTQueue
     end
   end
 
+end
+
+
+class KayaTQueueTest
+  include KayaTQueue
+  def run(&block)
+    block.call if block
+  end
 end

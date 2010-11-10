@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20101027191028
+# Schema version: 20101109025524
 #
 # Table name: mposts
 #
@@ -9,10 +9,11 @@
 #  time       :datetime
 #  lng        :decimal(, )
 #  lat        :decimal(, )
-#  user_dev   :text
 #  devs       :text
 #  created_at :datetime
 #  updated_at :datetime
+#  lerror     :float
+#  user_dev   :string(255)
 #
 
 class Mpost < ActiveRecord::Base
@@ -25,6 +26,7 @@ class Mpost < ActiveRecord::Base
   validates :user_id, :presence => true
   validates :lng, :presence => true
   validates :lat, :presence => true
+  validates :lerror, :presence => true
   validates :user_dev, :presence => true, :length => { :maximum => 200 }  
   validates :devs, :presence => true, :length => { :maximum => 40000 } # at least 200 devs  
 

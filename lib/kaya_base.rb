@@ -12,40 +12,52 @@ module KayaBase
     return `ps -o rss= -p #{Process.pid}`.to_i/1024.0
   end
   def memory_usage_str
-    return ("%.3f" % memory_usage) + "M"
+    return format("%.3f", memory_usage) + "M"
   end
 
   def cpu_time
     return Benchmark.times.utime + Benchmark.times.stime
   end
   def cpu_time_str
-    return ("%.3f" % cpu_time) + "s"
+    return format("%.3f", cpu_time) + "s"
   end
 
   class KayaDebug
-    @debug_levels = Hash
-    def debug(type, level, *what)
-      debug_level = @debug_options.empty? ? nil : @debug_options[type]
-      if (debug_level && debug_level <= level) 
-        text = type.to_s+": "+format(*what)
-        logger.add Logger::INFO, "#{text}" if logger
+    private_class_method :new
+    @debug_levels = Hash.new
+    def self.debug(type, level, *what)
+      return if @debug_levels.empty?
+      if is_debug?(type, level)
+        text = "[#{type.to_s.camelize} #{level.to_s}] "+format(*what)
+        #text = "[#{type.to_s.humanize} #{level.to_s}] "+format(*what)
+        #text = "[#{type.to_s.titlize} #{level.to_s}] "+format(*what)
+        puts text
+        Rails.logger.add(Logger::DEBUG, "#{text}") if Rails.logger
       end
     end
-    def set_debug(type, level)
+    def self.set_debug(type, level)
       @debug_levels[type] = level
     end
-    def set_debugs(levels)
+    def self.set_debugs(levels)
       @debug_levels[type].merge(levels)
     end
-    def clear_debug(type=nil)
+    def self.clear_debug(type=nil)
       if type
-        @debug_levels.clear
-      else
         @debug_levels.delete(type)
+      else
+        @debug_levels.clear
       end
     end
-    def is_debug?(type, level)
-      return !@debug_options.empty && @debug_options[type] && @debug_options[type] <= level
+    def self.is_debug?(type, level)
+      return false if @debug_levels.empty?
+      debug_level = @debug_levels[type]
+      debug_level ||= @debug_levels[:all]
+      return (debug_level && level <= debug_level)
+    end
+    def self.what_debugs
+      @debug_levels.each_pair {|type, level|
+        puts "[#{type.to_s.camelize} #{level.to_s}] "
+      }
     end
   end
 
@@ -64,14 +76,17 @@ module KayaBase
   def is_debug?(type, level)
     return KayaDebug.is_debug?(type, level)
   end
-  def nondebug(*what)
+  def cdebug(*what)
     text = format(*what)
     puts text
-    logger.add Logger::INFO, "#{text}" if logger
+    Rails.logger.add(Logger::DEBUG, "#{text}") if Rails.logger
+  end
+  def what_debugs
+    return KayaDebug.what_debugs
   end
 
   # Prevent them be implemented into class as mixin
-  module_function :debug, :set_debug, :set_debugs, :clear_debug,
+  module_function :debug, :set_debug, :set_debugs, :clear_debug, :is_debug?, :cdebug, :what_debugs,
                   :select_if_not_nil, :cpu_time, :cpu_time_str,
                   :memory_usage, :memory_usage_str
 
@@ -118,12 +133,20 @@ end  #  module Enumerable
 
 class Mutex
 
+  def safe_run(&block)
+    safe_lock
+    block.call if block
+    safe_unlock
+  end
+
   def safe_lock(&block)
     begin
       lock
     rescue ThreadError
     end
-    block.call
+  end
+
+  def safe_unlock
     begin
       unlock
     rescue ThreadError
