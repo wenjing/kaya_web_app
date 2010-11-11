@@ -1,3 +1,5 @@
+require 'rubygems'
+require 'geokit'
 
 class MpostsController < ApplicationController
   skip_before_filter :verify_authenticity_token
@@ -12,16 +14,19 @@ class MpostsController < ApplicationController
       # for testing, i'm creating one meet for each mpost
       # we create the meet, and associate it with the mpost
       #
+      # First, reverse geocode from google
+      geo = Geokit::Geocoders::GoogleGeocoder::geocode(@mpost.lat.to_s+','+@mpost.lng.to_s)
+
       @meet = Meet.create!(
         :name => "Test meeting",
         :description => "Testing meeting with a mobile post only",
         :time => Time.now,
-        :location => "Testing place - no location",
-        :street_address => "100 Main Street",
-        :city => "Any Town",
-        :state => "CA",
-        :zip => "95054",
-        :country => "USA",
+        :location => geo.full_address,
+        :street_address => geo.street_name,
+        :city => geo.city,
+        :state => geo.state,
+        :zip => geo.zip,
+        :country => geo.country,
         :lng => @mpost.lng,
         :lat => @mpost.lat,
         :users_count => 1,
