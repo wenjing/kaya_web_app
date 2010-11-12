@@ -27,7 +27,7 @@ class KayaTimer
       @run_block = block
       @timer_mutex = Mutex.new
       @timer_pauser = Mutex.new
-      @timer_thread = Thread.new {
+      @timer_thread = Thread.trace_new {
         start_countdown = start_cycle
         end_countdown = shall_check_end_cycle? ? (end_cycle+1) : 1
         while end_countdown > 0
@@ -35,7 +35,7 @@ class KayaTimer
           if start_countdown <= 0
             # Critital area to prevent conflict with main thread while run the block
             # However, it does not prevent between different timers, need to lock inside block
-            debug(:kaya_timer, 2, "timer run at %s", Time.now.getutc)
+            debug(:kaya_timer, 2, "timer started ticking at %s", Time.now.getutc)
             critical {@run_block.call}
           else
             start_countdown -= 1

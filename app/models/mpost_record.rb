@@ -14,6 +14,7 @@
 # Has to index basing on :time
 class MpostRecord < ActiveRecord::Base
 
-  validates :time, :presence => true
+  validates :mpost_id, :numericality => { :allow_nil => true, :greater_than => 0, :only_integer => true }
+  validates :time, :presence => { :message => "date time missing or unrecognized format" }
 
 end

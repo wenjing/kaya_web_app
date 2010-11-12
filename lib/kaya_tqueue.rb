@@ -22,13 +22,13 @@ module KayaTQueue
     @tqueue_queue != nil && @tqueue_process_thread != nil
   end
 
-  def tqueue_start(interval=0.0, options={}, &timer_block)
+  def tqueue_start(interval=0.0, start_cycle=0, options={}, &timer_block)
     # If it is already started, doing nothing here
     if !tqueue_started?
       tqueue_end # make sure we cleaned up everything
       @tqueue_options = options
       @tqueue_queue = Queue.new
-      @tqueue_process_thread = Thread.new {
+      @tqueue_process_thread = Thread.trace_new {
         while true
           payload = @tqueue_queue.pop
           performable_method = payload[:payload_object]
@@ -38,10 +38,10 @@ module KayaTQueue
       }
       if interval > 0.0 && timer_block
         @tqueue_timer = KayaTimer.new(:interval=>interval)
-        @tqueue_timer.start({}, &timer_block)
+        @tqueue_timer.start({:start_cycle=>start_cycle}, &timer_block)
       end
-      debug(:tqueue, 1, "started tqueue %sat %s",
-            (@tqueue_timer ? "with timer #{format("%.2fs", interval.to_f)}" : ""),
+      debug(:kaya_tqueue, 1, "started tqueue %sat %s",
+            (@tqueue_timer ? "with timer #{format("%.2fs", interval.to_f)} " : ""),
             Time.now.getutc)
 
     end
@@ -50,9 +50,9 @@ module KayaTQueue
   def tqueue_end
     if tqueue_started?
       @tqueue_process_thread.terminate
-      @tqueue_process_thread.terminate.join
+      @tqueue_process_thread.join
       @tqueue_timer.stop if @tqueue_timer
-      debug(:tqueue, 1, "ended tqueue at %s", Time.now.getutc)
+      debug(:kaya_tqueue, 1, "ended tqueue at %s", Time.now.getutc)
     end
     @tqueue_options = nil
     @tqueue_queue = nil
@@ -76,7 +76,7 @@ module KayaTQueue
       if queue
         performable = PerformableMethod.new(target, method, args, block)
         queue.push(options.merge(:payload_object=>performable))
-        debug(:tqueue, 2, "pushed into queue for method %s %s %s on class %s",
+        debug(:kaya_tqueue, 2, "pushed into queue for method %s %s %s on class %s",
               method.to_s, args.to_s, block.to_s, target.class.to_s)
       end
     end
@@ -101,7 +101,7 @@ module KayaTQueue
     end
     def perform
       object.send(method, *args, &block) if object
-      debug(:tqueue, 2, "invoked method %s %s %s on class %s from queue",
+      debug(:kaya_tqueue, 2, "invoked method %s %s %s on class %s from queue",
             method.to_s, args.to_s, block.to_s, object.class.to_s)
     end
     def respond_to?(symbol, include_private=false)

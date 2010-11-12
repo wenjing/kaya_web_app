@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101109025524) do
+ActiveRecord::Schema.define(:version => 20101111214254) do
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -22,12 +22,13 @@ ActiveRecord::Schema.define(:version => 20101109025524) do
     t.string   "state"
     t.string   "zip"
     t.string   "country"
-    t.decimal  "lng"
-    t.decimal  "lat"
     t.integer  "users_count"
     t.string   "image_url"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.decimal  "lng",            :precision => 15, :scale => 10
+    t.decimal  "lat",            :precision => 15, :scale => 10
+    t.float    "lerror"
   end
 
   add_index "meets", ["time"], :name => "index_meets_on_time"
@@ -54,13 +55,13 @@ ActiveRecord::Schema.define(:version => 20101109025524) do
     t.integer  "user_id"
     t.integer  "meet_id"
     t.datetime "time"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.text     "devs"
     t.datetime "created_at"
     t.datetime "updated_at"
     t.float    "lerror"
     t.string   "user_dev"
+    t.text     "devs",       :limit => 50000
+    t.decimal  "lng",                         :precision => 15, :scale => 10
+    t.decimal  "lat",                         :precision => 15, :scale => 10
   end
 
   add_index "mposts", ["meet_id"], :name => "index_mposts_on_meet_id"

@@ -13,9 +13,10 @@ require 'kaya_tqueue'
 #   trigger_time: already converted into utc, has to be reconverted back to local time for display
 #   is_processed?
 #   see?(another_mposts)
-#   be_seen?(another_mposts)
-#   see_or_be_seen?(another_mposts)
-#   merge_devs(devs)
+#   seen_by?(another_mposts)
+#   see_or_seen_by?(another_mposts)
+#   add_devs(devs)
+#   add_dev(dev)
 #
 # Required functions in Meet:
 #   mposts
@@ -42,30 +43,30 @@ class MeetWrapper
   end
 
   def process_mposts(mposts)
-    meet_processer = MeetProcessor.instance
-    meet_processer.queue.process_mpost(mpost)
+    meet_processer = MeetProcesser.instance
+    meet_processer.tqueue.process_mposts(mposts)
   end
 
   def setup_parameters(options)
     meet_processer = MeetProcesser.instance
-    meet_processer.queue.setup_parameters(options)
+    meet_processer.tqueue.setup_parameters(options)
   end
 
   def start_record(duration)
     meet_processer = MeetProcesser.instance
-    meet_processer.queue.start_record(duration)
+    meet_processer.tqueue.start_record(duration)
   end
 
   def stop_record
     meet_processer = MeetProcesser.instance
-    meet_processer.queue.stop_record(duration)
+    meet_processer.tqueue.stop_record(duration)
   end
 
-  def start_replay(from_time, end_time)
-    from_time = from_time.getutc if from_time
-    to_time = to_time.getutc if to_time
+  def start_replay(start_time, end_time)
+    start_time = start_time.getutc if start_time
+    end_time = end_time.getutc if end_time
     meet_processer = MeetProcesser.instance
-    meet_processer.queue.start_replay(from_time, end_time)
+    meet_processer.tqueue.start_replay(from_time, end_time)
   end
 
   # Terminate replay, called asynchronously
@@ -94,25 +95,33 @@ class MeetProcesser
   include Singleton
   include KayaTQueue
 
-  @@timer_interval       = 1.0  # timer internal
+  cattr_accessor :infinite_coeff, :meet_duration_loose
+
+  @@timer_interval      = 1.0  # timer internal
   @@meet_duration_tight = 20   # fully counted if 2 mposts are trigger within time period
   @@meet_duration_loose = 60   # discounted within time period, different meets if exceed
-  # Process a raw cluster if its oldest mpost exceed limit AND has not receive new mpost
+  # Process a raw cluster if its earliest mpost exceed limit AND has not receive new mpost
   # for a while
   @@hot_time_idle        = 5.0
   @@hot_time_threshold   = 15.0
-  @@hot_time_limit       = 30.0 # force to process a raw cluster if oldest mpost exceed limit
+  @@hot_time_limit       = 30.0 # force to process a raw cluster if earliest mpost exceed limit
   @@cold_time_limit      = 3600.0  # freeze processe clusters older than limit
   # Shall be much larger than meet_duration_loose, 10 mins
   @@cold_time_margin = [@@meet_duration_loose*5, 600.0].max
   # Exponentially decay starting from duration_tight to durantion_loose to 10% of original value
-  @@delta_time_discounts = (0..100).map {|x| ((100.0-x)**2/10000.0+1.0/9.0)/(1.0+1.0/9.0)}
-  @@infinite_coeff = 1000000.0  # infinite coeff value
+  @@delta_time_discounts  = (0..100).map {|x| ((100.0-x)**2/10000.0+1.0/9.0)/(1.0+1.0/9.0)}
+  @@infinite_coeff        = 1000000.0  # infinite coeff value
   @@uni_connection_discount = 0.8 # discount if A see B but B does not see A
   # A member's coeff to the group can not be less than 20% of average
   @@coeff_vs_avg_threshold = 0.2
 
-  def setup_paramters(options)
+  @@timer_interval       = 5.0  # timer internal
+  #@@hot_time_idle        = 5.0
+  #@@hot_time_threshold   = 10.0
+  #@@hot_time_limit       = 15.0
+  @@cold_time_limit      = 50.0  # freeze processe clusters older than limit
+
+  def setup_parameters(options)
     @@timer_interval       = options[:timer_interval]       if options[:timer_interval]
     @@meet_duration_tight = options[:meet_duration_tight] if options[:meet_duration_tight]
     @@meet_duration_loose = options[:meet_duration_loose] if options[:meet_duration_loose]
@@ -127,18 +136,22 @@ class MeetProcesser
   end
 
   def initialize
-    @time_now = nil
-    @last_meets_process_time = nil
-    @cold_time = 0.0 # cold_time does not automatically start from limit, it grow from 0
-    @meet_pool = MeetPool.new
-
+    fresh_start
     @record_start_time = nil
     @record_end_time = nil
     @replay_start_time = nil
     @replay_end_time = nil
     @history_mutex = Mutex.new
+    tqueue_start(@@timer_interval, 2) {tqueue.process_meets(true)}
+  end
 
-    tqueue_start(@@timer_interval) {queue.process_meets(true)}
+  def empty?
+    return @meet_pool.empty?
+  end
+
+  def dump_debug()
+    @meet_pool.dump_debug(:processer)
+    debug(:processer, 1, "elapsed time from start %s", get_elapse_time)
   end
 
   # Mpost processer, right now, queued from controller directly.
@@ -153,17 +166,12 @@ class MeetProcesser
     @time_now = Time.now.getutc # centralized standard now time
     @time_now = record_time_now if record_time_now
     debug(:processer, 1, "%s %s %s at %s",
-          (record_time_now ? "receive" : "replay"), pluralize(mposts.size, "mpost"),
+          (record_time_now ? "replay" : "received"), pluralize(mposts.size, "mpost"),
           mposts.join(","), @time_now)
-    record_mposts(mpost)
+    record_mposts(mposts)
     mposts.each {|mpost_id|
-      begin
-        mpost = Mpost.find_by_id(mpost_id)
-        process_mpost_core(mpost)
-      rescue
-        # Don't let database exception ruins it. Let it pass silently
-        error("Mpost ? not found in database", mpost_id)
-      end
+      mpost = Mpost.find_by_id(mpost_id)
+      process_mpost_core(mpost) if mpost
     }
     process_meets # shall we call process_meets for every new mpost?
   end
@@ -173,16 +181,17 @@ class MeetProcesser
   def process_meets(from_timer=false, record_time_now=nil)
     # If it is triggered from timer, make sure enough time has passed since last
     # time it is called
+    return if @meet_pool.empty?
     if is_timer_interval_ok?(from_timer)
       if from_timer
         @time_now = Time.now.getutc
         @time_now = record_time_now if record_time_now
       end
       debug(:processer, 1, "%s meet processing %sat %s",
-            (record_time_now ? "receive" : "replay"),
-            (from_timer ? "from timer" : ""), @time_now)
+            (record_time_now ? "replay" : "received"),
+            (from_timer ? "from timer " : ""), @time_now)
       record_mposts(nil)
-      process_meets_core()
+      process_meets_core
     end
   end
 
@@ -210,13 +219,13 @@ class MeetProcesser
     if (start_time && (start_time < end_time))
       stop_record
       @replay_start_time, @replay_end_time = start_time, end_time
-      records = MpostRecord.where(":timer >= ? AND :time <= ?",
+      records = MpostRecord.where("time >= ? AND time <= ?",
                                   @replay_start_time, @replay_end_time)
       if !records.empty?
         @tqueue_timer.pause
-        flash_cached
-        debug(:replay, 1, "replaying %d %s from %s to %s",
-              records.size, pluralize(records.size, "record"),
+        fresh_start
+        debug(:replay, 1, "replaying %s from %s to %s",
+              pluralize(records.size, "record"),
               @replay_start_time, @replay_end_time)
         @history_mutex.safe_run {@replay_terminated = false}
         for record in records
@@ -224,14 +233,14 @@ class MeetProcesser
           terminated = false
           @history_mutex.safe_run {stop_replay if @replay_terminated}
           break unless is_replaying?
-          if record.mpost_id
+          if record.mpost_id?
             process_mposts([record.mpost_id], record.time)
           else
             process_meets(false, record.time)
           end
         end
         stop_replay
-        flash_cached
+        fresh_start
         @tqueue_timer.resume
       end
       debug(:replay, 2, "done replaying")
@@ -260,10 +269,10 @@ class MeetProcesser
 private
 
   # Get rid of cached data
-  def flash_cached
-    @time_now = nil
+  def fresh_start
+    @start_time = nil
+    @time_now   = nil
     @last_meets_process_time = nil
-    @cold_time = 0.0 # cold_time does not automatically start from limit, it grow from 0
     @meet_pool = MeetPool.new
   end
 
@@ -291,7 +300,7 @@ private
     curr_time = Time.now.getutc
     if (from_timer &&
         @last_meets_process_time &&
-        (curr_time-@llast_meets_process_time) < @@timer_interval/2.0)
+        (curr_time-@last_meets_process_time) < @@timer_interval/2.0)
       return false
     end
     @last_meets_process_time = curr_time
@@ -299,20 +308,20 @@ private
   end
 
   def mpost_time_from_now(mpost)
-    return mpost ? [@time_now-mpost.trgger_time, 0.0].max : 0.0
+    return mpost ? [@time_now-mpost.trigger_time, 0.0].max : 0.0
   end
 
   #def meet_time_from_now(meet)
-  #  return meet ? [mpost_time_from_now(meet.youngest_mpost),
-  #                  mpost_time_from_now(meet.oldest_mpost)],
+  #  return meet ? [mpost_time_from_now(meet.latest_mpost),
+  #                  mpost_time_from_now(meet.earliest_mpost)],
   #                 [0.0, 0.0]
   #end
 
   def shall_process_cluster?(cluster)
     return !cluster.is_processed? &&
-           (mpost_time_from_now(cluster.youngest_mpost) > @@hot_time_idle &&
-            mpost_time_from_now(cluster.oldest_mpost) > @@hot_time_threshold) ||
-           mpost_time_from_now(cluster.oldest_mpost) > @@hot_time_limit
+           (mpost_time_from_now(cluster.latest_mpost) > @@hot_time_idle &&
+            mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_threshold) ||
+           mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_limit
   end
 
   def delta_time_discount(time_delta)
@@ -326,31 +335,45 @@ private
   # Must be only in database, skip checking on memory. No risk to cause
   # database and memory out-of-sync
   def is_definitely_cold?(mpost)
-    return mpost_time_from_now(mpost) > @cold_time + @@cold_time_margin
+    return mpost_time_from_now(mpost) > @@cold_time_limit + @@cold_time_margin
   end
 
   # Must be on memory (though may be also in database), skip checking database
   # even found no match on memory. After it is processed, memory and database will
   # be in-sync.
+  # However, the cold_time is not necessary to be cold_time_limit all the time.
+  # When processer just started or refreshed, cold time is 0. It gradually
+  # grows upto limit. Acutall cold time is the min of elasped time and the limit.
   def is_definitely_warm?(mpost)
-    return mpost_time_from_now(mpost) < @cold_time - @@cold_time_margin
+    cold_time = [@@cold_time_limit, get_elapse_time].min
+    return mpost_time_from_now(mpost) < cold_time - @@cold_time_margin
+  end
+
+  # Time lapse from processer fresh start time until now.
+  def get_elapse_time
+    @start_time ||= @time_now
+    return @time_now - @start_time
   end
 
   def is_cluster_cold?(cluster)
     return cluster.is_processed? &&
-           mpost_time_from_now(cluster.yougest_mpost) > @@cold_time_limit
+           mpost_time_from_now(cluster.earliest_mpost) > @@cold_time_limit
   end
 
   def assign_mposts_to_meet(mposts, meet)
     mposts.each {|mpost| meet.mposts << mpost}
     meet.extract_information
     meet.save
+    debug(:processer, 2, "created new meet %d from %s",
+          meet.id, pluralize(mposts.size, "mpost"))
   end
 
   def assign_mpost_to_meet(mpost, meet)
     meet.mposts << mpost
     meet.extract_information
     meet.save
+    debug(:processer, 2, "created new meet %d from %s",
+          meet.id, pluralize(1, "mpost"))
   end
 
   def create_meet_from_mposts(mposts)
@@ -367,11 +390,11 @@ private
 
   def get_meets_around_mpost(mpost)
     return get_meets_by_range(mpost.trigger_time - @@meet_duration_loose,
-                               mpost.trigger_time + @@meet_duration_loose)
+                              mpost.trigger_time + @@meet_duration_loose)
   end
 
   def get_meets_by_range(from, to)
-    return Meet.where(":occured_latest => ? AND :occured_earliest <= ?", from, to)
+    return Meet.where("time >= ? AND time <= ?", from, to)
   end
 
 # Core algorithm functions.
@@ -434,7 +457,7 @@ private
   end
 
   def coeff_calculator(from, to)
-    time_delta = (member.trigger_time-group_member.grigger_time).abs
+    time_delta = (from.trigger_time-to.trigger_time).abs
     connect = 0
     connect += 1 if from.see?(to)
     connect += 1 if to.see?(from)
@@ -447,8 +470,8 @@ private
     candidates = Hash.new
     meets.each {|meet|
       relation = MeetRelation.new
-      relation.populate_from_meet_for_mposts(meet, [mpost], method(:coeff_calculator))
-      coeff_gain = relation.proceed(method(:pass_coeff_criteria_simple?))
+      relation.populate_from_meet_for_mposts(meet, [mpost], &method(:coeff_calculator))
+      coeff_gain = relation.proceed(&method(:pass_coeff_criteria_simple?))
       if (coeff_gain > 0.0)
         candidates[meet] = [coeff_gain, meet.mposts.size]
       end
@@ -481,37 +504,41 @@ private
     return false
   end
 
-  def assign_mpost_to_cold_meets(mpost)
+  def assign_mpost_to_cold_meets_if_possible(mpost)
     # First, get all candidate meets which this mpost could assigned to
     meets = get_meets_around_mpost(mpost)
-    if !assign_mpost_to_meets_if_possible(mpost, meets)
-      # Create a orphan meet and assigned this mpost as solo member
-      create_meet_from_mpost(mpost)
-    end
+    return assign_mpost_to_meets_if_possible(mpost, meets)
   end
 
   def process_raw_clusters
     # Anything marked skipped, will no longer be processed this next
     skipped_clusters = Set.new
-    while !@meet_pool.raw_cluster.empty?
-      @envet_pool.raw_clusters.each {|cluster|
+    done = false
+    while !done
+      done = true
+      raw_clusters = @meet_pool.raw_clusters.to_a
+      raw_clusters.each {|cluster|
         if skipped_clusters.include?(cluster)
           # Skip it
         elsif !shall_process_cluster?(cluster)
           # Too early, wait until it cool down a bit
           skipped_clusters << cluster
+        elsif cluster.size == 1 # special case, only 1 node left
+          cluster.meet = create_meet_from_mposts(cluster.mposts)
+          @meet_pool.move_to_processed_clusters(cluster)
         else
           relation = MeetRelation.new
-          relation.populate_from_clusers(cluster, method(:coeff_calculator))
-          coeff_gain = relation.proceed(method(:pass_coeff_criteria_normal?))
+          relation.populate_from_cluster(cluster, &method(:coeff_calculator))
+          coeff_gain = relation.proceed(&method(:pass_coeff_criteria_normal?))
           if coeff_gain > 0.0
             mposts = relation.seeded.keys
-            cluster = @meet_pool.split_clusters(mposts, cluster)
+            cluster = @meet_pool.split_cluster(mposts, cluster)
             cluster.meet = create_meet_from_mposts(mposts)
             @meet_pool.move_to_processed_clusters(cluster)
+            done = false
           else
             # Something wrong, skip processing it this time
-            skipped << cluster
+            skipped_clusters << cluster
           end
         end
       }
@@ -523,31 +550,44 @@ private
       if mpost.is_processed?
         # Shall we do something here?
       elsif is_definitely_cold?(mpost) # must not in meet_pool, check db directly
-        assign_mpost_to_cold_meets(mpost)
+        if !assign_mpost_to_cold_meets_if_possible(mpost)
+          # Create a orphan meet and assigned this mpost as solo member
+          create_meet_from_mpost(mpost)
+        end
       elsif is_definitely_warm?(mpost)
         if !assign_mpost_to_clusters_if_possible(mpost)
           # Create a new cluster and attach the mpost to it
           @meet_pool.create_raw_cluster(:mpost=>mpost)
         end
-      elsif !assign_mpost_to_clusters_if_possible(mpost)
-        # Rejected by meet_pool, check db as last resort
-        assign_mpost_to_cold_meets(mpost)
+      elsif assign_mpost_to_clusters_if_possible(mpost)
+        # Ok, it is in memory now, it is attached to a processed cluster, it is already saved
+        # to db. Otherwise it stay in a raw cluster waiting to be processed (probably soon).
+      elsif assign_mpost_to_cold_meets_if_possible(mpost)
+        # Ok, it is in db now. Not in memory.
+      elsif
+        # Nowhere to go, keep in memory and will be processed soon.
+        # Create a new cluster and attach the mpost to it
+        @meet_pool.create_raw_cluster(:mpost=>mpost)
       end
     }
     @meet_pool.pending_mposts.clear
   end
 
   # Remove cold meets from pool.
-  # Also update cold_time to oldest mpost_time_from_now still in pool.
+  # Also update cold_time to earliest mpost_time_from_now still in pool.
   def release_cold_meets
     # Eliminate processed clusters and corresponding mpost from pool if their
-    # youngest time_from_now is larger than cold_time_limit
+    # latest time_from_now is larger than cold_time_limit
+    released_count = 0
     @meet_pool.processed_clusters.each {|cluster|
       if is_cluster_cold?(cluster)
-        meet_pool.pop_cluster(cluster)
+        @meet_pool.pop_cluster(cluster)
+        released_count += 1
       end
     }
-    @cold_time = mpost_time_from_now(meet_pool.oldest_mpost)
+    if released_count > 0
+      debug(:processer, 2, "released %s", pluralize(released_count, "cold meets"))
+    end
   end
 
   def process_mpost_core(mpost)
@@ -568,41 +608,41 @@ end
 
 class MeetMasterMpost
 
-  attr_accessor :self_mpost, :device_mpost
+  attr_accessor :user_devs, :device_devs
 
-  def initilize
-    @self_mpost = Mpost.new
-    @device_mpost = Mpost.new
+  def initialize
+    self.user_devs = Set.new
+    self.device_devs = Set.new
   end
 
   def <<(mpost)
-    @self_mpost.merge_devs([mpost.user_dev])
-    @device_mpost.merge_devs(mpost.devs)
+    user_devs << mpost.user_dev
+    mpost.devs.each_key {|dev| device_devs << dev}
   end
 
-  def see_or_be_seen?(mpost)
-    return @self_mpost.be_seen?(mpost) || @device_mpost.see?(mpost)
+  def see_or_seen_by?(mpost)
+    return true if device_devs.include?(mpost.user_dev) # see?
+    for dev in delf_devs
+      return true if mpost.see_dev?(dev) # seen_by?
+    end
+    return false
   end
 
 end
 
 class MeetCluster
 
-  attr_accessor :meet, :youngest_mpost, :older_mpost, :mposts, :master_mpost
+  attr_accessor :meet, :latest_mpost, :earliest_mpost, :mposts, :master_mpost
 
-  def initialize(optionts)
-    self.meet = nil
-    self.youngest_mpost = nil
-    self.oldest_mpost = nil
-    self.mposts = Set.new
-    self.master_mpost = MeetMasterMpost.new
-    if options[:mpost]
-      self << options[:mpost]
-    end
+  def initialize(options={})
+    self.meet           = nil
+    self.latest_mpost   = nil
+    self.earliest_mpost = nil
+    self.mposts         = Set.new
+    self.master_mpost   = MeetMasterMpost.new
+    self << options[:mpost] if options[:mpost]
     if options[:mposts]
-      options[:mposts].each {|mpost|
-        self << options[:mpost]
-      }
+      options[:mposts].each {|mpost| self << mpost}
     end
   end
 
@@ -611,16 +651,22 @@ class MeetCluster
   end
 
   def <<(mpost)
-    self.mposts << mpost
-    youngest_mpost = mpost if (youngest_mpost == nil ||
-                                   youngest_mpost.trigger_time > mpost.trigger_time)
-    oldest_mpost   = mpost if (oldest_mpost == nil ||
-                                   oldest_mpost.trigger_time < mpost.trigger_time)
+    mposts << mpost
+    self.latest_mpost    = mpost if (latest_mpost == nil ||
+                                     latest_mpost.trigger_time < mpost.trigger_time)
+    self.earliest_mpost  = mpost if (earliest_mpost == nil ||
+                                     earliest_mpost.trigger_time > mpost.trigger_time)
     master_mpost << mpost
   end
 
+  # Not only check if see or be seen, also check time delta. Do not attach if this
+  # mpost is to seperated from the cluster
   def attachable?(to)
-    master_mpost.see_or_be_seen?(to)
+    margin = MeetProcesser.meet_duration_loose
+    return master_mpost.see_or_seen_by?(to) &&
+           to.trigger_time >= earliest_mpost.trigger_time-margin &&
+           to.trigger_time <=   latest_mpost.trigger_time+margin
+           
   end
 
   def size
@@ -637,18 +683,19 @@ class MeetPool
   def initialize
     self.raw_clusters       = Set.new
     self.processed_clusters = Set.new
-    self.pending_mposts   = Set.new
+    self.pending_mposts     = Set.new
+  end
+
+  def empty?
+    return raw_clusters.empty? && processed_clusters.empty? && pending_mposts.empty?
   end
 
   def dump_debug(type)
     if is_debug?(type, 1)
       debug(type, 1, "meet pool information:")
-      cdebug("\thas %d %s", 
-             raw_cluster.size, pluralize(raw_clusters.size, "raw_cluster"))
-      cdebug("\thas %d %s", 
-             processed_cluster.size, pluralize(processed_clusters.size, "processed_cluster"))
-      cdebug("\thas %d %s", 
-             pending_mposts.size, pluralize(pending_mposts.size, "pending_mpost"))
+      cdebug("\thas %s", pluralize(raw_clusters.size, "raw_cluster"))
+      cdebug("\thas %s", pluralize(processed_clusters.size, "processed_cluster"))
+      cdebug("\thas %s", pluralize(pending_mposts.size, "pending_mpost"))
       dump_debug_clusters(type, "raw", raw_clusters)
       dump_debug_clusters(type, "processed", processed_clusters)
       dump_debug_mposts(type, "pending", pending_mposts)
@@ -660,13 +707,13 @@ class MeetPool
       debug(type, 2, "%s clusters information:", header)
       index = 0
       clusters.each {|cluster|
-        # :meet, :youngest_mpost, :older_mpost, :mposts, :master_mpost
+        # :meet, :latest_mpost, :older_mpost, :mposts, :master_mpost
         cdebug("\tcluster %d:", index)
-        cdebug("\t  %s with %d %s from %s to %s",
-               (cluster.is_procesed? ? "processed" : "raw"),
-               cluster.mposts.size, pluralize(cluster.mposts.size, "mpost"),
-               (cluster.oldest_mpost?cluster.oldest_mpost.trigger_time:"---"),
-               (cluster.youngest_mpost?cluster.youngest_mpost.trigger_time:"---"))
+        cdebug("\t  %s with %s from %s to %s",
+               (cluster.is_processed? ? "processed" : "raw"),
+               pluralize(cluster.mposts.size, "mpost"),
+               (cluster.earliest_mpost ? cluster.earliest_mpost.trigger_time : "---"),
+               (cluster.latest_mpost ? cluster.latest_mpost.trigger_time : "---"))
         index += 1
       }
     end
@@ -679,9 +726,9 @@ class MeetPool
       mposts.each {|mpost|
         # :trigger_time, :devs, :location
         cdebug("\tmpost %d:", index)
-        cdebug("\t  %s %d with %d %s triggered at %s",
-               (mpost.is_procesed? ? "processed" : "raw"),
-               mpost.devs.size, pluralize(mpost.devs.size, "device"),
+        cdebug("\t  %s with %s triggered at %s",
+               (mpost.is_processed? ? "processed" : "raw"),
+               pluralize(mpost.devs.size, "device"),
                mpost.trigger_time)
         index += 1
       }
@@ -691,9 +738,7 @@ class MeetPool
   # Return hash of meet=>processed_cluster
   def meets
     meets = Hash.new
-    @meet_pool.processed_cluster.each {|cluster|
-      meets[cluster.meet] = cluster
-    }
+    processed_clusters.each {|cluster| meets[cluster.meet] = cluster}
     return meets
   end
 
@@ -715,25 +760,23 @@ class MeetPool
     end
   end
 
-  def merge_cluster(cluster1, cluster2)
-    if cluster1.size > cluster.size
+  def merge_clusters(cluster1, cluster2)
+    if cluster1.size > cluster2.size
       from, to = cluster2, cluster1
     else
       from, to = cluster1, cluster2
     end
-    from.mposts.each {|messsage| to << mpost}
+    from.mposts.each {|mpost| to << mpost}
     pop_cluster(from)
     return to
   end
 
   # Add mpost to clusters, merge if necessary.
   # Return false if fails.
-  def add_to_raw_clusters_if_possible(mpost)
+  def add_to_raw_clusters_if_possible(mpost, &block)
     attachable_clusters = Set.new
     raw_clusters.each {|cluster|
-      if cluster.attachable?(mpost)
-        attachable_clusters << cluster
-      end
+      attachable_clusters << cluster if cluster.attachable?(mpost)
     }
     return false if attachable_clusters.empty?
     to_cluster = nil
@@ -749,20 +792,22 @@ class MeetPool
 
   # Split mposts from cluster and create new clusters.
   # Return main cluster created from specified mposts
-  def split_clusters(mposts, cluster)
+  def split_cluster(mposts, cluster)
     return nil if mposts.empty?
     # The mposts must be all related to each other, create a cluster from them
     # and then proceed to remaining ones until all are processed
+    main_cluster = nil
     while true
       # Create a new raw cluster from mposts and remove them from the old one
-      main_cluster = create_raw_cluster(:mposts=>mposts)
+      new_cluster = create_raw_cluster(:mposts=>mposts)
+      main_cluster ||= new_cluster
       mposts.each {|mpost| cluster.mposts.delete(mpost)}
-      break if !cluster.mposts.empty? # all processed
+      break if cluster.mposts.empty? # all processed
       # Get a new set of related mposts from remaining mposts
       mposts = Set.new
       master_mpost = MeetMasterMpost.new
       cluster.mposts.each {|mpost|
-        if (mposts.empty? || master_mpost.see_or_be_seen?(mpost))
+        if (mposts.empty? || master_mpost.see_or_seen_by?(mpost))
           mposts << mpost
           master_mpost << mpost
         end
@@ -776,6 +821,21 @@ class MeetPool
   def move_to_processed_clusters(cluster)
     processed_clusters << cluster
     raw_clusters.delete(cluster)
+  end
+
+  # Return the earliest mpost
+  def earliest_mpost
+    earliest_mpost = nil
+    block = Proc.new {|cluster|
+      mpost = cluster.earliest_mpost
+      if mpost 
+        earliest_mpost  = mpost if (earliest_mpost == nil ||
+                                    earliest_mpost.trigger_time > mpost.trigger_time)
+      end
+    }
+    raw_clusters.each(&block)
+    processed_clusters.each(&block)
+    return earliest_mpost
   end
 
 end
@@ -802,14 +862,14 @@ class MeetRelation
       graph[mpost] = Array.new
       # Fillin seeds with meet.mposts. Since meet can not be re-configured, they
       # all have infinite coeff values.
-      seeded[mpost] = MeetProcessor.infinite_coeff
+      seeded[mpost] = MeetProcesser.infinite_coeff
     }
 
-    messgaes.each {|mpost|
+    mposts.each {|mpost|
       graph_mpost = Array.new
       node_coeff = 0.0
       meet.mposts.each {|meet_mpost| 
-        if mpost.see_or_be_seen?(meet_mpost)
+        if mpost.see_or_seen_by?(meet_mpost)
           coeff = coeff_calculator.call(mpost, meet_mpost)
           graph_mpost << [meet_mpost, coeff]
           node_coeff += coeff
@@ -830,16 +890,16 @@ class MeetRelation
     
     # Fillin graph check each mpost pair, N^2 complexity
     mposts = cluster.mposts.to_a
-    for from_index in (0..mposts.size)
+    for from_index in (0...mposts.size)
       from_mpost = mposts[from_index]
       from = (graph[from_mpost] ||= Array.new)
-      for to_index in ((from_index+1)..mposts.size)
+      for to_index in ((from_index+1)...mposts.size)
         to_mpost = mposts[to_index]
         to = (graph[to_mpost] ||= Array.new)
-        if from_mpost.see_or_be_seen?(to_mpost)
+        if from_mpost.see_or_seen_by?(to_mpost)
           coeff = coeff_calculator.call(from_mpost, to_mpost)
           from << [to_mpost, coeff]
-          to << [to_mpost, coeff]
+          to << [from_mpost, coeff]
         end
       end
       pending[from_mpost] = 0.0
@@ -855,16 +915,16 @@ class MeetRelation
       candidate = (pending.max_by{|h| h[1]})[0] # use the meet with highest coeff
       break if !candidate # no more pending
       relations = graph[candidate]
-      break if !relation # unlikely, candidate has no relation to seeded, who could
+      break if !relations # unlikely, candidate has no relation to seeded, who could
 
       gain, coeff = 0.0, 0.0
-      excludes = Array.new
+      exclusions = Set.new
       count_itself = true
       relations.each {|relation|
         relation_node, relation_coeff = *relation
         seeded_coeff = seeded[relation_node]
         if seeded_coeff # related to seeded
-          if relation_coeff < 0.0 # mutual exclusion
+          if relation_coeff < 0.0 # mutual exclusive
             gain -= seeded_coeff
             exclusions << relation_node
           else 
@@ -894,9 +954,9 @@ private
     pending.delete(candidate)
     seeded[candidate] = coeff
     # Remove excluded nodes from seeded and DO NOT put back to pending (prmeet infiinte loop)
-    seeded.delete_if {|node, node_coeff| exclusions.has_key?(node)}
+    seeded.delete_if {|node, node_coeff| exclusions.include?(node)}
     # Put the skipped back to pending, they might be accepted next time
-    pending.merge(skipped); skipped.clear
+    pending.merge!(skipped); skipped.clear
     update_pending_coeff(candidate, false)
     exclusions.each {|exclusion| update_pending_coeff(exclusion, true)}
     self.coeff_stats = seeded.values.mean_sigma
@@ -906,7 +966,7 @@ private
     relations = graph[node]
     relations.each {|relation|
       relation_node, relation_coeff = *relation
-      if pending.hasKey?(relation_node)
+      if pending.has_key?(relation_node)
         if (!is_exclude) # add coeff
           pending[relation_node] += relation_coeff
         else # substrct coeff
@@ -921,22 +981,22 @@ private
   # to seed from a older node to avoid partial group if starting from a latest one.
   # Choose the oldeset one from top several candidate.
   def seed_first_node
-    return unless pending.empty?
+    return if pending.empty?
 
-    # Find the oldest one from top candidates (with top 20% highest coeff values)
+    # Find the earliest one from top candidates (with top 20% highest coeff values)
     candidates = Array.new
     max_coeff = 0.0
     graph.each_pair {|node, relations|
-      node_coeff = 0.0
+      node_coeff = 1.0 # count itself
       relations.each {|relation|
         relation_node, relation_coeff = *relation
-        node_coeff += relation_coeff
+        node_coeff += relation_coeff if relation_coeff >= 0.0 # ignore exclusive nodes
       }
       max_coeff = node_coeff if (max_coeff < node_coeff)
       candidates << [node, node_coeff]
     }
     candidates = candidates.select {|candidate| candidate[1] >= max_coeff * 0.8}
-    candidate = (candidates.max_by{|h| mpost_time_from_now(h[0])})[0] # use the oldest node
+    candidate = (candidates.max_by{|h| h[0].trigger_time})[0] # use the earliest node
 
     # Seed this candidate as the fist node
     coeff = 1.0 # count it self as coeff = 1.0
