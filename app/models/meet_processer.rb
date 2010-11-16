@@ -149,7 +149,7 @@ class MeetProcesser
     return @meet_pool.empty?
   end
 
-  def dump_debug()
+  def dump_debug
     @meet_pool.dump_debug(:processer)
     debug(:processer, 1, "elapsed time from start %s", get_elapse_time)
   end
@@ -825,17 +825,17 @@ class MeetPool
 
   # Return the earliest mpost
   def earliest_mpost
-    earliest_mpost = nil
+    earliest = nil
     block = Proc.new {|cluster|
-      mpost = cluster.earliest_mpost
+      mpost = cluster.earliest
       if mpost 
-        earliest_mpost  = mpost if (earliest_mpost == nil ||
-                                    earliest_mpost.trigger_time > mpost.trigger_time)
+        earliest  = mpost if (earliest == nil ||
+                              earliest.trigger_time > mpost.trigger_time)
       end
     }
     raw_clusters.each(&block)
     processed_clusters.each(&block)
-    return earliest_mpost
+    return earliest
   end
 
 end
@@ -969,7 +969,7 @@ private
       if pending.has_key?(relation_node)
         if (!is_exclude) # add coeff
           pending[relation_node] += relation_coeff
-        else # substrct coeff
+        else # substract coeff
           pending[relation_node] -= relation_coeff
         end
       end

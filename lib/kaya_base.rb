@@ -30,7 +30,7 @@ module KayaBase
 
   class KayaDebug
     private_class_method :new
-    cattr_accessor :debug_levels
+    #cattr_accessor :debug_levels
     def self.debug(type, level, *what)
       return if @debug_levels.blank?
       if is_debug?(type, level)
@@ -107,6 +107,36 @@ end
 
 include KayaBase
 
+
+require 'statistics2'
+include Math
+class Array
+
+  # 2 levels random. First random select a segment. Then, random pick a value within
+  # each segment.
+  def random
+    return 0.0 if size < 1
+    seg_count = size - 1;
+    return first if seg_count < 1
+    seg = (seg_count * rand).floor
+    return self[seg] + rand * (self[seg+1] - self[seg])
+  end
+
+  # Sample random distribution. An asymetry normal distribution defined by 3 values:
+  # mean, left_limit, right_limit (3 sigma)
+  def random_dist
+    return 0.0 if size < 3
+    raw = Statistics.pnormaldist([0.0, 1.0].random)
+    if raw <= 0.0
+      sample = self[0] + raw * (self[0]-self[1])/3.0
+      sample = [sample, self[0]].max
+    else
+      sample = self[0] + raw * (self[2]-self[1])/3.0
+      sample = [sample, self[2]].min
+    end
+  end
+
+end
 
 #  Add methods to Enumerable, which makes them available to Array
 module Enumerable
@@ -201,3 +231,25 @@ class Thread
   end
 
 end
+
+
+require 'qq'
+class Object
+
+  def grep_methods(str)
+    #methods.each {|m|
+    #  puts m if (/^#{str}$/ =~ m)
+    #}
+    PP.pp((methods.select {|m| /^#{str}$/ =~ m}), ml)
+    puts ml
+  end
+
+  def list_methods
+    #grep_methods(".*")
+    PP.pp(methods, ml)
+    puts ml
+  end
+
+end
+
+require 'json'

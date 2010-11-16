@@ -52,7 +52,7 @@ class User < ActiveRecord::Base
 
   before_save :encrypt_password
 
-  default_scope :order => 'meets.time DESC'
+  #default_scope :order => 'meets.time DESC'
   
   def has_password?(submitted_password)
     encrypted_password == encrypt(submitted_password)

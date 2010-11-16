@@ -26,11 +26,11 @@ require 'kaya_base'
 
 class Meet < ActiveRecord::Base
 
-  #attr_accessible :name, :description, :time, 
-  #                :location, :street_address, :city, 
-  #                :state, :zip, :country, 
-  #                :users_count, :lng, :lat,
-  #                :image_url
+  attr_accessible :name, :description, :time, 
+                  :location, :street_address, :city, 
+                  :state, :zip, :country, 
+                  :users_count, :lng, :lat, :lerror,
+                  :image_url
 
   has_many :mposts
   has_many :users,  :through => :mposts, :uniq => true
@@ -68,6 +68,7 @@ class Meet < ActiveRecord::Base
     times = Array.new
     zones = Hash.new
     unique_users = Set.new
+    notes = Hash.new
     mposts.each {|mpost|
       times << mpost.time.to_i
       if !zones[mpost.time.zone]
@@ -76,6 +77,11 @@ class Meet < ActiveRecord::Base
         zones[mpost.time.zone] += 1
       end
       unique_users << mpost.user_id
+      if notes[mpost]
+        notes[mpost] += 1
+      else
+        notes[mpost] = 1
+      end
     }
     self.time = Time.at(times.average).getutc unless times.empty?
     self.time ||= Time.now.getutc
@@ -88,7 +94,12 @@ class Meet < ActiveRecord::Base
     zone ||= (zones.max_by{|h| h[1]})[0] unless zones.empty? # from most common time zone in users
     zone ||= time.zone
     zone_time = time.in_time_zone(zone) # convert to meet local time
-    self.name = format("Meeting_%s", zone_time.strftime("%Y-%m-%d"))
+    note = (notes.max_by {|h| h[1]})[0]
+    if note
+      self.name = note # user majority notes
+    else
+      self.name = format("Meeting_%s", zone_time.strftime("%Y-%m-%d"))
+    end
     # Can not call users before it is saved. It may not be availabe and may confuse rails.
     # Instead, count number of users through unique_users.
     self.description = format("Meeting %s %swith %s",
@@ -139,6 +150,7 @@ private
     self.state = ""
     self.zip = ""
     self.country = "" 
+    #self.image_url = ""
   end
 
   def get_time_zone_from_location(lat, lng)

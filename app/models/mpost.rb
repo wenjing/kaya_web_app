@@ -17,7 +17,7 @@
 #
 
 class Mpost < ActiveRecord::Base
-  #attr_accessible :time, :lng, :lat, :devs
+  attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note
 
   belongs_to :user
   belongs_to :meet
