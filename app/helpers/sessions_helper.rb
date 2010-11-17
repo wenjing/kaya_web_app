@@ -27,12 +27,20 @@ module SessionsHelper
   end
   
   def authenticate
-    deny_access unless signed_in?
+    deny_access unless signed_in? || basic_authenticate
   end
 
-  # mpost use username:password on the POST
-  def mpost_authenticate
+  def basic_authenticate
+    authenticate_or_request_with_http_basic do |username, password|
+      user = User.authenticate(username, password)
+      if !user.nil?
+        sign_in(user)
+      end
+    end
+  end
 
+  def deny_auth
+    render :status => :unauthorized
   end
 
   def deny_access
