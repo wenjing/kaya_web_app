@@ -20,7 +20,7 @@ class MeetsController < ApplicationController
     @meet = Meet.find(params[:id])
     respond_to do |format|
       format.html {
-        @users = @meet.microposts.paginate(:page => params[:page])
+        @users = @meet.mposts.paginate(:page => params[:page])
         @title = @meet.name
       }
       format.json {

@@ -52,6 +52,19 @@ class MpostsController < ApplicationController
     end
   end
 
+  def show
+    @mpost = Mpost.find(params[:id])
+    respond_to do |format|
+      format.html {
+        render @mpost
+        @title = "mobile posts"
+      }
+      format.json {
+        render :json => @mpost
+        }
+    end
+  end
+
   def destroy
   end
 
