@@ -25,7 +25,7 @@ class MeetsController < ApplicationController
       }
       format.json {
         render :json =>
-          @meet.to_json(:except => [:updated_at], :include => [:users])
+          @meet.to_json(:except => [:created_at, :updated_at], :include => {:users => {:except => [:salt, :encrypted_password, :created_at, :updated_at, :admin] } } )
       }
     end
   end

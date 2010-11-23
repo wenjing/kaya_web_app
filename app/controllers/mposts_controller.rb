@@ -44,7 +44,7 @@ class MpostsController < ApplicationController
 
       respond_to do |format|
         format.html { redirect_to root_path, :flash => { :success => "Mpost created!" } }
-        format.json { render :json => @mpost.to_json(:except => [:updated_at, :encrypted_password, :salt]) }
+        format.json { render :json => @mpost.to_json(:except => [:updated_at, :created_at]) }
       end
     else
       @feed_items = []
@@ -60,7 +60,7 @@ class MpostsController < ApplicationController
         @title = "mobile posts"
       }
       format.json {
-        render :json => @mpost
+        render :json => @mpost.to_json(:except => [:created_at, :updated_at])
         }
     end
   end
