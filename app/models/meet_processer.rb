@@ -29,7 +29,7 @@ require 'kaya_tqueue'
 # directly. Use this wrapper to bridge the gap. This wrap will be the one to pass
 # on jobs and call function in MeetProcesser singleton.
 # Usage:
-#   MeetWrapper.new.delayed.process_mpost(mpost)
+#   MeetWrapper.new.delayed.process_mpost(mpost, Time.now.getutc)
 #   MeetWrapper.new.delayed.setup_parameters(options)
 #   MeetWrapper.new.delayed.start_record(1.day)
 #   MeetWrapper.new.delayed.start_replay(Time.now-2.days, Time.now)
@@ -38,18 +38,32 @@ class MeetWrapper
   def initialize
   end
 
-  def process_mpost(mpost)
-    process_mposts([mpost])
+  # The at_time here is the issuing time not processing time. Under heavy load condition,
+  # processer may lag behind issuer. To prevent messing up with double standard timers,
+  # avoid using live time at processer, use issuer's time instead. That is because the issuer's
+  # time is more close to actual mpost's time. This is important when dealing with hot posts.
+  def process_mpost(mpost, at_time)
+    process_mposts([mpost], at_time)
   end
 
-  def process_mposts(mposts)
+  def process_mposts(mposts, at_time)
     meet_processer = MeetProcesser.instance
-    meet_processer.tqueue.process_mposts(mposts)
+    meet_processer.tqueue.process_mposts(mposts, at_time)
   end
 
   def setup_parameters(options)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.setup_parameters(options)
+  end
+
+  def restart_up(duration=15.minutes, at_time)
+    meet_processer = MeetProcesser.instance
+    meet_processer.tqueue.restart_up(duration, at_time)
+  end
+
+  def catch_up(duration, at_time)
+    meet_processer = MeetProcesser.instance
+    meet_processer.tqueue.catch_up(duration, at_time)
   end
 
   def start_record(duration)
@@ -97,14 +111,14 @@ class MeetProcesser
 
   cattr_accessor :infinite_coeff, :meet_duration_loose
 
-  @@timer_interval      = 1.0  # timer internal
+  @@timer_interval      = 3.0  # timer internal
   @@meet_duration_tight = 20   # fully counted if 2 mposts are trigger within time period
   @@meet_duration_loose = 60   # discounted within time period, different meets if exceed
   # Process a raw cluster if its earliest mpost exceed limit AND has not receive new mpost
   # for a while
   @@hot_time_idle        = 5.0
-  @@hot_time_threshold   = 15.0
-  @@hot_time_limit       = 30.0 # force to process a raw cluster if earliest mpost exceed limit
+  @@hot_time_threshold   = 30.0
+  @@hot_time_limit       = 60.0 # force to process a raw cluster if earliest mpost exceed limit
   @@cold_time_limit      = 3600.0  # freeze processe clusters older than limit
   # Shall be much larger than meet_duration_loose, 10 mins
   @@cold_time_margin = [@@meet_duration_loose*5, 600.0].max
@@ -115,16 +129,16 @@ class MeetProcesser
   # A member's coeff to the group can not be less than 20% of average
   @@coeff_vs_avg_threshold = 0.2
 
-  @@timer_interval       = 5.0  # timer internal
+  #@@timer_interval       = 5.0  # timer internal
   #@@hot_time_idle        = 5.0
   #@@hot_time_threshold   = 10.0
   #@@hot_time_limit       = 15.0
-  @@cold_time_limit      = 50.0  # freeze processe clusters older than limit
+  #@@cold_time_limit      = 50.0  # freeze processe clusters older than limit
 
   def setup_parameters(options)
     @@timer_interval       = options[:timer_interval]       if options[:timer_interval]
-    @@meet_duration_tight = options[:meet_duration_tight] if options[:meet_duration_tight]
-    @@meet_duration_loose = options[:meet_duration_loose] if options[:meet_duration_loose]
+    @@meet_duration_tight  = options[:meet_duration_tight]  if options[:meet_duration_tight]
+    @@meet_duration_loose  = options[:meet_duration_loose]  if options[:meet_duration_loose]
     @@host_time_idle       = options[:host_time_idle]       if options[:host_time_idle]
     @@hot_time_threshold   = options[:hot_time_threshold]   if options[:hot_time_threshold]
     @@cold_time_limit      = options[:cold_time_limit]      if options[:cold_time_limit]
@@ -142,7 +156,7 @@ class MeetProcesser
     @replay_start_time = nil
     @replay_end_time = nil
     @history_mutex = Mutex.new
-    tqueue_start(@@timer_interval, 2) {tqueue.process_meets(true)}
+    start_tqueue
   end
 
   def empty?
@@ -162,37 +176,54 @@ class MeetProcesser
   # method for further processing.
   # This is relatively lightweight comparing with process_meets. It basically pools the
   # incoming mposts and passes it onto process_meets.
-  def process_mposts(mposts, record_time_now=nil)
-    @time_now = Time.now.getutc # centralized standard now time
-    @time_now = record_time_now if record_time_now
+  def process_mposts(mposts, at_time, is_replay=false)
+    @time_now = at_time.getutc # centralized standard now time
     debug(:processer, 1, "%s %s %s at %s",
-          (record_time_now ? "replay" : "received"), pluralize(mposts.size, "mpost"),
-          mposts.join(","), @time_now)
+          (is_replay ? "replay" : "received"), pluralize(mposts.size, "mpost"),
+          mposts.join(","), @time_now.localtime.time_ampm)
     record_mposts(mposts)
     mposts.each {|mpost_id|
-      mpost = Mpost.find_by_id(mpost_id)
-      process_mpost_core(mpost) if mpost
+      Rails.kaya_dblock {
+        mpost = Mpost.find_by_id(mpost_id)
+        process_mpost_core(mpost) if mpost
+      }
     }
-    process_meets # shall we call process_meets for every new mpost?
+    # XXX, Shall we call process_meets for every new mpost?
+    # process_meets(false, at_time)
   end
 
   # Heavyweight, process pending mposts and assign meet to them.
   # Save to db if necessary.
-  def process_meets(from_timer=false, record_time_now=nil)
+  def process_meets(is_timer, at_time, is_replay=nil)
     # If it is triggered from timer, make sure enough time has passed since last
     # time it is called
-    return if @meet_pool.empty?
-    if is_timer_interval_ok?(from_timer)
-      if from_timer
-        @time_now = Time.now.getutc
-        @time_now = record_time_now if record_time_now
-      end
-      debug(:processer, 1, "%s meet processing %sat %s",
-            (record_time_now ? "replay" : "received"),
-            (from_timer ? "from timer " : ""), @time_now)
+    if is_timer_interval_ok?(is_timer, at_time)
+      @time_now = at_time.getutc
+      debug(:processer, 3, "%s meet processing %sat %s",
+            (is_replay ? "replay" : "received"),
+            (is_timer ? "by timer " : ""), @time_now.localtime.time_ampm)
       record_mposts(nil)
       process_meets_core
     end
+  end
+
+  def restart_up(duration, at_time)
+    stop_record; stop_replay
+    restart_tqueue
+    catch_up(duratio, end_time)
+  end
+
+  def catch_up(duration, at_time)
+    end_time = at_time
+    start_time = end_time - duration
+    mposts = nil
+    Rails.kaya_dblock {
+      mposts = Mpost.where("created_at >= ? AND created_at <= ? AND meet_id = nil",
+                           start_time, end_time)
+      mpost.each {|mpost| mpost.id}
+    }
+    fresh_start
+    process_mposts(mposts.map {|mpost| mpost.id}, at_time)
   end
 
   def start_record(duration)
@@ -214,13 +245,16 @@ class MeetProcesser
   end
 
   def start_replay(start_time, end_time)
-    end_time ||= Time.now.getutc
     stop_replay
     if (start_time && (start_time < end_time))
       stop_record
       @replay_start_time, @replay_end_time = start_time, end_time
-      records = MpostRecord.where("time >= ? AND time <= ?",
-                                  @replay_start_time, @replay_end_time)
+      records = nil
+      Rails.kaya_dblock {
+        records = MpostRecord.where("time >= ? AND time <= ?",
+                                    @replay_start_time, @replay_end_time)
+        records.each {|record| record.id}
+      }
       if !records.empty?
         @tqueue_timer.pause
         fresh_start
@@ -234,9 +268,9 @@ class MeetProcesser
           @history_mutex.safe_run {stop_replay if @replay_terminated}
           break unless is_replaying?
           if record.mpost_id?
-            process_mposts([record.mpost_id], record.time)
+            process_mposts([record.mpost_id], record.time, true)
           else
-            process_meets(false, record.time)
+            process_meets(false, record.time, true)
           end
         end
         stop_replay
@@ -268,6 +302,14 @@ class MeetProcesser
 
 private
 
+  def start_tqueue
+    tqueue_start(@@timer_interval, 2) {tqueue.process_meets(true, Time.now.getutc)}
+  end
+  def restart_tqueue
+    tqueue_end
+    start_tqueue
+  end
+
   # Get rid of cached data
   def fresh_start
     @start_time = nil
@@ -282,10 +324,10 @@ private
       if (@time_now >= @record_start_time && @time_now <= @record_end_time)
         if mpost_ids
           mpost_ids.each {|mpost_id|
-            MpostRecord.create(:mpost_id=>mpost_id, :time=>@time_now)
+            Rails.kaya_dblock {MpostRecord.create(:mpost_id=>mpost_id, :time=>@time_now)}
           }
         else
-          MpostRecord.create(:mpost_id=>nil, :time=>@time_now)
+          Rails.kaya_dblock {MpostRecord.create(:mpost_id=>nil, :time=>@time_now)}
         end
       else
         # Record complete, reset start and end time
@@ -296,9 +338,9 @@ private
 
 # Trivial helper functions
  
-  def is_timer_interval_ok?(from_timer)
-    curr_time = Time.now.getutc
-    if (from_timer &&
+  def is_timer_interval_ok?(is_timer, at_time)
+    curr_time = at_time
+    if (is_timer &&
         @last_meets_process_time &&
         (curr_time-@last_meets_process_time) < @@timer_interval/2.0)
       return false
@@ -361,30 +403,38 @@ private
   end
 
   def assign_mposts_to_meet(mposts, meet)
-    mposts.each {|mpost| meet.mposts << mpost}
+    mposts.each {|mpost|
+      Rails.kaya_dblock {meet.mposts << mpost} 
+    }
     meet.extract_information
-    meet.save
-    debug(:processer, 2, "created new meet %d from %s",
-          meet.id, pluralize(mposts.size, "mpost"))
+    Rails.kaya_dblock {meet.save}
   end
 
   def assign_mpost_to_meet(mpost, meet)
-    meet.mposts << mpost
+    Rails.kaya_dblock {meet.mposts << mpost}
     meet.extract_information
-    meet.save
-    debug(:processer, 2, "created new meet %d from %s",
+    Rails.kaya_dblock {meet.save}
+  end
+
+  def add_mpost_to_meet(mpost, meet)
+    assign_mpost_to_meet(mpost, meet)
+    debug(:processer, 2, "*** add to meet %d of %s",
           meet.id, pluralize(1, "mpost"))
   end
 
   def create_meet_from_mposts(mposts)
     meet = Meet.new
     assign_mposts_to_meet(mposts, meet)
+    debug(:processer, 2, "*** created new meet %d from %s",
+          meet.id, pluralize(mposts.size, "mpost"))
     return meet
   end
 
   def create_meet_from_mpost(mpost)
     meet = Meet.new
     assign_mpost_to_meet(mpost, meet)
+    debug(:processer, 2, "*** created new meet %d from %s",
+          meet.id, pluralize(1, "mpost"))
     return meet
   end
 
@@ -394,7 +444,12 @@ private
   end
 
   def get_meets_by_range(from, to)
-    return Meet.where("time >= ? AND time <= ?", from, to)
+    meets = nil
+    Rails.kaya_dblock {
+      meets = Meet.where("time >= ? AND time <= ?", from, to).includes(:mposts)
+      meets.each {|meet| meet.id} # make sure it is loaded here
+    }
+    return meets
   end
 
 # Core algorithm functions.
@@ -451,7 +506,7 @@ private
   def calculate_coeff(connect, time_delta)
     return -@@infinite_coeff if time_delta > @@meet_duration_loose
     return 0.0 if connect <= 0
-    coeff = (connect == 2 ? 1.0 : @@uni_connect_discount)
+    coeff = (connect == 2 ? 1.0 : @@uni_connection_discount)
     coeff *= delta_time_discount(time_delta)
     return coeff
   end
@@ -479,7 +534,7 @@ private
     return nil if candidates.empty?
     # Select the best one and assign to it
     meet = (candidates.max_by {|h| h[1]})[0] # use the meet with highest score
-    assign_mpost_to_meet(mpost, meet)
+    add_mpost_to_meet(mpost, meet)
     return meet
   end
 
@@ -586,7 +641,7 @@ private
       end
     }
     if released_count > 0
-      debug(:processer, 2, "released %s", pluralize(released_count, "cold meets"))
+      debug(:processer, 2, "*** released %s", pluralize(released_count, "cold meets"))
     end
   end
 
@@ -595,6 +650,7 @@ private
   end
 
   def process_meets_core
+    return if @meet_pool.empty?
     @meet_pool.dump_debug(:pool_before)
     process_pending_mposts
     @meet_pool.dump_debug(:pool_cluster)
@@ -622,7 +678,7 @@ class MeetMasterMpost
 
   def see_or_seen_by?(mpost)
     return true if device_devs.include?(mpost.user_dev) # see?
-    for dev in delf_devs
+    for dev in device_devs
       return true if mpost.see_dev?(dev) # seen_by?
     end
     return false
@@ -783,7 +839,7 @@ class MeetPool
     attachable_clusters.each {|cluster|
       to_cluster ||= cluster
       if to_cluster != cluster
-        to_cluster = merge_cluster(to_cluster, cluster)
+        to_cluster = merge_clusters(to_cluster, cluster)
       end
     }
     to_cluster << mpost

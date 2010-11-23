@@ -13,7 +13,6 @@
 #  state          :string(255)
 #  zip            :string(255)
 #  country        :string(255)
-#  users_count    :integer
 #  image_url      :string(255)
 #  created_at     :datetime
 #  updated_at     :datetime
@@ -22,6 +21,7 @@
 #  lerror         :float
 #
 
+require 'geokit'
 require 'kaya_base'
 
 class Meet < ActiveRecord::Base
@@ -29,7 +29,7 @@ class Meet < ActiveRecord::Base
   attr_accessible :name, :description, :time, 
                   :location, :street_address, :city, 
                   :state, :zip, :country, 
-                  :users_count, :lng, :lat, :lerror,
+                  :lng, :lat, :lerror,
                   :image_url
 
   has_many :mposts
@@ -37,18 +37,13 @@ class Meet < ActiveRecord::Base
 
   validates :name,  :presence => true, :length   => { :maximum => 250 }
   validates :time,  :presence => { :message => "date time missing or unrecognized format" }
-  #validates :lng,  :presence => true,
   validates :lng,   :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),
                                        :less_than_or_equal_to    => BigDecimal(" 180.0"),
-                                       :allow_nil => true }
-  #validates :lat,  :presence => true
+                                       :allow_nil => false }
   validates :lat,   :numericality => { :greater_than_or_equal_to => BigDecimal("-90.0"),
                                        :less_than_or_equal_to    => BigDecimal(" 90.0"),
-                                       :allow_nil => true }
-  #validates :users_count, :presence => true,
-  #                        :numericality => { :greater_than_or_equal_to => 0 }
+                                       :allow_nil => false }
 
-  #default_scope :order => 'meets.created_at DESC'
   default_scope :order => 'meets.time DESC'
 
   # Following functions are created by hong.zhao
@@ -77,10 +72,10 @@ class Meet < ActiveRecord::Base
         zones[mpost.time.zone] += 1
       end
       unique_users << mpost.user_id
-      if notes[mpost]
-        notes[mpost] += 1
+      if notes[mpost.note]
+        notes[mpost.note] += 1
       else
-        notes[mpost] = 1
+        notes[mpost.note] = 1
       end
     }
     self.time = Time.at(times.average).getutc unless times.empty?
@@ -95,7 +90,7 @@ class Meet < ActiveRecord::Base
     zone ||= time.zone
     zone_time = time.in_time_zone(zone) # convert to meet local time
     note = (notes.max_by {|h| h[1]})[0]
-    if note
+    if note.present?
       self.name = note # user majority notes
     else
       self.name = format("Meeting_%s", zone_time.strftime("%Y-%m-%d"))
@@ -103,7 +98,8 @@ class Meet < ActiveRecord::Base
     # Can not call users before it is saved. It may not be availabe and may confuse rails.
     # Instead, count number of users through unique_users.
     self.description = format("Meeting %s %swith %s",
-                       zone_time.strftime("on %Y-%m-%d %I:%M%p"),
+                       #zone_time.strftime("on %Y-%m-%d %I:%M%p"),
+                       zone_time.iso8601,
                        !location.blank? ? "at #{location} " : "",
                        pluralize(unique_users.count, "attendent"))
   end
@@ -133,24 +129,32 @@ private
       break unless lngs.empty?
     }
     if !lngs.empty?
+      org_lng, org_lat = lng, lat
       self.lng = lngs.mean_sigma_with_weight(lweights)[0]
       self.lat = lats.mean_sigma_with_weight(lweights)[0]
       self.lerror = [(1.0/Math.sqrt(lweights.mean)+0.4999).round,1.0].max
+      extract_geocode if (location.blank? || !org_lng || !org_lat ||
+                          sqrt((org_lng-lng)**2+(org_lat-lat)**2)/3.5e-6 > 10.0)
     else
       # self.lng, self.lat = nil, nil # keep the original
     end
-    extract_geocode
+    #self.image_url = ""
   end
 
-  def extract_geocode(retry_times=0)
-    # Pending ...
-    self.location = ""
-    self.street_address = ""
-    self.city= "" 
-    self.state = ""
-    self.zip = ""
-    self.country = "" 
-    #self.image_url = ""
+  def extract_geocode(try_limits=1)
+    return if (!lat? || !lng?)
+    geo = nil
+    exception_protected(try_limits) {
+      geo = Geokit::Geocoders::GoogleGeocoder::geocode("#{lat}, #{lng}")
+    }
+    if geo
+      self.location = geo.full_address
+      self.street_address = geo.street_name
+      self.city = geo.city
+      self.state = geo.state
+      self.zip = geo.zip
+      self.country = geo.country
+    end
   end
 
   def get_time_zone_from_location(lat, lng)

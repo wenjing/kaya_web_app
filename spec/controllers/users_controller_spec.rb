@@ -130,8 +130,10 @@ describe UsersController do
       mp1 = Factory(:mpost, :user => @user, :time => 1.day.ago)
       mp2 = Factory(:mpost, :user => @user, :time => 1.hour.ago)
       get :show, :id => @user
-      response.should have_selector('span.time', :time => mp1.time)
-      response.should have_selector('span.time', :time => mp2.time)
+      #response.should have_selector('span.time', :time => mp1.time)
+      #response.should have_selector('span.time', :time => mp2.time)
+      response.should have_selector('span.time', :content => mp1.time.iso8601)
+      response.should have_selector('span.time', :content => mp2.time.iso8601)
     end
 
     it "should paginate mposts" do
@@ -143,8 +145,10 @@ describe UsersController do
     it "should display the mpost count" do
       10.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
       get :show, :id => @user
+      #response.should have_selector('td.sidebar',
+      #                              :time => @user.mposts.count.to_s)
       response.should have_selector('td.sidebar',
-                                    :time => @user.mposts.count.to_s)
+                                    :content => @user.mposts.count.to_s)
     end
 
     describe "when signed in as another user" do
@@ -215,7 +219,7 @@ describe UsersController do
 
       it "should have a welcome message" do
         post :create, :user => @attr
-        flash[:success].should =~ /welcome to the kaya mobile app/i
+        flash[:success].should =~ /Welcome to the kaya app/i
       end
       
       it "should sign the user in" do

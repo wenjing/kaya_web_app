@@ -2,11 +2,21 @@ class UsersController < ApplicationController
   skip_before_filter :verify_authenticity_token
   before_filter :authenticate, :except => [:show, :new, :create]
   before_filter :correct_user, :only => [:edit, :update]
-  before_filter :admin_user,   :only => :destroy
+  #before_filter :admin_user,   :only => [:destroy, :index]
+  before_filter :admin_user,   :only => [:destroy]
   
   def index
-    @users = User.paginate(:page => params[:page])
-    @title = "All users"
+    respond_to do |format|
+      format.html {
+        @users = User.paginate(:page => params[:page])
+        @title = "All users"
+      }
+      format.json {
+        @users = User.find(:all)
+        render :json => 
+          @users.to_json(:except => [:updated_at, :salt, :encrypted_password])
+      }
+    end
   end
   
   def show
@@ -86,11 +96,21 @@ class UsersController < ApplicationController
 
     def correct_user
       @user = User.find(params[:id])
-      redirect_to(root_path) unless current_user?(@user)
+      if !current_user?(@user)
+        respond_to do |format|
+          format.html { redirect_to(root_path) }
+          format.json { head :unauthorized }
+        end
+      end
     end
     
     def admin_user
       @user = User.find(params[:id])
-      redirect_to(root_path) if !current_user.admin? || current_user?(@user)
+      if (current_user?(@user) || !current_user || !current_user.admin?)
+        respond_to do |format|
+          format.html { redirect_to(root_path) }
+          format.json { head :unauthorized }
+        end
+      end
     end
 end

@@ -17,23 +17,19 @@ module KayaTQueue
   #   @tqueue_process_thread
   #   @tqueue_timer
   #   @tqueue_options
-  def tqueue_started?
-    # tqueue_timer is optional
-    @tqueue_queue != nil && @tqueue_process_thread != nil
-  end
-
   def tqueue_start(interval=0.0, start_cycle=0, options={}, &timer_block)
     # If it is already started, doing nothing here
     if !tqueue_started?
       tqueue_end # make sure we cleaned up everything
       @tqueue_options = options
       @tqueue_queue = Queue.new
-      @tqueue_process_thread = Thread.trace_new {
+      @tqueue_process_thread = Thread.protected_new {
         while true
           payload = @tqueue_queue.pop
           performable_method = payload[:payload_object]
           #options = payload.delete(:payload_object)
-          performable_method.perform
+          # Can't let single error ruin the whole process
+          exception_protected {performable_method.perform}
         end
       }
       if interval > 0.0 && timer_block
@@ -58,6 +54,11 @@ module KayaTQueue
     @tqueue_queue = nil
     @tqueue_process_thread = nil
     @tqueue_timer = nil
+  end
+
+  def tqueue_started?
+    # tqueue_timer is optional
+    @tqueue_queue != nil && @tqueue_process_thread != nil
   end
 
   alias_method :tqueue_check_start, :tqueue_start

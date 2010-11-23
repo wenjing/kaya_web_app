@@ -13,8 +13,8 @@ describe Meet do
       :state => "CA",
       :zip => "95070",
       :country => "USA",
-      :lng => -90.123456,
-      :lat => 106.123456,
+      :lat => 37.25861,
+      :lng => -122.06322,
       :image_url => "http://www.mountainwinery.com/images/mountainwinery.com/Image/About%20Us/Winery%20Building%20Front.jpg",
       :users_count => 2
     }

@@ -12,7 +12,7 @@ KayaWebApp::Application.routes.draw do
   resources :microposts,    :only => [:create, :destroy]
   resources :mposts,	    :only => [:create, :destroy]
   resources :relationships, :only => [:create, :destroy]
-  resources :meet
+  resources :meets
 
   root :to => "pages#home"
 
@@ -22,6 +22,11 @@ KayaWebApp::Application.routes.draw do
   match '/signup',  :to => 'users#new'
   match '/signin',  :to => 'sessions#new'
   match '/signout', :to => 'sessions#destroy'
+
+  if !Rails.env.production?
+    post  '/debug/run',    :to => "debug#run"
+    get   '/debug/mposts', :to => "debug#mposts"
+  end
 
   # The priority is based upon order of creation:
   # first created -> highest priority.

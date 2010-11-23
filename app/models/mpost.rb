@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20101110203613
+# Schema version: 20101116062125
 #
 # Table name: mposts
 #
@@ -14,6 +14,7 @@
 #  devs       :text(50000)
 #  lng        :decimal(15, 10)
 #  lat        :decimal(15, 10)
+#  note       :string(255)
 #
 
 class Mpost < ActiveRecord::Base
@@ -31,9 +32,9 @@ class Mpost < ActiveRecord::Base
                   :numericality => { :greater_than_or_equal_to => BigDecimal("-90.0"),
                                      :less_than_or_equal_to    => BigDecimal(" 90.0") }
   validates :lerror, :presence => true,
-                     :numericality => {:greater_than_or_equal_to=>0.0}
-  validates :user_dev, :presence => true, :length => { :minimum => 1, :maximum => 200 }  
-  validates :devs, :presence => true, :length => { :maximum => 40000 } # at least 200 devs  
+                     :numericality => { :greater_than_or_equal_to => 0.0 }
+  validates :user_dev, :presence => true, :length => { :in => 1..200 }  
+  validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
 
   default_scope :order => 'mposts.created_at DESC'
 
@@ -58,12 +59,13 @@ class Mpost < ActiveRecord::Base
   end
   # Trigger time is when the mpost is sampled. Shall be same as time. This one
   # is used instead to make sure it is utc time.
+  # Also, make sure trigger time is no later than created time
   def trigger_time
-    return time? ? time.getutc : nil
+    return !time? ? created_at.getutc : [time.getutc, created_at.getutc].min
   end
   # Return true if its devs include other's user_dev 
   def see_dev?(other_dev)
-    return other ? (user_dev == other_dev || devs.include?(other_dev)) : false
+    return other_dev ? (user_dev == other_dev || devs.include?(other_dev)) : false
   end
   def see?(other)
     return other ? (user_dev == other.user_dev || devs.include?(other.user_dev)) : false

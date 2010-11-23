@@ -6,8 +6,10 @@ describe Mpost do
     @user = Factory(:user)
     @attr = {
       :time => Time.now.iso8601,
-      :lng => 37.793621,
-      :lat => -122.395899,
+      :lat => 37.793621,
+      :lng => -122.395899,
+      :lerror => 30,
+      :user_dev => "11:11:11:11:11:11",
       :devs => "11:22:33:44:55:66, aa:bb:cc:dd:ee:ff"
     }
   end

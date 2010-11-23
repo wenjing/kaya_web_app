@@ -28,6 +28,51 @@ module KayaBase
     return format("%.3f", cpu_time) + "s"
   end
 
+  def exception_protected(try_limit=1)
+    try_count = 0
+    while true
+      begin
+        try_count += 1
+        yield
+        break
+      rescue Exception => e
+        if try_count >= try_limit
+          puts e.to_s
+          puts e.backtrace
+          break
+        end
+      end
+    end
+  end
+
+  def parallel_run(num, enum=nil, &block)
+    return unless (num >= 0 && block)
+    if num == 0
+      if !enum
+        block.call(0)
+      else
+        enum.each {|val| block.call(val)}
+      end
+    else
+      threads = Array.new
+      if !enum
+        (0...num).each {|no|
+          threads << Thread.protected_new {block.call(no)}
+        }
+      else
+        assignments = ((0...enum.size).to_a.fill {|i| i%num}).shuffle
+        (0...num).each {|no|
+          threads << Thread.protected_new {
+            enum.each_with_index {|val, index|
+              block.call(val) if assignments[index] == no
+            }
+          }
+        }
+      end
+      threads.each {|thread| thread.join}
+    end
+  end
+
   class KayaDebug
     private_class_method :new
     #cattr_accessor :debug_levels
@@ -37,14 +82,20 @@ module KayaBase
         text = "[#{type.to_s.camelize} #{level.to_s}] "+format(*what)
         #text = "[#{type.to_s.humanize} #{level.to_s}] "+format(*what)
         #text = "[#{type.to_s.titlize} #{level.to_s}] "+format(*what)
-        puts text
-        Rails.logger.add(Logger::DEBUG, "#{text}") if Rails.logger
+        if (Rails.logger && Rails.logger.level <= Logger::DEBUG)
+          Rails.logger.add(Logger::DEBUG, "#{text}")
+        else
+          puts text 
+        end
       end
     end
     def self.cdebug(*what)
       text = " --- "+format(*what)
-      puts text
-      Rails.logger.add(Logger::DEBUG, "#{text}") if Rails.logger
+      if (Rails.logger && Rails.logger.level <= Logger::DEBUG)
+        Rails.logger.add(Logger::DEBUG, "#{text}")
+      else
+        puts text 
+      end
     end
     def self.set_debug(type, level)
       @debug_levels ||= Hash.new
@@ -101,7 +152,8 @@ module KayaBase
   # Prevent them be implemented into class as mixin
   module_function :debug, :set_debug, :set_debugs, :clear_debug, :is_debug?, :cdebug, :what_debugs,
                   :select_if_not_nil, :pluralize,
-                  :cpu_time, :cpu_time_str, :memory_usage, :memory_usage_str
+                  :cpu_time, :cpu_time_str, :memory_usage, :memory_usage_str,
+                  :exception_protected, :parallel_run
 
 end
 
@@ -126,14 +178,24 @@ class Array
   # mean, left_limit, right_limit (3 sigma)
   def random_dist
     return 0.0 if size < 3
-    raw = Statistics.pnormaldist([0.0, 1.0].random)
+    raw = Statistics2.pnormaldist([0.0, 1.0].random)
     if raw <= 0.0
       sample = self[0] + raw * (self[0]-self[1])/3.0
-      sample = [sample, self[0]].max
+      sample = [sample, self[1]].max
     else
       sample = self[0] + raw * (self[2]-self[1])/3.0
       sample = [sample, self[2]].min
     end
+  end
+
+  # Probability random selector. Randomly pick a value between 0 and 1.
+  # Return the index that random value fall into.
+  # For example: [0.3].random_index => 0 if random<=0.3 otherwise 1
+  def random_prob
+    val = [0.0, 1.0].random
+    res = each_with_index {|v,i| break i if val <= v}
+    res = size if res.is_a?(Array)
+    return res
   end
 
 end
@@ -188,6 +250,10 @@ module Enumerable
     }
     return [avg, Math.sqrt(sum_variance/sum_weight)]
   end
+
+  def parallel_each(num, &block)
+    num <= 0 ? each(&block) : parallel_run(num, self, &block)
+  end
  
 end  #  module Enumerable
 
@@ -219,37 +285,179 @@ end
 
 class Thread
 
-  def self.trace_new(&block)
-    new {
-      begin
-        block.call
-      rescue Exception => e
-        puts e.to_s
-        puts e.backtrace
-      end
-    }
+  def self.protected_new(&block)
+    new {exception_protected {block.call}}
   end
 
 end
 
 
-require 'qq'
+require 'pp'
 class Object
 
-  def grep_methods(str)
-    #methods.each {|m|
-    #  puts m if (/^#{str}$/ =~ m)
-    #}
-    PP.pp((methods.select {|m| /^#{str}$/ =~ m}), ml)
-    puts ml
+  def list_methods(str=".*")
+    PP.pp(methods.sort.select {|m| /^#{str}.*$/ =~ m})
   end
 
-  def list_methods
-    #grep_methods(".*")
-    PP.pp(methods, ml)
-    puts ml
+  def to_params(*vars)
+    res = Hash.new
+    vars.each {|var|
+      var = var.to_sym
+      res[var] = send(var) if respond_to?(var)
+    }
+    return res
   end
 
 end
 
+
 require 'json'
+require 'rest_client'
+module RestClient
+  class Resource
+    def cookies(cookies)
+      @cookies = cookies
+      return self
+    end
+    def get_json(params={}, headers={})
+      rsp = get_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
+      self.cookies(rsp.cookies) if rsp.ok?
+      return rsp
+    end
+    def put_json(params={}, headers={})
+      rsp = put(params, headers_json(headers)) {|response, request, res, &block| response}
+      self.cookies(rsp.cookies) if rsp.ok?
+      return rsp
+    end
+    def post_json(params={}, headers={})
+      rsp = post(params, headers_json(headers)) {|response, request, res, &block| response}
+      self.cookies(rsp.cookies) if rsp.ok?
+      return rsp
+    end
+    def delete_json(params={}, headers={})
+      rsp = delete_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
+      self.cookies(rsp.cookies) if rsp.ok?
+      return rsp
+    end
+    private
+      def headers_json(headers={})
+        return {:cookies=>@cookies, :content_type => :json, :accept => :json}.merge(headers)
+      end
+      def get_with_payload(payload=nil, additional_headers={}, &block)
+        headers = (options[:headers] || {}).merge(additional_headers)
+        Request.execute(options.merge(
+                :method => :get,
+                :url => url,
+                :payload => payload,
+                :headers => headers), &(block || @block))
+      end
+      def delete_with_payload(payload=nil, additional_headers={}, &block)
+        headers = (options[:headers] || {}).merge(additional_headers)
+        Request.execute(options.merge(
+                :method => :delete,
+                :url => url,
+                :payload => payload,
+                :headers => headers), &(block || @block))
+      end
+  end
+  module Response
+    def body_json(key=nil)
+      return nil unless ok?
+      return key ? JSON::parse(body)[key] : JSON::parse(body)
+    end
+    def ok?
+      return code >= 200 && code < 300
+    end
+  end
+end
+
+class Time
+  def time_only
+    return strftime("%H:%M:%S")
+  end
+
+  def time_ampm
+    return strftime("%I:%M:%S%p")
+  end
+
+  def date_only
+    return strftime("%Y-%m-%d")
+  end
+end
+
+class Range
+  def between(val)
+    if first < last
+      return [[val, first].max, last].min
+    else
+      return [[val, last].max, first].min
+    end
+  end
+
+  def overlap(range)
+    res_first = range.between(first)
+    res_last = range.between(last)
+    if (include?(res_first) && range.include?(res_first))
+      if include?(res_last) && range.include?(res_last)
+        return (res_first..res_last)
+      else
+        return (res_first...res_last)
+      end
+    end
+    return nil
+  end
+end
+
+class Hash
+  def transform(&block)
+    return merge(self) {|k,v1,v2| block.call(v1)}
+  end
+
+  def transform!(&block)
+    return merge!(self) {|k,v1,v2| block.call(v1)}
+  end
+
+  def sort_by_key(&block)
+    return sort_by {|x| block ? block.call(x[0]) : x[0]}
+  end
+
+  def sort_by_value(&block)
+    return sort_by {|x| block ? block.call(x[1]) : x[1]}
+  end
+end
+
+module KayaMath
+  def at_least(val)
+    return [self, val].max
+  end
+
+  def at_most(val)
+    return [self, val].min
+  end
+end
+
+class Fixnum
+  include KayaMath
+end
+
+class Float
+  include KayaMath
+end
+
+
+module Rails
+  @@kaya_dbmutex = nil
+  def self.kaya_dblock(&block)
+    if @@kaya_dbmutex 
+      @@kaya_dbmutex.safe_run(&block)
+    else
+      block.call
+    end
+  end
+  def self.kaya_dblock=(flag)
+    @@kaya_dbmutex = flag ? Mutex.new : nil
+  end
+  def self.kaya_dblock?
+    return @@kaya_dbmutex != nil
+  end
+end
