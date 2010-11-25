@@ -35,3 +35,5 @@ CONFLICT (content): Merge conflict in spec/controllers/users_controller_spec.rb
 #Kept the test cases although they may not work or be needed
 Automatic merge failed; fix conflicts and then commit the result.
 =---------
+
+Heroku crashed while starting - unclear what happened. It may not have a clean image.
