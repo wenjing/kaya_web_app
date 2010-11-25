@@ -56,7 +56,7 @@ class MeetWrapper
     meet_processer.tqueue.setup_parameters(options)
   end
 
-  def restart_up(duration=15.minutes, at_time)
+  def restart_up(duration, at_time)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.restart_up(duration, at_time)
   end
@@ -71,7 +71,7 @@ class MeetWrapper
     meet_processer.tqueue.start_record(duration)
   end
 
-  def stop_record
+  def stop_record(duration)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.stop_record(duration)
   end
@@ -210,7 +210,7 @@ class MeetProcesser
   def restart_up(duration, at_time)
     stop_record; stop_replay
     restart_tqueue
-    catch_up(duratio, end_time)
+    catch_up(duration, end_time)
   end
 
   def catch_up(duration, at_time)
