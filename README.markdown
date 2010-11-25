@@ -37,3 +37,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 =---------
 
 Heroku crashed while starting - unclear what happened. It may not have a clean image.
+
+Fixed syntax problem. But then complained about can't load json.
+
+Migrating stach to 1.9.2
