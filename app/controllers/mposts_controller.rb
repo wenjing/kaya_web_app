@@ -1,4 +1,5 @@
 require 'rubygems'
+require 'json'
 require 'geokit'
 require 'meet_processer'
 

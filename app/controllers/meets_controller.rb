@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'json'
+
 class MeetsController < ApplicationController
 
   before_filter :authenticate
