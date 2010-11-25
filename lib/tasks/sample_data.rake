@@ -40,8 +40,10 @@ def make_mposts
   User.all(:limit => 6).each do |user|
     50.times do
       user.mposts.create!(:time => 1.hour.ago,
-			:lng => 37.793621,
-			:lat => -122.395899,
+			:lat => 37.793621,
+			:lng => -122.395899,
+			:lerror => 30,
+			:user_dev => "11:22:33:33:22:11",
 			:devs => "11:22:33:44:55:66, aa:bb:cc:dd:ee:ff")
     end
   end

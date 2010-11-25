@@ -15,9 +15,10 @@
 
 class User < ActiveRecord::Base
   attr_accessor   :password
-  attr_accessible :name, :email, :password, :password_confirmation
+  #attr_accessible :name, :email, :password, :password_confirmation
+  attr_accessible :name, :email, :password, :password_confirmation, :admin
   
-  has_many :microposts,    :dependent => :destroy
+  has_many :microposts, :dependent => :destroy
 
   # relationship = following = I am following someone
   has_many :relationships, :dependent => :destroy,
@@ -30,14 +31,14 @@ class User < ActiveRecord::Base
   # :following = :followeds = :users
   # each user follows many users, through relationships, where foreign key is followed_id
   has_many :following, :through => :relationships, 
-                        :source => :followed
+                       :source => :followed
   # :followers = :users
   # each user has many users who follow him/her, through relationships, where foreign key is follower_id
   has_many :followers, :through => :reverse_relationships,
                        :source  => :follower
 
   has_many :mposts,	:dependent => :destroy
-  has_many :meets,      :through => :mposts
+  has_many :meets,      :through => :mposts, :uniq => true, :order => "time DESC"
   
   email_regex = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
   
@@ -51,6 +52,8 @@ class User < ActiveRecord::Base
                        :length => { :within => 6..40 }
 
   before_save :encrypt_password
+
+  #default_scope :order => 'meets.time DESC'
   
   def has_password?(submitted_password)
     encrypted_password == encrypt(submitted_password)

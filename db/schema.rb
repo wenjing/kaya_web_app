@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101104073122) do
+ActiveRecord::Schema.define(:version => 20101123022409) do
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -22,13 +22,15 @@ ActiveRecord::Schema.define(:version => 20101104073122) do
     t.string   "state"
     t.string   "zip"
     t.string   "country"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.integer  "users_count"
     t.string   "image_url"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.decimal  "lng"
+    t.decimal  "lat"
+    t.float    "lerror"
   end
+
+  add_index "meets", ["time"], :name => "index_meets_on_time"
 
   create_table "microposts", :force => true do |t|
     t.string   "content"
@@ -39,18 +41,32 @@ ActiveRecord::Schema.define(:version => 20101104073122) do
 
   add_index "microposts", ["user_id"], :name => "index_microposts_on_user_id"
 
-  create_table "mposts", :force => true do |t|
-    t.integer  "user_id"
-    t.integer  "meet_id"
+  create_table "mpost_records", :force => true do |t|
+    t.integer  "mpost_id"
     t.datetime "time"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.text     "devs"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
 
+  add_index "mpost_records", ["time"], :name => "index_mpost_records_on_time"
+
+  create_table "mposts", :force => true do |t|
+    t.integer  "user_id"
+    t.integer  "meet_id"
+    t.datetime "time"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.float    "lerror"
+    t.string   "user_dev"
+    t.text     "devs",       :limit => 50000
+    t.decimal  "lng",                         :precision => 15, :scale => 10
+    t.decimal  "lat",                         :precision => 15, :scale => 10
+    t.string   "note"
+  end
+
+  add_index "mposts", ["created_at"], :name => "index_mposts_on_created_at"
   add_index "mposts", ["meet_id"], :name => "index_mposts_on_meet_id"
+  add_index "mposts", ["time"], :name => "index_mposts_on_time"
   add_index "mposts", ["user_id"], :name => "index_mposts_on_user_id"
 
   create_table "relationships", :force => true do |t|

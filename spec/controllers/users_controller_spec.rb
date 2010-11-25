@@ -126,13 +126,15 @@ describe UsersController do
                                     :content => @user.microposts.count.to_s)
     end
     
-    #it "should show the user's mposts" do
-    #  mp1 = Factory(:mpost, :user => @user, :time => 1.day.ago)
-    #  mp2 = Factory(:mpost, :user => @user, :time => 1.hour.ago)
-    #  get :show, :id => @user
-    #  response.should have_selector('span.time', :time => mp1.time)
-    #  response.should have_selector('span.time', :time => mp2.time)
-    #end
+    it "should show the user's mposts" do
+      mp1 = Factory(:mpost, :user => @user, :time => 1.day.ago)
+      mp2 = Factory(:mpost, :user => @user, :time => 1.hour.ago)
+      get :show, :id => @user
+      #response.should have_selector('span.time', :time => mp1.time)
+      #response.should have_selector('span.time', :time => mp2.time)
+      response.should have_selector('span.time', :content => mp1.time.iso8601)
+      response.should have_selector('span.time', :content => mp2.time.iso8601)
+    end
 
     it "should paginate mposts" do
       35.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
@@ -140,12 +142,14 @@ describe UsersController do
       response.should have_selector('div.pagination')
     end
 
-    #it "should display the mpost count" do
-    #  10.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
-    #  get :show, :id => @user
-    #  response.should have_selector('td.sidebar',
-    #                                :time => @user.mposts.count.to_s)
-    #end
+    it "should display the mpost count" do
+      10.times { Factory(:mpost, :user => @user, :time => 1.second.ago) }
+      get :show, :id => @user
+      #response.should have_selector('td.sidebar',
+      #                              :time => @user.mposts.count.to_s)
+      response.should have_selector('td.sidebar',
+                                    :content => @user.mposts.count.to_s)
+    end
 
     describe "when signed in as another user" do
       it "should be successful" do
