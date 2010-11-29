@@ -27,12 +27,12 @@ class DebugController < ApplicationController
     mposts = Array.new
     params[:mpost_ids].each {|mpost_id|
       mpost_id = mpost_id.to_i
-      mpost = Mpost.find[mpost]
+      mpost = Mpost.find_by_id(mpost_id)
       mposts << mpost if mpost
     }
     respond_to do |format|
       format.html { redirect_to root_path }
-      format.json { render :json => mposts.to_json(:include=>[:meet, :user], :except => [:devs]) }
+      format.json { render :json => mposts.to_json(:include =>  {:meet=>{:include=>:users}}, :except => [:devs]) }
     end
   end
 

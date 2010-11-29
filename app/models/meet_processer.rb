@@ -51,12 +51,17 @@ class MeetWrapper
     meet_processer.tqueue.process_mposts(mposts, at_time)
   end
 
+  def process_meets(at_time)
+    meet_processer = MeetProcesser.instance
+    meet_processer.tqueue.process_meets(true, at_time)
+  end
+
   def setup_parameters(options)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.setup_parameters(options)
   end
 
-  def restart_up(duration=15.minutes, at_time)
+  def restart_up(duration, at_time)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.restart_up(duration, at_time)
   end
@@ -134,13 +139,15 @@ class MeetProcesser
   #@@hot_time_threshold   = 10.0
   #@@hot_time_limit       = 15.0
   #@@cold_time_limit      = 50.0  # freeze processe clusters older than limit
+  @@coeff_vs_avg_threshold = 0.05
 
   def setup_parameters(options)
     @@timer_interval       = options[:timer_interval]       if options[:timer_interval]
     @@meet_duration_tight  = options[:meet_duration_tight]  if options[:meet_duration_tight]
     @@meet_duration_loose  = options[:meet_duration_loose]  if options[:meet_duration_loose]
-    @@host_time_idle       = options[:host_time_idle]       if options[:host_time_idle]
+    @@hot_time_idle        = options[:hot_time_idle]        if options[:hot_time_idle]
     @@hot_time_threshold   = options[:hot_time_threshold]   if options[:hot_time_threshold]
+    @@hot_time_limit       = options[:hot_time_limit]       if options[:hot_time_limit]
     @@cold_time_limit      = options[:cold_time_limit]      if options[:cold_time_limit]
     @@cold_time_margin     = options[:cold_time_margin]     if options[:cold_time_margin]
     @@delta_time_disconts  = options[:delta_time_disconts]  if options[:delta_time_disconts]
@@ -165,7 +172,7 @@ class MeetProcesser
 
   def dump_debug
     @meet_pool.dump_debug(:processer)
-    debug(:processer, 1, "elapsed time from start %s", get_elapse_time)
+    debug(:processer, 3, "elapsed time from start %s", get_elapse_time)
   end
 
   # Mpost processer, right now, queued from controller directly.
@@ -178,9 +185,9 @@ class MeetProcesser
   # incoming mposts and passes it onto process_meets.
   def process_mposts(mposts, at_time, is_replay=false)
     @time_now = at_time.getutc # centralized standard now time
-    debug(:processer, 1, "%s %s %s at %s",
+    debug(:processer, 1, "%s %s %s at %s(+%d)",
           (is_replay ? "replay" : "received"), pluralize(mposts.size, "mpost"),
-          mposts.join(","), @time_now.localtime.time_ampm)
+          mposts.join(","), @time_now.localtime.time_ampm, (Time.now-@time_now).round)
     record_mposts(mposts)
     mposts.each {|mpost_id|
       Rails.kaya_dblock {
@@ -189,7 +196,7 @@ class MeetProcesser
       }
     }
     # XXX, Shall we call process_meets for every new mpost?
-    # process_meets(false, at_time)
+    # process_meets(false, at_time.getutc)
   end
 
   # Heavyweight, process pending mposts and assign meet to them.
@@ -197,11 +204,14 @@ class MeetProcesser
   def process_meets(is_timer, at_time, is_replay=nil)
     # If it is triggered from timer, make sure enough time has passed since last
     # time it is called
-    if is_timer_interval_ok?(is_timer, at_time)
+    if is_timer_interval_ok?(is_timer, at_time.getutc)
       @time_now = at_time.getutc
-      debug(:processer, 3, "%s meet processing %sat %s",
-            (is_replay ? "replay" : "received"),
-            (is_timer ? "by timer " : ""), @time_now.localtime.time_ampm)
+      return if @meet_pool.empty?
+      debug(:processer, 1, "%s meet processing %sat %s(+%d) : r%d p%d m%d",
+            (is_replay ? "replay" : "received"), (is_timer ? "by timer " : ""),
+            @time_now.localtime.time_ampm, (Time.now-@time_now).round,
+            @meet_pool.raw_clusters.size, @meet_pool.processed_clusters.size,
+            @meet_pool.pending_mposts.size)
       record_mposts(nil)
       process_meets_core
     end
@@ -270,7 +280,7 @@ class MeetProcesser
           if record.mpost_id?
             process_mposts([record.mpost_id], record.time, true)
           else
-            process_meets(false, record.time, true)
+            process_meets(true, record.time, true)
           end
         end
         stop_replay
@@ -303,7 +313,8 @@ class MeetProcesser
 private
 
   def start_tqueue
-    tqueue_start(@@timer_interval, 2) {tqueue.process_meets(true, Time.now.getutc)}
+    tqueue_start(@@timer_interval, 2) {MeetWrapper.new.process_meets(Time.now.getutc)}
+    #tqueue_start(@@timer_interval, 2) {MeetWrapper.new.delayed.process_meets(Time.now.getutc)}
   end
   def restart_tqueue
     tqueue_end
@@ -367,7 +378,7 @@ private
   end
 
   def delta_time_discount(time_delta)
-    time_delta = (time_delta-@@meet_duration_tight)/
+    time_delta = (time_delta-@@meet_duration_tight).to_f/
                       (@@meet_duration_loose-@@meet_duration_tight)
     return time_delta <= 0.0 ? 1.0 :
            time_delta >  1.0 ? 0.0 :
@@ -524,11 +535,14 @@ private
   def assign_mpost_to_meets_if_possible(mpost, meets)
     candidates = Hash.new
     meets.each {|meet|
-      relation = MeetRelation.new
-      relation.populate_from_meet_for_mposts(meet, [mpost], &method(:coeff_calculator))
-      coeff_gain = relation.proceed(&method(:pass_coeff_criteria_simple?))
-      if (coeff_gain > 0.0)
-        candidates[meet] = [coeff_gain, meet.mposts.size]
+      if (meet.time >= mpost.trigger_time - @@meet_duration_loose &&
+          meet.time <= mpost.trigger_time + @@meet_duration_loose)
+        relation = MeetRelation.new
+        relation.populate_from_meet_for_mposts(meet, [mpost], &method(:coeff_calculator))
+        coeff_gain = relation.proceed(&method(:pass_coeff_criteria_simple?))
+        if (coeff_gain > 0.0) # can be assigned to the meet
+          candidates[meet] = [coeff_gain, meet.mposts.size]
+        end
       end
     }
     return nil if candidates.empty?
@@ -585,7 +599,7 @@ private
           relation = MeetRelation.new
           relation.populate_from_cluster(cluster, &method(:coeff_calculator))
           coeff_gain = relation.proceed(&method(:pass_coeff_criteria_normal?))
-          if coeff_gain > 0.0
+          if coeff_gain >= 0.0 # 0 means nothing more except the seeded one
             mposts = relation.seeded.keys
             cluster = @meet_pool.split_cluster(mposts, cluster)
             cluster.meet = create_meet_from_mposts(mposts)
@@ -719,9 +733,9 @@ class MeetCluster
   # mpost is to seperated from the cluster
   def attachable?(to)
     margin = MeetProcesser.meet_duration_loose
-    return master_mpost.see_or_seen_by?(to) &&
-           to.trigger_time >= earliest_mpost.trigger_time-margin &&
-           to.trigger_time <=   latest_mpost.trigger_time+margin
+    return to.trigger_time >= earliest_mpost.trigger_time-margin &&
+           to.trigger_time <=   latest_mpost.trigger_time+margin &&
+           master_mpost.see_or_seen_by?(to)
            
   end
 
