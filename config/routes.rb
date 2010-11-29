@@ -10,9 +10,9 @@ KayaWebApp::Application.routes.draw do
   
   resources :sessions,      :only => [:new, :create, :destroy]
   resources :microposts,    :only => [:create, :destroy]
-  resources :mposts,	    :only => [:create, :destroy]
+  resources :mposts,	    :only => [:show, :create, :destroy]
   resources :relationships, :only => [:create, :destroy]
-  resources :meets
+  resources :meets,         :only => [:create, :show, :destroy]
 
   root :to => "pages#home"
 

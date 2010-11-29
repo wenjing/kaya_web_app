@@ -1,3 +1,6 @@
+require 'rubygems'
+require 'json'
+
 class MeetsController < ApplicationController
 
   before_filter :authenticate
@@ -20,12 +23,12 @@ class MeetsController < ApplicationController
     @meet = Meet.find(params[:id])
     respond_to do |format|
       format.html {
-        @users = @meet.microposts.paginate(:page => params[:page])
+        @users = @meet.mposts.paginate(:page => params[:page])
         @title = @meet.name
       }
       format.json {
         render :json =>
-          @meet.to_json(:except => [:updated_at], :include => [:users])
+          @meet.to_json(:except => [:created_at, :updated_at], :include => {:users => {:except => [:salt, :encrypted_password, :created_at, :updated_at, :admin] } } )
       }
     end
   end

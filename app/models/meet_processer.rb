@@ -76,7 +76,7 @@ class MeetWrapper
     meet_processer.tqueue.start_record(duration)
   end
 
-  def stop_record
+  def stop_record(duration)
     meet_processer = MeetProcesser.instance
     meet_processer.tqueue.stop_record
   end

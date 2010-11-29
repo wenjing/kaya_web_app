@@ -24,7 +24,7 @@ class Mpost < ActiveRecord::Base
   belongs_to :meet
 
   validates :time,    :presence => { :message => "date time missing or unrecognized format" }
-  validates :user_id, :presence => true
+#  validates :user_id, :presence => true
   validates :lng, :presence => true,
                   :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),
                                      :less_than_or_equal_to    => BigDecimal(" 180.0") }
