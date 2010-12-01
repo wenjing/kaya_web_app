@@ -110,6 +110,10 @@ class Meet < ActiveRecord::Base
     end
   end
 
+  def users_count
+    return users.size
+  end
+
 private
 
   def extract_location

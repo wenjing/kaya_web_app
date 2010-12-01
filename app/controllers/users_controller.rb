@@ -31,7 +31,7 @@ class UsersController < ApplicationController
         render :json => 
 
         #  @user.to_json(:except => [:created_at, :updated_at, :salt, :encrypted_password], :include => [:meets]) 
-      @user.to_json(:except => [:admin, :created_at, :updated_at, :salt, :encrypted_password], :include => {:meets => {:except => [:created_at, :updated_at]}})
+      @user.to_json(:except => [:admin, :created_at, :updated_at, :salt, :encrypted_password], :include => {:meets => {:except => [:created_at, :updated_at], :methods => :users_count}})
       }
     end
   end
