@@ -75,6 +75,10 @@ class User < ActiveRecord::Base
     relationships.find_by_followed_id(followed).destroy
   end
 
+  def user_avatar
+    "http://www.gravatar.com/" + Digest::MD5.hexdigest(self.email.strip.downcase)
+  end
+
   class << self
     def authenticate(email, submitted_password)
       user = find_by_email(email)
