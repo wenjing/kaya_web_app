@@ -11,7 +11,7 @@
 #  updated_at :datetime
 #  lerror     :float
 #  user_dev   :string(255)
-#  devs       :text(50000)
+#  devs       :text
 #  lng        :decimal(15, 10)
 #  lat        :decimal(15, 10)
 #  note       :string(255)
@@ -33,8 +33,10 @@ class Mpost < ActiveRecord::Base
                                      :less_than_or_equal_to    => BigDecimal(" 90.0") }
   validates :lerror, :presence => true,
                      :numericality => { :greater_than_or_equal_to => 0.0 }
-  validates :user_dev, :presence => true, :length => { :in => 1..200 }  
-  validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
+  validates :user_dev, :presence => true 
+  #validates :user_dev, :presence => true, :length => { :in => 1..200 }  
+  validates :devs   
+  #validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
 
   default_scope :order => 'mposts.created_at DESC'
 

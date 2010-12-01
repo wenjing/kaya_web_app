@@ -58,7 +58,7 @@ ActiveRecord::Schema.define(:version => 20101123022409) do
     t.datetime "updated_at"
     t.float    "lerror"
     t.string   "user_dev"
-    t.text     "devs",       :limit => 50000
+    t.text     "devs"
     t.decimal  "lng",                         :precision => 15, :scale => 10
     t.decimal  "lat",                         :precision => 15, :scale => 10
     t.string   "note"
