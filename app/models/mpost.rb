@@ -35,7 +35,6 @@ class Mpost < ActiveRecord::Base
                      :numericality => { :greater_than_or_equal_to => 0.0 }
   validates :user_dev, :presence => true 
   #validates :user_dev, :presence => true, :length => { :in => 1..200 }  
-  validates :devs   
   #validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
 
   default_scope :order => 'mposts.created_at DESC'
