@@ -24,7 +24,9 @@ class SessionsController < ApplicationController
 
       respond_to do |format|
         format.html { redirect_back_or user }
-        format.json { render :json => user.to_json(:except => [:admin,:created_at,:encrypted_password,:salt,:updated_at]) }
+        format.json { render :json => user.to_json(
+          :methods => :user_avatar,
+          :except => [:admin,:created_at,:encrypted_password,:salt,:updated_at]) }
       end
     end
   end
