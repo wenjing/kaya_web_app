@@ -76,7 +76,7 @@ class User < ActiveRecord::Base
   end
 
   def user_avatar
-    "http://www.gravatar.com/" + Digest::MD5.hexdigest(self.email.strip.downcase)
+    "http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
   end
 
   class << self
