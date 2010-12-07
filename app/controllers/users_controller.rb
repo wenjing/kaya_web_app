@@ -31,7 +31,12 @@ class UsersController < ApplicationController
         render :json => 
 
         #  @user.to_json(:except => [:created_at, :updated_at, :salt, :encrypted_password], :include => [:meets]) 
-      @user.to_json(:except => [:admin, :created_at, :updated_at, :salt, :encrypted_password], 
+      @user.to_json(:except => [:admin, 
+                                :created_at, 
+                                :updated_at, 
+                                :salt, 
+                                :encrypted_password
+                                ], 
                     :methods => :user_avatar, 
                     :include => {:meets => {:except => [:created_at, :updated_at], 
                                             :methods => :users_count}})
@@ -84,11 +89,16 @@ class UsersController < ApplicationController
   end
   
   def update
-    if @user.update_attributes(params[:user])
-      redirect_to @user, :flash => { :success => "Profile updated." }
-    else
-      @title = "Edit user"
-      render 'edit'
+    if params[:user].nil?
+      @user.update_attributes(params)
+      render :json => @user.to_json(:except => [:updated_at, :salt, :encrypted_password])
+    else 
+      if @user.update_attributes(params[:user])
+        redirect_to @user, :flash => { :success => "Profile updated." }
+      else
+        @title = "Edit user"
+        render 'edit'
+      end
     end
   end
 

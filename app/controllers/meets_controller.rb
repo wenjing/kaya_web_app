@@ -36,7 +36,8 @@ class MeetsController < ApplicationController
                                                     :encrypted_password, 
                                                     :created_at, 
                                                     :updated_at, 
-                                                    :admin] } } )
+                                                    :admin
+                                                    ] } } )
       }
     end
   end
