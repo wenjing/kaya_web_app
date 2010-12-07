@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101123022409) do
+ActiveRecord::Schema.define(:version => 20101205073418) do
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -58,7 +58,7 @@ ActiveRecord::Schema.define(:version => 20101123022409) do
     t.datetime "updated_at"
     t.float    "lerror"
     t.string   "user_dev"
-    t.text     "devs"
+    t.text     "devs",       :limit => 50000
     t.decimal  "lng",                         :precision => 15, :scale => 10
     t.decimal  "lat",                         :precision => 15, :scale => 10
     t.string   "note"
@@ -87,6 +87,10 @@ ActiveRecord::Schema.define(:version => 20101123022409) do
     t.string   "encrypted_password"
     t.string   "salt"
     t.boolean  "admin",              :default => false
+    t.string   "photo_file_name"
+    t.string   "photo_content_type"
+    t.integer  "photo_file_size"
+    t.datetime "photo_updated_at"
   end
 
   add_index "users", ["email"], :name => "index_users_on_email", :unique => true

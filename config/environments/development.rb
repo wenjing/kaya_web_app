@@ -25,4 +25,8 @@ KayaWebApp::Application.configure do
   config.log_level = :warn
   require 'kaya_base'
   Rails.kaya_dblock = true
+
+  #Paperclip
+  Paperclip.options[:command_path] = "/Users/wenjing/Downloads/ImageMagick-6.6.5/bin"
+
 end

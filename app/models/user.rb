@@ -16,7 +16,7 @@
 class User < ActiveRecord::Base
   attr_accessor   :password
   #attr_accessible :name, :email, :password, :password_confirmation
-  attr_accessible :name, :email, :password, :password_confirmation, :admin
+  attr_accessible :name, :email, :password, :password_confirmation, :admin, :photo
   
   has_many :microposts, :dependent => :destroy
 
@@ -40,6 +40,21 @@ class User < ActiveRecord::Base
   has_many :mposts,	:dependent => :destroy
   has_many :meets,      :through => :mposts, :uniq => true, :order => "time DESC"
   
+  # Paperclips
+  has_attached_file :photo,
+    :styles => {
+      :small  => "30x30#",
+      :normal => "50x50#"
+    },
+    :default_url => "http://www.kayameet.com/images/K-50x50.jpg",
+    :path => ":attachment/:id/:style.:extension",
+    :storage => :s3,
+    :s3_credentials => {
+      :access_key_id  => ENV['S3_KEY'],
+      :secret_access_key => ENV['S3_SECRET']
+    },
+    :bucket => ENV['S3_BUCKET']
+
   email_regex = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
   
   validates :name,  :presence => true,
@@ -50,6 +65,11 @@ class User < ActiveRecord::Base
   validates :password, :presence => true,
                        :confirmation => true,
                        :length => { :within => 6..40 }
+  #Paperclips
+  validates_attachment_presence :photo, :less_than => 1.megabyte
+
+  validates_attachment_content_type :photo, 
+    :content_type => ['image/jpg', 'image/jpeg', 'image/gif', 'image/png'] 
 
   before_save :encrypt_password
 
@@ -76,7 +96,8 @@ class User < ActiveRecord::Base
   end
 
   def user_avatar
-    "http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
+    #"http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
+    self.photo.url(:normal)
   end
 
   class << self

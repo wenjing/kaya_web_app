@@ -9,6 +9,8 @@ gem 'statistics2', '0.54'
 gem 'geokit'
 gem 'json', '1.4.6'
 gem 'rest-client', '1.6.1'
+gem 'paperclip'
+gem 'aws-s3', :require => 'aws/s3'
 
 group :development do
   gem 'rspec-rails', '2.0.1'
