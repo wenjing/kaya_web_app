@@ -28,7 +28,7 @@ class ChattersController < ApplicationController
           redirect_to root_path, :flash => { :success => "Chatter created!" }
         }
         format.json {
-          render :json => @chatter.to_json
+          render :json => @chatter.to_json(:methods => :chatter_photo)
         }
       end
     else
@@ -45,7 +45,7 @@ class ChattersController < ApplicationController
         @title = "meet chatters"
       }
       format.json {
-        render :json => @chatter.to_json
+        render :json => @chatter.to_json(:methods => :chatter_photo)
       }
     end
   end
