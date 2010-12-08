@@ -10,7 +10,21 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101205073418) do
+ActiveRecord::Schema.define(:version => 20101207194346) do
+
+  create_table "chatters", :force => true do |t|
+    t.integer  "user_id"
+    t.string   "content"
+    t.string   "photo_content_type"
+    t.string   "photo_file_name"
+    t.integer  "photo_file_size"
+    t.datetime "photo_updated_at"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.integer  "meet_id"
+  end
+
+  add_index "chatters", ["meet_id"], :name => "index_chatters_on_meet_id"
 
   create_table "meets", :force => true do |t|
     t.string   "name"

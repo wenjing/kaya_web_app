@@ -20,6 +20,8 @@ class User < ActiveRecord::Base
   
   has_many :microposts, :dependent => :destroy
 
+  has_many :chatters, :dependent => :destroy
+
   # relationship = following = I am following someone
   has_many :relationships, :dependent => :destroy,
                            :foreign_key => "follower_id"

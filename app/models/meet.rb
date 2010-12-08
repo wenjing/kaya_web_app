@@ -35,6 +35,10 @@ class Meet < ActiveRecord::Base
   has_many :mposts
   has_many :users,  :through => :mposts, :uniq => true
 
+  has_many :chatters, :dependent => :destroy
+
+  accepts_nested_attributes_for :chatters, :reject_if => :all_blank, :allow_destroy => true
+
   validates :name,  :presence => true, :length   => { :maximum => 250 }
   validates :time,  :presence => { :message => "date time missing or unrecognized format" }
   validates :lng,   :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),

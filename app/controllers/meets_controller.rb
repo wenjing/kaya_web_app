@@ -37,7 +37,10 @@ class MeetsController < ApplicationController
                                                     :created_at, 
                                                     :updated_at, 
                                                     :admin
-                                                    ] } } )
+                                                    ] } }, 
+                        :include => {:chatters => {
+                                        :methods => :chatter_photo }}
+                       )
       }
     end
   end
