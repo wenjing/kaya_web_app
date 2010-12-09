@@ -81,6 +81,10 @@ class User < ActiveRecord::Base
     encrypted_password == encrypt(submitted_password)
   end
   
+  def meet_feed
+    self.meets 
+  end
+
   def feed
     Micropost.from_users_followed_by(self)
   end

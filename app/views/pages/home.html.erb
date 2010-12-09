@@ -3,22 +3,22 @@
   <table class="front" summary="For signed-in users">
     <tr>
       <td class="main">
-        <h1 class="micropost">What's up?</h1>
-        <%= render 'shared/micropost_form' %>
-        <%= render 'shared/feed' %>
+        <h1 class="micropost">Who have you met?</h1>
+        <%#= render 'shared/micropost_form' %>
+        <%= render 'shared/meet_feed' %>
       </td>
       <td class="sidebar round">
         <%= render 'shared/user_info' %>
-        <%= render 'shared/stats' %>
+        <%#= render 'shared/stats' %>
       </td>
     </tr>
   </table>
 
 <% else %>
 
-<h1>Kaya Mobile App</h1>
+<h1>Kaya Meet!</h1>
 <p>
-  This is the home page for Kaya Mobile App.
+  This is the home page for Kaya Meet!
 </p>
 
 <%= link_to "Sign up now!", signup_path, :class => "signup_button round" %>

@@ -1,0 +1,6 @@
+<% if @meet_feed_items.any? %>
+  <table class="meets" summary="Meet feed">
+    <%= render :partial => 'shared/meet_feed_item', :collection => @meet_feed_items %>
+  </table>
+  <%= will_paginate @meet_feed_items %>
+<% end %>
