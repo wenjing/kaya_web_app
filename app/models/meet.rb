@@ -30,12 +30,14 @@ class Meet < ActiveRecord::Base
                   :location, :street_address, :city, 
                   :state, :zip, :country, 
                   :lng, :lat, :lerror,
-                  :image_url
+                  :image_url, :collision
 
   has_many :mposts
   has_many :users,  :through => :mposts, :uniq => true
 
   has_many :chatters, :dependent => :destroy
+
+  has_many :invitations, :dependent => :destroy
 
   accepts_nested_attributes_for :chatters, :reject_if => :all_blank, :allow_destroy => true
 

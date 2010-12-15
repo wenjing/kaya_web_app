@@ -18,7 +18,7 @@
 #
 
 class Mpost < ActiveRecord::Base
-  attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note
+  attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note, :host_mode, :host_id, :collision
 
   belongs_to :user
   belongs_to :meet
@@ -36,6 +36,8 @@ class Mpost < ActiveRecord::Base
   validates :user_dev, :presence => true 
   #validates :user_dev, :presence => true, :length => { :in => 1..200 }  
   #validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
+
+  #validates :host_mode, :presence => true
 
   default_scope :order => 'mposts.created_at DESC'
 

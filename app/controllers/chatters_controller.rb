@@ -15,7 +15,7 @@ class ChattersController < ApplicationController
       #meet.chatters << @chatter
       @chatter = meet.chatters.build(params)
     else
-      @chatter = meet.chatters.build(params[:micropost])
+      @chatter = meet.chatters.build(params[:chatter])
     end
 
     # Handle @chatter.nil

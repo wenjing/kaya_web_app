@@ -16,11 +16,13 @@
 class User < ActiveRecord::Base
   attr_accessor   :password
   #attr_accessible :name, :email, :password, :password_confirmation
-  attr_accessible :name, :email, :password, :password_confirmation, :admin, :photo
+  attr_accessible :name, :email, :password, :password_confirmation, :admin, :photo, :pending
   
   has_many :microposts, :dependent => :destroy
 
   has_many :chatters, :dependent => :destroy
+
+  has_many :invitations, :dependent => :destroy
 
   # relationship = following = I am following someone
   has_many :relationships, :dependent => :destroy,

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101207194346) do
+ActiveRecord::Schema.define(:version => 20101215220903) do
 
   create_table "chatters", :force => true do |t|
     t.integer  "user_id"
@@ -25,6 +25,14 @@ ActiveRecord::Schema.define(:version => 20101207194346) do
   end
 
   add_index "chatters", ["meet_id"], :name => "index_chatters_on_meet_id"
+
+  create_table "invitations", :force => true do |t|
+    t.integer  "meet_id"
+    t.integer  "user_id"
+    t.text     "invitee"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -42,8 +50,11 @@ ActiveRecord::Schema.define(:version => 20101207194346) do
     t.decimal  "lng"
     t.decimal  "lat"
     t.float    "lerror"
+    t.boolean  "collision"
+    t.string   "host_id"
   end
 
+  add_index "meets", ["host_id"], :name => "index_meets_on_host_id", :unique => true
   add_index "meets", ["time"], :name => "index_meets_on_time"
 
   create_table "microposts", :force => true do |t|
@@ -76,6 +87,9 @@ ActiveRecord::Schema.define(:version => 20101207194346) do
     t.decimal  "lng",                         :precision => 15, :scale => 10
     t.decimal  "lat",                         :precision => 15, :scale => 10
     t.string   "note"
+    t.integer  "host_mode"
+    t.boolean  "collision"
+    t.string   "host_id"
   end
 
   add_index "mposts", ["created_at"], :name => "index_mposts_on_created_at"
@@ -105,6 +119,7 @@ ActiveRecord::Schema.define(:version => 20101207194346) do
     t.string   "photo_content_type"
     t.integer  "photo_file_size"
     t.datetime "photo_updated_at"
+    t.boolean  "pending"
   end
 
   add_index "users", ["email"], :name => "index_users_on_email", :unique => true
