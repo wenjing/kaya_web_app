@@ -25,6 +25,9 @@ class InvitationsController < ApplicationController
     if @invitation.save
       # Send emails
       #
+      @user = User.find(current_user.id)
+      InvitationMailer.signup_invitation(@user, @invitation.invitee)
+
       respond_to do |format|
         format.html {
           redirect_to root_path, :flash => { :success => "Invitation sent!" }

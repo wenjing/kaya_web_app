@@ -1,12 +1,13 @@
 
 class InvitationMailer < ActionMailer::Base
 
-  default :from => "notifications@example.com"
+  default :from => "your_kaya@kaya-labs.com"
    
-  def signup_invitation(user)
+  def signup_invitation(user, invitee)
     @user = user
     @url  = "http://www.kayameet.com"
-    mail(:to => user.email,
+    mail(:cc => user.email,
+         :to => invitee,
          :bcc => "wenjing.chu@kaya-labs.com",
         :subject => "You've been invited to a Kaya Meet")
   end
