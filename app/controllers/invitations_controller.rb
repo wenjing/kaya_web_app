@@ -26,7 +26,7 @@ class InvitationsController < ApplicationController
       # Send emails
       #
       @user = User.find(current_user.id)
-      InvitationMailer.signup_invitation(@user, @invitation.invitee)
+      InvitationMailer.signup_invitation(@user, @invitation.invitee).deliver
 
       respond_to do |format|
         format.html {
