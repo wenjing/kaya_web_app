@@ -10,7 +10,7 @@ class InvitationsController < ApplicationController
     # Verify that the user is a participant of the meet
 
     # Create invitation
-    if (params[:chatter].nil?)
+    if (params[:invitation].nil?)
       #p params
       @invitation = meet.invitations.build(params)
     else
