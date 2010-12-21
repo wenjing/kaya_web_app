@@ -69,8 +69,9 @@ class User < ActiveRecord::Base
   validates :password, :presence => true,
                        :confirmation => true,
                        :length => { :within => 6..40 }
-  #Paperclips
-  validates_attachment_presence :photo, :less_than => 1.megabyte
+  #Paperclips, is photo a mandatory for signup?
+  #validates_attachment_presence :photo, :less_than => 1.megabyte
+  validates_attachment_size :photo, :less_than => 1.megabyte
 
   validates_attachment_content_type :photo, 
     :content_type => ['image/jpg', 'image/jpeg', 'image/gif', 'image/png'] 

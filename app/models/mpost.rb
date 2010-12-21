@@ -50,7 +50,7 @@ class Mpost < ActiveRecord::Base
   # Assgin to devs_str instead of assigning devs directly: :devs_str=>"dev1,dev2,dev3"
   def devs=(str)
     devs = Hash.new
-    str.split(/[ \t\n,;]+/).each {|dev| devs[dev] = nil} # assign to nil yield least yaml string
+    str.split(/[,]+/).each {|dev| devs[dev] = nil} # assign to nil yield least yaml string
     write_attribute(:devs, devs)
   end
 
@@ -59,6 +59,20 @@ class Mpost < ActiveRecord::Base
   # Check processed or not (meet != nil => processed)
   def is_processed?
     return meet_id? # might be faster than check meet directly
+  end
+  def is_host_owner?
+    return host_mode.present? && host_mode == 1
+  end
+  def is_host_guest?
+    return !is_host_owner? && host_id.present?
+  end
+  def host_meet
+    # extract meet_id part
+    return host_id.present? ? host_id.split(":").last : nil
+  end
+  def force_to_peer_mode 
+    host_mode = 0
+    host_id = nil
   end
   # Trigger time is when the mpost is sampled. Shall be same as time. This one
   # is used instead to make sure it is utc time.
@@ -81,6 +95,12 @@ class Mpost < ActiveRecord::Base
   end
   def see_each_other?(other)
     return other ? (see?(other) && seen_by?(other)) : false
+  end
+  def see_common?(other) # see a common dev?
+    if other
+      devs.each {|dev| return true if other.devs.include?(dev)}
+    end
+    return false
   end
   # Merge other_devs into this devs
   def add_devs(other_devs)

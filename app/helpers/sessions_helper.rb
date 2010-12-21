@@ -25,6 +25,14 @@ module SessionsHelper
   def current_user?(user)
     user == current_user
   end
+
+  def current_user_id?(user_id)
+    user_id == current_user.id
+  end
+
+  def admin_user?
+    current_user && current_user.admin
+  end
   
   def authenticate
     deny_access unless signed_in? || basic_authenticate

@@ -1,24 +1,21 @@
 class ChattersController < ApplicationController
   skip_before_filter :verify_authenticity_token
   before_filter :authenticate
-  before_filter :authorized_user, :only => :destroy
-  
+  before_filter :authorized_chatter_owner, :only => :destroy
+  before_filter :only => :create do |controller|
+    controller.authorized_meet_member(params[:meet_id])
+  end
+  #before_filter :authroized_chatter_meet_owner, :only => :show
+
   def create
-    meet = Meet.find(params[:meet_id])
-    # Handle meet.nil?
-
-    # Verify that the user is a participant of the meet
-
     if (params[:chatter].nil?)
       #p params
       #@chatter = Chatter.new(params)
       #meet.chatters << @chatter
-      @chatter = meet.chatters.build(params)
+      @chatter = @meet.chatters.build(params)
     else
-      @chatter = meet.chatters.build(params[:chatter])
+      @chatter = @meet.chatters.build(params[:chatter])
     end
-
-    # Handle @chatter.nil
 
     #p @chatter
     @chatter.user_id = current_user.id
@@ -33,12 +30,16 @@ class ChattersController < ApplicationController
       end
     else
       @feed_items = []
-      render 'pages/home'
+      respond_to do |format|
+        format.html { render 'pages/home' }
+        format.json { render :json => @chatter.errors.to_json, :status => :unprocessable_entity }
+      end
     end
   end
 
   def show
-    @chatter = Chatter.find(params[:id])
+    @chatter = Chatter.find_by_id(params[:id])
+    assert_unauthorized(@chatter)
     respond_to do |format|
       format.html {
         render @chatter
@@ -55,10 +56,4 @@ class ChattersController < ApplicationController
     redirect_to root_path, :flash => { :success => "Chatter deleted!" }
   end
   
-  private
-  
-    def authorized_user
-      @chatter = Chatter.find(params[:id])
-      redirect_to root_path unless (current_user.id == @chatter.user_id)
-    end
 end

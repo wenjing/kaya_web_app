@@ -1,10 +1,11 @@
 KayaWebApp::Application.routes.draw do
 
+  # ZZZ hong.zhao what for?
   get "meets/new"
 
   resources :users do
     member do
-      get :following, :followers
+      get :following, :followers, :meets
     end
   end
   

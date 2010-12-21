@@ -3,12 +3,13 @@ require 'kaya_base'
 
 class Mpost
   attr_accessor :id, :time, :lng, :lat, :lerror, :user, :peers, :leaks,
-                :meet, :post_time, :mname, :duration, :strength, :loc_x, :loc_y
+                :meet, :post_time, :mname, :duration, :strength, :loc_x, :loc_y,
+                :host_id, :host_mode
 
   def create
     return to_params(:time, :lng, :lat, :lerror).merge(
-                       :devs=>((peers.concat(leaks).map {|peer| peer.dev}).join(",")),
-                       :user_dev=>user.dev, :user_id=>user.id, :note=>meet.name)
+                       :devs=>((peers.concat(leaks).map {|peer| peer.unique_id}).join(",")),
+                       :user_dev=>user.unique_id, :user_id=>user.id, :note=>meet.name)
   end
 
   def pending?
@@ -38,13 +39,13 @@ class Mpost
 end
 
 class MpostsBuilder
-  @@trigger_time_offset_dist = [5, 1, 45]
+  @@trigger_time_offset_dist = [2, 0, 8]
   @@post_time_offset = (-90..0).to_a.concat([0.1, 0.2, 0.5, 1, 5, 10, 60, 600, 3600, 1.day.to_i])
   @@duplicate_post_offset = [-3000, 30]
   @@double_post_offset = [-3000, 30]
   @@resend_post_offset = [-3000, 30]
   @@resend_lerror_ratio = [0.0, 0.6]
-  @@device_signal_duration = [8, 12]
+  @@device_signal_duration = [2, 6]
   @@device_always_on_prob = [0.3]
   @@device_strength_dist = [10, 6, 30]
   @@latlng_per_lerror = 3.5e-6

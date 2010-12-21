@@ -10,6 +10,10 @@ class User
   def signin
     return to_params(:email, :password)
   end
+
+  def unique_id
+    return "#{name}:#{id}" 
+  end
 end
 
 class UsersBuilder
@@ -20,7 +24,7 @@ class UsersBuilder
     users = Array.new(user_count) {User.new}
     dev = "00:00:00:00:00:02"
     users.each_with_index {|user, no|
-      serial = format("%05d", no+2)
+      #serial = format("%05d", no+2)
       #user.name = "user_#{serial}"
       #user.email = "user_#{serial}@kaya-labs.com"
       #user.password = "password"

@@ -9,15 +9,13 @@ class DebugController < ApplicationController
   def run
     script = params[:script]
     respond_to do |format|
-      format.html { redirect_to root_path }
       format.json {
         begin
           eval script
-          head :ok
+          head :ok # 200
         rescue Exception => e
-          puts e.to_s
-          puts e.backtrace
-          head :unprocessable_entity
+          puts e.to_s, e.backtrace
+          head :internal_server_error # 500
         end
       }
     end
@@ -31,7 +29,6 @@ class DebugController < ApplicationController
       mposts << mpost if mpost
     }
     respond_to do |format|
-      format.html { redirect_to root_path }
       format.json { render :json => mposts.to_json(:include =>  {:meet=>{:include=>:users}}, :except => [:devs]) }
     end
   end
@@ -39,11 +36,10 @@ class DebugController < ApplicationController
   private
 
     def admin_debug
-      if (Rails.env.production? || !current_user || !current_user.admin?)
-        respond_to do |format|
-          format.html { redirect_to root_path }
-          format.json { head :unauthorized }
-        end
+      if (Rails.env.production? || !admin_user?)
+        render_unauthorized
+      else
+        render_unauthorized(:only=>:html)
       end
     end
 

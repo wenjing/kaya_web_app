@@ -2,133 +2,145 @@ $LOAD_PATH << '.'
 $LOAD_PATH << './test'
 $LOAD_PATH << './lib'
 
-require 'create_locations'
-require 'create_meets'
-require 'create_mposts'
-require 'create_users'
-
 root_url = "http://0.0.0.0:3000"
-res = RestClient::Resource.new(root_url, {:open_timeout=>600, :timeout=>600})
+rest_options = {:open_timeout=>600, :timeout=>600}
 
+class User
+  attr_accessor :id, :name, :email, :password, :cookies
+  def initialize(name, email, password)
+    self.name = name
+    self.email = email
+    self.password = password
+  end
+  def create
+    return to_params(:name, :email, :password, :password_confirmation)
+  end
+  def signin
+    return to_params(:email, :password)
+  end
+  def credential
+    return {:user=>email, :password=>"password"}
+  end
+  def password_confirmation
+    return password
+  end
+  def dev
+    return "#{name}:#{id}"
+  end
+end
+
+# Create admin and cleanup database
 admin = User.new
-admin.email = "admin@kaya-labs.com"
-admin.password = "password"
-rsp = res["sessions"].post_json(admin.signin)
-admin.id, admin.cookies = rsp.body_json("user")["id"], rsp.cookies
-rsp = res["admin/run"].cookies(admin.cookies).post_json(
-                {:script=>"load \'./test/reset_db.rb\'"}) if admin.id
-rsp = res["sessions"].post_json(admin.signin)
-admin.id, admin.cookies = rsp.body_json("user")["id"], rsp.cookies
+admin.name, admin.email, admin.password = "admin", "admin@kaya-labs.com", "password"
+ares = RestClient::Resource.new(root_url+"debug/run", rest_options.merge(admin.credential))
+rsp = ares.post_json({:script=>"load \'./test/reset_all.rb\'"})
 
-rsp = res["users"].cookies(admin.cookies).get_json
-db_users = Array.new
-rsp.body_json.each {|body|
-  db_users << body["user"] unless body["user"]["admin"]
+require 'random_data' 
+ures = RestClient::Resource.new(root_url+"users", rest_options)
+users = Array.new
+(1..10).each {|user_id|
+  user = User.new
+  user.name, user.email, user.password = Random.full_name, Random.email, Random.alphanumeric(8)
+  rsp = ures.post_json(user.create)
+  user.id = rsp.body_json("user")["id"] if rsp.ok?
+  users << user
 }
 
-users = UsersBuilder.build(db_users.size)
-users.each_with_index {|user, index|
-  db_user = db_users[index]
-  user.id = db_user["id"]
-  user.name = db_user["name"]
-  user.email = db_user["email"]
-}
+class Mpost
+  attr_accessor :id, :time, :lng, :lat, :lerror, :user, :peers, :host_id, :host_mode
 
+  def initialize(id, time, lng, lat, lerror, user, peers, host_mode=0, host_id=nil)
+    self.id = id
+    self.time = time
+    self.lng = lng
+    self.lat = lat
+    self.lerror = lerror
+    self.user = user
+    self.peers = peers
+    self.host_mode = host_mode
+    self.host_id = host_id
+  end
+  def create
+    params = to_params(:time, :lng, :lat, :lerror).merge(
+                       :devs=>((peers.map {|peer| peer.dev}).join(",")),
+                       :user_dev=>user.dev, :user_id=>user.id)
+    params.merge(:host_id=>host_id) if host_id
+    params.merge(:host_mode=>(host_mode||0))
+    return params
+  end
+end
 
-mpost_count = 0
-error_mposts = Array.new
+# Test peer (hostless) mode
 mposts = Array.new
-run_hours = 24
-(1..24).time {
+user = users[0]
+mpost = Mpost.new
+mpost = 
+pres = RestClient::Resource.new(root_url+"/mposts", rest_options.merge(user.credential))
 
-# Prepare data
-require 'active_support/core_ext'
-random_users = users.shuffle
-mposts.reject! {|mpost| mpost.id}
-from_time = Time.now + 1.minutes # give it a break
-to_time = from_time + 1.hour
-locs = LocationsBuilder.build(from_time, to_time, 55)
-meets = Array.new
-locs.each {|loc|
-  meets.concat(MeetsBuilder.build(loc, random_users, meets.size))
-}
-meets.each {|meet|
-  mposts.concat(MpostsBuilder.build(meet))
-}
-locs.sort_by! {|loc| loc.area_size}
-meets.sort_by! {|meet| meet.time}
-mposts.sort_by! {|mpost| mpost.post_time}
-
-# Post mposts
-mpost_head = 0
-while (Time.now < to_time+1.minute && mpost_head < mposts.size)
+while (Time.now < to_time+offset_time && mpost_head < mposts.size)
   mpost = mposts[mpost_head]
-  if mpost.post_time < Time.now
-    rsp = res["mpost"].cookies(admin.cookies).post_json(mpost.create)
-    mpost.id = rsp.body_json("user")["id"]
+  if mpost.post_time <= Time.now
+    #rsp = res["mposts"].cookies(admin.cookies).post_json(mpost.create)
+    ures = RestClient::Resource.new(root_url+"/mposts", {:open_timeout=>600, :timeout=>600, 
+                                                  :user=>mpost.user.email, :password=>"password"})
+    rsp = ures.post_json(mpost.create)
+    mpost.id = rsp.body_json("mpost")["id"] if rsp.ok?
     mpost_head += 1
+    if mpost_head % 10 == 0
+      print "."; dot_count += 1
+      if dot_count >= 80
+        dot_count = 0
+        puts "#{mpost_head}/#{mposts.size} #{mpost.post_time.time_ampm}/#{Time.now.time_ampm}"
+      end
+    end
   else
     sleep(0.5)
   end
 end
+puts ""
 
-sleep(5.minutes.to_i) # wait 5 minutes so all pending mposts can be processed
 # Check meets
-done_mposts.slice(0..mpost_head-1).reject {|mpost| !mpost.id}
-mpost_ids = done_mposts.map {|mpost| mpost.id}
-rsp = res["admin/mposts"].cookies(admin.cookies).get_json(:mpost_ids=>mpost_ids)
-done_mposts.each_with_index {|mpost, index|
-  mpost.mname = rsp.body_json("mpost")[index]["meet"]["name"]
-  error_mposts << mpost unless mpost.correct?
-  mpost_count += 1
-}
-
-if need_debug
-locs.each {|loc| loc.display("")}
-
-locs_area_stat = locs.group_by {|loc| loc.area_size/100*100}.transform {|x| x.size}
-locs_cap_stat = locs.group_by {|loc| loc.capacity/10*10}.transform {|x| x.size}
-meets_user_stat = meets.group_by {|meet| meet.users.size}.transform {|x| x.size}
-meets_range_stat = meets.group_by {|meet|
-  (meet.trigger_range[1].time-meet.trigger_range[0].time).round
-}.transform {|x| x.size}
-mposts_offset_stat = mposts.group_by {|mpost|
-  offset = [0, 0.1, 0.5, 1, 5, 10, 1.minute.to_i,
-            10.minutes.to_i, 1.hour.to_i, 10.hour.to_i, 1.day.to_i].reverse.each {|v|
-                    break v if mpost.post_time-mpost.time >= v}
-  offset = -1 if offset.is_a?(Array)
-  offset
-}.transform {|x| x.size}
-mposts_peers_stat = mposts.group_by {|mpost|
-  users_count = mpost.meet.users.size
-  peers_count = mpost.peers.size
-  percentiles = (1..10).to_a.map {|x| format("%3d%", x*10)}
-  if users_count <= 1
-    percentiles.last
-  else
-    no = (peers_count.to_f/users_count*percentiles.size).floor
-    no = [percentiles.size-1, no].min
-    percentiles[no]
+sleep(process_time.to_i) # wait 3 minutes so all pending mposts can be processed
+sent_mposts = mposts.reject {|mpost| !mpost.id}
+total_mposts.concat(sent_mposts)
+pending_mposts = mposts.select {|mpost| !mpost.id}
+mpost_ids = sent_mposts.map {|mpost| mpost.id}
+rsp = nil
+sent_mposts.each_with_index {|mpost, index|
+  # Get 100 mposts each time
+  start_index = index/100*100
+  offset_index = index-start_index
+  if offset_index == 0
+    this_ids = mpost_ids.slice(start_index...start_index+100)
+    rsp = res["debug/mposts"].cookies(admin.cookies).get_json(:mpost_ids=>this_ids)
   end
-}.transform {|x| x.size}
-
-puts "location area :"
-PP.pp(locs_area_stat.sort_by_key)
-puts "location capacity :"
-PP.pp(locs_cap_stat.sort_by_key)
-puts "meet user :"
-PP.pp(meets_user_stat.sort_by_key)
-puts "meet time range :"
-PP.pp(meets_range_stat.sort_by_key)
-puts "mpost post offset :"
-PP.pp(mposts_offset_stat.sort_by_key)
-puts "mpost peers :"
-PP.pp(mposts_peers_stat.sort_by_key)
-puts format("total meets  : %d", meets.size)
-puts format("total mposts : %d", mposts.size)
-end
-
+  mm = rsp.body_json()[offset_index]["mpost"]["meet"]
+  if !mm
+    error_missing << mpost
+  else
+    mpost.mname = mm["name"]
+    uus = mm["users"] # created meet users
+    musers = mpost.meet.users # should be users
+    is_super_set = musers.all? {|user| uus.any? {|uu| user.id == uu["id"]} ||
+                                      pending_mposts.any? {|pp| user.id == pp.user.id }}
+    is_sub_set = uus.all? {|uu| musers.any? {|user| user.id == uu["id"]} ||
+                                pending_mposts.any? {|pp| pp.user.id == uu["id"]}}
+    if (is_super_set && is_sub_set)
+      # Perfect match
+    elsif is_sub_set # meet is subset of what it should be
+      error_minus << mpost
+    elsif is_super_set # meet is superset to what it should be
+      error_plus << mpost
+    elsif
+      error_mix << mpost
+    end
+  end
 }
+past_mposts = mposts.reject {|mpost| mpost.id}
+} # run_times
 
-print "incorrect mposts ? in ?, ?%", error_mposts.size, mpost_count,
-                                     error_mposts.size.to_f/mpost_count*100
+error_mposts = [error_missing, error_plus, error_minus, error_mix].flatten
+puts format("incorrect mposts !%d +%d -%d x%d in %d, %.2f%",
+            error_missing.size, error_plus.size, error_minus.size,
+            error_mix.size, total_mposts.size,
+            error_mposts.size.to_f/total_mposts.size*100)

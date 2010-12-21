@@ -116,30 +116,30 @@ class MeetProcesser
 
   cattr_accessor :infinite_coeff, :meet_duration_loose
 
-  @@timer_interval      = 3.0  # timer internal
-  @@meet_duration_tight = 20   # fully counted if 2 mposts are trigger within time period
-  @@meet_duration_loose = 60   # discounted within time period, different meets if exceed
+  @@timer_interval      = 1.0  # timer internal
+  @@meet_duration_tight = 5.0  # fully counted if 2 mposts are trigger within time period
+  @@meet_duration_loose = 10.0 # discounted within time period, different meets if exceed
   # Process a raw cluster if its earliest mpost exceed limit AND has not receive new mpost
-  # for a while
-  @@hot_time_idle        = 5.0
-  @@hot_time_threshold   = 30.0
-  @@hot_time_limit       = 60.0 # force to process a raw cluster if earliest mpost exceed limit
-  @@cold_time_limit      = 3600.0  # freeze processe clusters older than limit
+  # for a while and it is complete (all peer devs are included in self devs)
+  @@hot_time_idle        = 2.0
+  @@hot_time_threshold   = 5.0
+  @@hot_time_limit       = 10.0 # force to process a raw cluster if earliest mpost exceed limit
+  @@cold_time_limit      = 1800.0  # freeze processe clusters older than limit
   # Shall be much larger than meet_duration_loose, 10 mins
   @@cold_time_margin = [@@meet_duration_loose*5, 600.0].max
   # Exponentially decay starting from duration_tight to durantion_loose to 10% of original value
   @@delta_time_discounts  = (0..100).map {|x| ((100.0-x)**2/10000.0+1.0/9.0)/(1.0+1.0/9.0)}
   @@infinite_coeff        = 1000000.0  # infinite coeff value
   @@uni_connection_discount = 0.8 # discount if A see B but B does not see A
-  # A member's coeff to the group can not be less than 20% of average
-  @@coeff_vs_avg_threshold = 0.2
+  # A member's coeff to the group can not be less than 5% of average
+  @@coeff_vs_avg_threshold = 0.05
 
   #@@timer_interval       = 5.0  # timer internal
   #@@hot_time_idle        = 5.0
   #@@hot_time_threshold   = 10.0
   #@@hot_time_limit       = 15.0
   #@@cold_time_limit      = 50.0  # freeze processe clusters older than limit
-  @@coeff_vs_avg_threshold = 0.05
+  #@@coeff_vs_avg_threshold = 0.05
 
   def setup_parameters(options)
     @@timer_interval       = options[:timer_interval]       if options[:timer_interval]
@@ -373,7 +373,8 @@ private
   def shall_process_cluster?(cluster)
     return !cluster.is_processed? &&
            (mpost_time_from_now(cluster.latest_mpost) > @@hot_time_idle &&
-            mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_threshold) ||
+            mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_threshold &&
+           cluster.is_complete?) ||
            mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_limit
   end
 
@@ -433,6 +434,35 @@ private
           meet.id, pluralize(1, "mpost"))
   end
 
+  def add_mposts_to_meet(mposts, meet)
+    assign_mposts_to_meet(mposts, meet)
+    debug(:processer, 2, "*** add to meet %d of %s",
+          meet.id, pluralize(mpost.size, "mpost"))
+  end
+
+  def add_mposts_to_hosted_meet(mposts, meet)
+    # Even with host_id, still have to check devs to confirm they are actually linked
+    ng_mposts = mposts
+    if meet
+      ok_mposts = Array.new
+      mposts.each {|mpost|
+        meet.mposts.each {|meet_mpost|
+          # Maybe better only to check against meet_mpost that is host or proxy mode
+          if mpost.see_or_seen_by?(meet_mpost)
+            ok_mposts << mpost
+            ng_mposts.delete(mpost)
+          end
+        }
+      }
+      if !ok_mposts.empty?
+        create_meet_from_mposts(ok_mposts, meet)
+        debug(:processer, 2, "*** add to hosted meet %d of %s",
+              meet.id, pluralize(mpost.size, "ok_mposts"))
+      end
+    end
+    return ng_mposts
+  end
+
   def create_meet_from_mposts(mposts)
     meet = Meet.new
     assign_mposts_to_meet(mposts, meet)
@@ -448,6 +478,17 @@ private
           meet.id, pluralize(1, "mpost"))
     return meet
   end
+
+# def get_meets_by_host_id(mpost)
+#   meets = nil
+#   if (mpost.host_id.present?)
+#     Rails.kaya_dblock {
+#       meets = Meet.where("host_id == ?", mpost.host_id).includes(:mposts)
+#       meets.each {|meet| meet.id} # make sure it is loaded here
+#     }
+#   end
+#   return meets
+# end
 
   def get_meets_around_mpost(mpost)
     return get_meets_by_range(mpost.trigger_time - @@meet_duration_loose,
@@ -529,6 +570,26 @@ private
     connect += 1 if to.see?(from)
     return calculate_coeff(connect, time_delta)
   end
+
+  # Choose the best hosted meet and assign the mpost to it.
+  # Only check host_id and devs. There is no time duration constraint for hosted meet.
+  # Return the assigned meet.
+# def assign_mpost_to_hosted_meets_if_possible(mpost)
+#   meets = get_meets_by_host_id(mpost)
+#   candidates = Hash.new
+#   meets.each {|meet|
+#     meet.mposts.each {|meet_mpost|
+#       if (meet_mpost.see_or_be_seen?(mpost) || meet_mpost.see_common?(mpost))
+#         candidates[meet] = (meet.time-mpost.time).abs
+#       end
+#     }
+#   }
+#   return nil if candidates.empty?
+#   # Select the best one and assign to it (the closest to it in time)
+#   meet = (candidates.min_by {|h| h[1]})[0] # use the closest meet
+#   add_mpost_to_meet(mpost, meet)
+#   return meet
+# end
 
   # Choose the best meet and assign the mpost to it.
   # Return the assigned meet.
@@ -615,9 +676,16 @@ private
   end
 
   def process_pending_mposts
+    hosted_guests = Hash.new
     @meet_pool.pending_mposts.each {|mpost|
       if mpost.is_processed?
         # Shall we do something here?
+      elsif mpost.is_host_owner?
+        # Shall not come here, expedite to process_mpost for quick response
+        #create_meet_from_mpost(mpost)
+      elsif mpost.is_host_guest?
+        # Collect all mposts of same meet, so we can process them all at once
+        (hosted_guests[mpost.host_meet] ||= Array.new) << mpost
       elsif is_definitely_cold?(mpost) # must not in meet_pool, check db directly
         if !assign_mpost_to_cold_meets_if_possible(mpost)
           # Create a orphan meet and assigned this mpost as solo member
@@ -640,6 +708,19 @@ private
       end
     }
     @meet_pool.pending_mposts.clear
+
+    hosted_guests.each_pair {|meet_id, mposts|
+      meet = Mpost.includes(:mposts).find_by_id(meet_id)
+      ng_mposts = add_mposts_to_hosted_meet(mposts, meet)
+      # Under normal circumstance, this shall never happen unless someone try to
+      # abuse the system. We can either quitely ignore these posts, or we can play it
+      # nicely by converting them to peer mode posts and put back to pool to be processed later.
+      ng_mposts.each {|mpost|
+        mpost.force_to_peer_mode
+        mpost.save
+        @meet_pool.pending_mposts << mpost
+      }
+    }
   end
 
   # Remove cold meets from pool.
@@ -660,7 +741,15 @@ private
   end
 
   def process_mpost_core(mpost)
-    @meet_pool.pending_mposts << mpost
+    if (!mpost.is_processed? && mpost.is_host_owner?)
+      # Unconditionally create a meet from it
+      # Expedite to here to improve response time
+      # Further moved up to mpost_controller to be handled directly over there.
+      # Ensure quick respond even when backup process is backing up
+      # create_meet_from_mpost(mpost)
+    else
+      @meet_pool.pending_mposts << mpost
+    end
   end
 
   def process_meets_core
@@ -718,6 +807,11 @@ class MeetCluster
 
   def is_processed?
     return meet != nil
+  end
+
+  # Return true if mposts graph is self contained. No body see any outsiders.
+  def is_complete?
+    return master_mpost.user_devs.superset?(master_mpost.device_devs)
   end
 
   def <<(mpost)

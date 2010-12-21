@@ -66,26 +66,34 @@ class Meet < ActiveRecord::Base
 
   def extract_information
     # Extract meeting time (average time)
-    times = Array.new
     zones = Hash.new
     unique_users = Set.new
     notes = Hash.new
+    self.collision = false
     mposts.each {|mpost|
-      times << mpost.time.to_i
-      if !zones[mpost.time.zone]
-        zones[mpost.time.zone] = 1
-      else
-        zones[mpost.time.zone] += 1
+      if mpost.time.present?
+        if zones[mpost.time.zone]
+          zones[mpost.time.zone] += 1
+        else
+          zones[mpost.time.zone] = 1
+        end
+      end
+      if mpost.note.present? # Only count non-empty note
+        if notes[mpost.note]
+          notes[mpost.note] += 1
+        else
+          notes[mpost.note] = 1
+        end
       end
       unique_users << mpost.user_id
-      if notes[mpost.note]
-        notes[mpost.note] += 1
-      else
-        notes[mpost.note] = 1
+      self.collision = true if mpost.collision?
+      if host_id.blank? # only process host_id once, because they are all same
+        self.host_id = host_id.split.last if mpost.host_id.present?
       end
     }
-    self.time = Time.at(times.average).getutc unless times.empty?
-    self.time ||= Time.now.getutc
+    self.time = (mposts.min_by {|h| h.time}).time unless mposts.empty?
+    self.time ||= Time.now
+    self.time.utc
 
     # Extract location
     extract_location
@@ -95,19 +103,23 @@ class Meet < ActiveRecord::Base
     zone ||= (zones.max_by{|h| h[1]})[0] unless zones.empty? # from most common time zone in users
     zone ||= time.zone
     zone_time = time.in_time_zone(zone) # convert to meet local time
-    note = (notes.max_by {|h| h[1]})[0]
+    note = ""
+    note = (notes.max_by {|h| h[1]})[0] unless notes.empty? # from most common note in users
     if note.present?
       self.name = note # user majority notes
     else
-      self.name = format("Meeting_%s", zone_time.strftime("%Y-%m-%d"))
+      self.name = format("Meet_%s", zone_time.strftime("%Y-%m-%d"))
     end
     # Can not call users before it is saved. It may not be availabe and may confuse rails.
     # Instead, count number of users through unique_users.
-    self.description = format("Meeting %s %swith %s",
+
+    meet_address = address
+    self.description = format("%s on %s %swith %s",
+                       note.present? ? note : "Meet",
                        #zone_time.strftime("on %Y-%m-%d %I:%M%p"),
                        zone_time.iso8601,
-                       !location.blank? ? "at #{location} " : "",
-                       pluralize(unique_users.count, "attendent"))
+                       meet_address.present? ? "at #{meet_address} " : "",
+                       pluralize(unique_users.count, "attandent"))
   end
 
   def check_geocode(retry_times=0) # check geocode information, try to aquire if missing
@@ -118,6 +130,39 @@ class Meet < ActiveRecord::Base
 
   def users_count
     return users.size
+  end
+
+  # Display up to 5 users
+  def peers_name_list(except, delimiter=", ", max_length=128)
+    more = " ..."
+    name_list = ""
+    users.each {|user|
+      if user != except
+        user_name = user.name || user.email
+        if name_list.empty?
+          name_list = user_name
+        elsif (name_list.size + delimiter.size + user_name.size) > max_length
+          name_list.concat(more)
+          break
+        else
+          name_list.concat(delimiter).concat(user.name)
+        end
+      end
+    }
+    return name_list
+  end
+
+  def peers_name_list_params=(params)
+    @peers_name_list_params = params
+  end
+  def peers_name_brief
+    return peers_name_list(@peers_name_list_params[:except],
+                           @peers_name_list_params[:delimiter],
+                           @peers_name_list_params[:max_length])
+  end
+
+  def has_user?(user)
+    return user && users.include?(user)
   end
 
 private
@@ -148,7 +193,6 @@ private
     else
       # self.lng, self.lat = nil, nil # keep the original
     end
-    #self.image_url = ""
   end
 
   def extract_geocode(try_limits=1)
@@ -171,6 +215,17 @@ private
     return nil if (!lat || !lng)
     # Pending ...
     return nil
+  end
+
+  def full_address
+    return location.present? ? location : ""
+  end
+  def address
+    address = ""
+    address += "#{street_address}, " if street_address.present?
+    address += "#{city}, " if city.present?
+    address += "#{state}" if state.present?
+    return address
   end
 
 end

@@ -2,7 +2,7 @@
   <%#= gravatar_for user, :size => 30 %>
   <%= image_tag user.photo.url(:small) %>
   <%= link_to user.name, user %>
-  <% if current_user.admin? %>
+  <% if !current_user?(user) && current_user.admin? %>
   |
   <%= link_to "delete", user, :method => :delete, :confirm => "You sure?",
                               :title => "Delete #{user.name}" %>

@@ -444,7 +444,6 @@ class Float
   include KayaMath
 end
 
-
 module Rails
   @@kaya_dbmutex = nil
   def self.kaya_dblock(&block)
@@ -460,4 +459,48 @@ module Rails
   def self.kaya_dblock?
     return @@kaya_dbmutex != nil
   end
+end
+
+require 'time'
+class Array
+
+  # Parameters:
+  #   :after_time, :before_time, :from_index, :to_index, :max_count
+  # If all params are missing, the whole array is returned.
+  # Assuming the array is sorted by time and each array member has a time method,
+  # default is :time, which can be changed by option.
+  #
+  def cursorize(params = {}, options = {:time_method=>:time}, &block)
+    return self if (empty? || params.empty?)
+    time_method = options[:time_method]
+    time_method = nil unless first.respond_to?(time_method)
+    before_time = params[:before_time] ? Time.parse(params[:before_time]) : nil
+    after_time = params[:after_time] ? Time.parse(params[:after_time]) : nil
+    from_index = params[:from_index] ? params[:from_index].to_i : nil
+    to_index = params[:to_index] ? params[:to_index].to_i : nil
+    max_count = params[:max_count] ? params[:max_count].to_i : nil
+    return cursorize_collect(before_time, after_time, from_index, to_index,
+                             max_count, time_method, &block)
+  end
+
+  private
+
+    def cursorize_collect(before_time, after_time, from_index, to_index,
+                          max_count, time_method, &block)
+      # Apply block filter first
+      collections = block ? (self.select {|v| block.call(v)}) : self
+      # Filter by time criteria
+      if (time_method && (before_time || after_time))
+        collections = collections.select {|v|
+          time = v.send(time_method)
+          (!before_time || time <= before_time) && (!after_time || time >= after_time)
+        }
+      end
+      from_index ||= 0
+      to_index ||= collections.size-1
+      max_count ||= collections.size
+      max_count = [max_count, to_index-from_index+1, collections.size-from_index].min.at_least(0)
+      return collections.slice(from_index, max_count) || []
+    end
+
 end
