@@ -8,8 +8,9 @@ class InvitationMailer < ActionMailer::Base
     @url  = "http://www.kayameet.com"
     mail(:cc => user.email,
          :to => invitee,
-         :bcc => (Rails.env.production? ? "wenjing.chu@kaya-labs.com" :
-                                          ENV["KAYAMEET_MAILER_BCC"]),
+         :bcc => "wenjing.chu@kaya-labs.com",
+#        :bcc => (Rails.env.production? ? "wenjing.chu@kaya-labs.com" :
+#                                         ENV["KAYAMEET_MAILER_BCC"]),
         :subject => "You've been invited to a Kaya Meet")
   end
 
