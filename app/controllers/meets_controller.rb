@@ -29,20 +29,19 @@ class MeetsController < ApplicationController
       }
       format.json {
         # Reload again to eager load to prevent db N+1 access
-        @meet = Meet.includes(:users,:chatters).find_by_id(params[:id])
+        @meet = Meet.includes([:users, :chatters]).find_by_id(params[:id])
         render :json =>
           @meet.to_json(:except => [:created_at, :updated_at], 
                         :methods => :users_count, 
                         :include => {:users => {
-                                        :methods => :user_avatar,
-                                        :except => [:salt, 
-                                                    :encrypted_password, 
-                                                    :created_at, 
-                                                    :updated_at, 
-                                                    :admin
-                                                    ] } }, 
-                        :include => {:chatters => {
-                                        :methods => :chatter_photo }}
+                                      :methods => :user_avatar,
+                                      :except => [:salt, 
+                                                  :encrypted_password, 
+                                                  :created_at, 
+                                                  :updated_at, 
+                                                  :admin] },
+                                     :chatters => {
+                                       :methods => :chatter_photo }}
                        )
       }
     end
