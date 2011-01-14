@@ -11,6 +11,6 @@ module ApplicationHelper
   end
   
   def logo
-    image_tag("logo_04.png", :alt => "Kaya Meet")
+#    image_tag("logo_04.png", :alt => "Kaya Meet")
   end
 end
