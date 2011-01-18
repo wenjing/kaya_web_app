@@ -6,18 +6,25 @@ require 'meet_processer'
 class MpostsController < ApplicationController
   skip_before_filter :verify_authenticity_token
   before_filter :authenticate
+  before_filter :only => [:create] do |controller|
+    controller.correct_user(params[:user_id]) if params[:user_id]
+  end
   before_filter :authorized_mpost_owner, :only => [:show]
 
   def create
-    # this step automatically associates with the user
     saved = false
-    @mpost = current_user.mposts.build(params)
+    @user ||= current_user
+    if (params[:mpost].nil?)
+      @mpost = @user.mposts.build(params)
+    else
+      @mpost = @user.mposts.build(params[:mpost])
+    end
     Rails.kaya_dblock {saved = @mpost.save}
 
     assert_internal_error(saved)
     if saved
       respond_to do |format|
-        format.html { redirect_to root_path, :flash => { :success => "Mpost created!" } }
+        format.html { redirect_back root_path, :flash => { :success => "Mpost created!" } }
         format.json { render :json => @mpost.to_json(:except => [:updated_at, :created_at]) }
       end
 
@@ -26,7 +33,11 @@ class MpostsController < ApplicationController
       # to kick start a host.
       if @mpost.is_host_owner?
         meet = Meet.new
-        Rails.kaya_dblock {meet.mposts << mpost}
+        Rails.kaya_dblock {
+          meet.mposts << mpost
+          @user.hosted_meets << meet
+        }
+        meet.host = @mpost.user
         meet.extract_information
         Rails.kaya_dblock {meet.save}
       else
@@ -38,20 +49,20 @@ class MpostsController < ApplicationController
     end
   end
 
-  def show
-    respond_to do |format|
-      format.html {
-        render @mpost
-        @title = "mobile posts"
-      }
-      format.json {
-        render :json => @mpost.to_json(:except => [:created_at, :updated_at])
-      }
-    end
-  end
-
-  def destroy
-
-  end
+# def show
+#   respond_to do |format|
+#     format.html {
+#       render @mpost
+#       @title = "mobile posts"
+#     }
+#     format.json {
+#       render :json => @mpost.to_json(:except => [:created_at, :updated_at])
+#     }
+#   end
+# end
+#
+# def destroy
+#
+# end
 
 end

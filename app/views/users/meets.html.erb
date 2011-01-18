@@ -1,0 +1,11 @@
+<div class="main meets">
+  <h3> Your recent meets </h3>
+  <%= link_to "Show on map", user_map_view(@user) %>
+  <%= will_paginate @meets, :params => {:meet_type=>params[:meet_type]} if @meets.class == WillPaginate::Collection %>
+  <table class="meets" summary="User meets">
+    <%= render :partial => 'meets/meet_long', :collection => @meets, :as => :meet %>
+  </table>
+  <%= will_paginate @meets, :params => {:meet_type=>params[:meet_type]} if @meets.class == WillPaginate::Collection %>
+</div>
+
+<%= render 'user_summary' %>

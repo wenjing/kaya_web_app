@@ -1,0 +1,18 @@
+<% comment = Chatter.new %>
+<%= form_for comment, :url => chatter_chatters_path(@topic),
+                      :html => { :multipart => true, :class => "form_toggle" } do |f| %>
+  <%= render 'shared/error_messages', :object => f.object %>
+  <div class="user_avatar form_toggle_visible">
+    <%= link_to_user_image_small current_user %><br/>
+  </div>
+  <div class="new_chatter form_toggle_content">
+    <%#= f.label :content, "Write your comment ..." %><br/>
+    <%= f.text_area :content, :class => "limit_size expand40-400",
+                              :max_height => 200, :limit_size => 500,
+                              :placeholder => "Write your comment ..." %>
+  </div>
+  <div class="actions form_toggle_visible">
+    <%= form_cancel_button(f, "Discard", :discard) %
+    <%= f.submit "Comment", :name => :post %>
+  </div>
+<% end %>

@@ -1,21 +1,30 @@
 KayaWebApp::Application.routes.draw do
 
-  # ZZZ hong.zhao what for?
-  get "meets/new"
-
-  resources :users do
+  resources :users, :only => [:new, :edit, :show, :create, :update] do
+    resources :mposts, :only => [:create]
+    resources :invitations, :only => [:create, :new]
     member do
-      get :following, :followers, :meets
+      get :meets, :friends, :comments, :map
+      #get :following, :followers
     end
+  end
+  resources :meets, :only => [:show, :edit, :update, :destroy] do
+    resources :invitations, :only => [:create, :new]
+    resources :chatters,    :only => [:create]
+    member do
+      #get :people, :map
+      get :map
+    end
+  end
+  resources :chatters,      :only => [:create, :destroy]
+    resources :chatters,    :only => [:create]
   end
   
   resources :sessions,      :only => [:new, :create, :destroy]
-  resources :microposts,    :only => [:create, :destroy]
-  resources :mposts,	    :only => [:show, :create, :destroy]
-  resources :relationships, :only => [:create, :destroy]
-  resources :meets,         :only => [:create, :show, :destroy]
-  resources :chatters,      :only => [:create, :show, :destroy]
-  resources :invitations,   :only => [:create, :show, :destroy]
+  resources :mposts,	    :only => [:create]
+  resources :invitations,   :only => [:create, :new]
+  #resources :mposts,	    :only => [:create, :destroy]
+  #resources :relationships,:only => [:create, :destroy]
 
   root :to => "pages#home"
 
@@ -26,7 +35,7 @@ KayaWebApp::Application.routes.draw do
   match '/signin',  :to => 'sessions#new'
   match '/signout', :to => 'sessions#destroy'
 
-  if !Rails.env.production?
+  if Rails.env.development?
     post  '/debug/run',    :to => "debug#run"
     get   '/debug/mposts', :to => "debug#mposts"
   end

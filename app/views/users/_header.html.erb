@@ -1,0 +1,21 @@
+<% if @user && @user.id && !current_user?(@user) %>
+  <% meets = @meets || @user.meets_with(current_user) %>
+  <div class="user_header">
+    <div class="user_avatar">
+      <%= link_to_user_image @user %>
+    </div>
+    <div class="user_summary_body">
+      <ul>
+      <li class="user_name">
+        <%= link_to_user_name @user %>
+      </li>
+      <li class="user_statistics">
+        M# <%= link_to_user_meets_text @user, "#{meets.size}" %>
+        <% if meets.present? %>
+          MT <%= link_to_meet_name meets.first%> <%= link_to_meet_time meets.first %>
+        <% end %>
+      </li>
+      </ul>
+    </div>
+  </div>
+<% end %>

@@ -1,0 +1,15 @@
+<tr>
+  <td class="gravatar">
+    <%= link_to_user_image chatter.user %><br/>
+    <%= link_to_user_name chatter.user %>
+  </td>
+  <td class="chatter">
+    <span class="photo">
+      <%= image_tag(chatter.chatter_photo_small) if chatter.chatter_photo_small.present? %>
+    </span>
+    <span class="content"><%= chatter.content %></span>
+    <span class="timestamp">
+      Posted <%= time_ago_in_words(chatter.created_at) %> ago.
+    </span>
+  </td>
+</tr>

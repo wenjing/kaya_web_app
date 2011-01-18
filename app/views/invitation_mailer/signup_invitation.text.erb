@@ -1,7 +1,14 @@
+<% if !message.blank? %>
+  <% message %>
+<% end %>
 
-You've been invited by your friend <%= @user.name %> to join a Kaya Meet.
+===================================================================================
 
-To sign up is super easy, just follow this link: <%= @url %>, and start to experience a new social network like never before!
+You've been invited by your friend <%= user.name_or_email %> to join Kaya Meet.
+
+To sign up is super easy, just follow this link: <%= url %>, complete your profile and start to experience a new social network like never before!
+
+If you are using your phone, please down app first. Then you can use your email and this temporary password <%= password %> to sign in. You have to complete your profile after signed in.
 
 Sincerely,
 

@@ -1,12 +1,16 @@
 class PagesController < ApplicationController
+  respond_to :html
+  respond_to :js, :only => :home_info
 
   def home
+    redirect_to user_url(current_user) if signed_in?
     @title = "Home"
-    if signed_in?
-      @micropost = Micropost.new
-      @feed_items = current_user.feed.paginate(:page => params[:page])
-      @meet_feed_items = current_user.meet_feed.paginate(:page => params[:page])
-    end
+  end
+
+  def home_info
+    #@users_count = User.count
+    @meets_count = Meet.count
+    #@meets = Meet.limit(10)
   end
 
   def contact

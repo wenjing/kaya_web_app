@@ -4,6 +4,7 @@ log/*.log
 *.log
 tmp/**/*
 tmp/*
+misc/*
 doc/api
 doc/app
 *.swp

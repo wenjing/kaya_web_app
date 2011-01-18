@@ -415,17 +415,21 @@ private
   end
 
   def assign_mposts_to_meet(mposts, meet)
-    mposts.each {|mpost|
-      Rails.kaya_dblock {meet.mposts << mpost} 
+    meet.opt_lock_protected {
+      mposts.each {|mpost|
+        Rails.kaya_dblock {meet.mposts << mpost} 
+      }
+      meet.extract_information
+      Rails.kaya_dblock {meet.save}
     }
-    meet.extract_information
-    Rails.kaya_dblock {meet.save}
   end
 
   def assign_mpost_to_meet(mpost, meet)
-    Rails.kaya_dblock {meet.mposts << mpost}
-    meet.extract_information
-    Rails.kaya_dblock {meet.save}
+    meet.opt_lock_protected {
+      Rails.kaya_dblock {meet.mposts << mpost}
+      meet.extract_information
+      Rails.kaya_dblock {meet.save}
+    }
   end
 
   def add_mpost_to_meet(mpost, meet)
@@ -711,7 +715,7 @@ private
 
     hosted_guests.each_pair {|meet_id, mposts|
       meet = Mpost.includes(:mposts).find_by_id(meet_id)
-      ng_mposts = add_mposts_to_hosted_meet(mposts, meet)
+      ng_mposts = meet.has_hoster? ? add_mposts_to_hosted_meet(mposts, meet) : mposts
       # Under normal circumstance, this shall never happen unless someone try to
       # abuse the system. We can either quitely ignore these posts, or we can play it
       # nicely by converting them to peer mode posts and put back to pool to be processed later.
@@ -747,6 +751,7 @@ private
       # Further moved up to mpost_controller to be handled directly over there.
       # Ensure quick respond even when backup process is backing up
       # create_meet_from_mpost(mpost)
+      # mpost.user.hosted_meets << mpost.meet
     else
       @meet_pool.pending_mposts << mpost
     end

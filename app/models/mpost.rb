@@ -17,14 +17,19 @@
 #  note       :string(255)
 #
 
+# Status, access through user<=>meet relation. Do not use directly.
+# 0 or nil: ordinary mpost (meet, user)
+# 1       : deleted mpost
+# 2       : invitation pending mpost
 class Mpost < ActiveRecord::Base
   attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note, :host_mode, :host_id, :collision
 
-  belongs_to :user
-  belongs_to :meet
+  belongs_to :user, :inverse_of => :mposts
+  belongs_to :meet, :inverse_of => :mposts
+  belongs_to :invitation
 
   validates :time,    :presence => { :message => "date time missing or unrecognized format" }
-#  validates :user_id, :presence => true
+  #validates :user_id, :presence => true
   validates :lng, :presence => true,
                   :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),
                                      :less_than_or_equal_to    => BigDecimal(" 180.0") }
@@ -33,13 +38,20 @@ class Mpost < ActiveRecord::Base
                                      :less_than_or_equal_to    => BigDecimal(" 90.0") }
   validates :lerror, :presence => true,
                      :numericality => { :greater_than_or_equal_to => 0.0 }
-  validates :user_dev, :presence => true 
-  #validates :user_dev, :presence => true, :length => { :in => 1..200 }  
-  #validates :devs, :length => { :in => 0..40000 } # at least 200 devs  
-
+  validates :user_dev, :presence => true,
+                       :length => { :in => 1..200 }  
+  validates :devs, :presence => true,
+                   :length => { :in => 0..40000 } # at least 200 devs  
   #validates :host_mode, :presence => true
 
   default_scope :order => 'mposts.created_at DESC'
+  scope :user_meet_mposts, lambda {|user, meet|
+      where("mposts.user_id = ? AND mposts.meet_id = ? AND (mposts.status = ? OR mposts.status = ?)",
+            user.id, meet.id, nil, 0)
+  scope :pending_user_meet_mposts, lambda {|user, meet|
+      where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
+            user.id, meet.id, 2)
+  }
 
   serialize :devs, Hash # shall use Set, but rails serialize does not work with it
 
@@ -108,6 +120,13 @@ class Mpost < ActiveRecord::Base
   end
   def add_dev(other_dev)
     devs[other_dev] = nil
+  end
+
+  def delete
+    status = 1
+  end
+  def recovery
+    status = 0
   end
 
 end

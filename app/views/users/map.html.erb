@@ -1,0 +1,12 @@
+<div class="main meet_map">
+  Your recent <%#{@upto}%> meets on map
+  <%= render 'shared/map', :locals => {:meets => @meets.select {|meet| meet.lat_lng.present?},
+                                       :center_ll => @center_ll, :zoom => 13} %>
+  <%#= link_to "Update >>>", map_user_path_upto(@user, params[:meet_type], @more_upto), :title => "Update" %>
+  <% if @more_upto < @user.meets_count %>
+    <%= link_to "More >>>", map_user_path_upto(@user, params[:meet_type], @more_upto),
+                :title => @more_upto >= @user.meets_count ?  "All meets" : "Upto #{@more_upto} meets" %>
+  <% end %>
+</div>
+
+<%= render 'user_summary' %>

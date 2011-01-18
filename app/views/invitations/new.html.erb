@@ -1,0 +1,15 @@
+<div class="main invitation">
+  <% if @meet %>
+    <h1>Add your friends to this meet</h1>
+    <%= render 'invitation_form' %>
+  <% else %>
+    <h1>Invite your friends</h1>
+    <%= render 'invitation_form' %>
+  <% end %>
+</div>
+
+<% if @meet %>
+  <% render 'meets/meet_summary' %>
+<% else %>
+  <% render 'users/user_summary' %>
+<% end %>

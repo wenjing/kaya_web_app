@@ -1,0 +1,19 @@
+<% topic = Chatter.new %>
+<%= form_for topic, :url => meet_chatters_path(@meet),
+                    :html => { :multipart => true, :class => "form_toggle" } do |f| %>
+  <%= render 'shared/error_messages', :object => f.object %>
+  <div class="new_chatter form_toggle_content">
+    <%#= f.label :content, "Share your thoughts ..." %>
+    <%= f.text_area :content, :class => "limit_size expand60-400",
+                              :max_height => 200, :limit_size => 500,
+                              :placeholder => "Share your thoughts ..." %>
+    <div class="photo_uploader" title="Upload picture">
+      <%= f.file_field :photo %>
+      <span class="title"> Upload picture <span>
+    </div>
+  </div>
+  <div class="actions form_toggle_visible">
+    <%= form_cancel_button(f, "Discard", :discard) %
+    <%= f.submit "Post", :name => :post %>
+  </div>
+<% end %>

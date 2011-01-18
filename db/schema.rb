@@ -10,11 +10,10 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20101215220903) do
+ActiveRecord::Schema.define(:version => 20110107005447) do
 
   create_table "chatters", :force => true do |t|
     t.integer  "user_id"
-    t.string   "content"
     t.string   "photo_content_type"
     t.string   "photo_file_name"
     t.integer  "photo_file_size"
@@ -22,9 +21,13 @@ ActiveRecord::Schema.define(:version => 20101215220903) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer  "meet_id"
+    t.text     "content"
+    t.integer  "status",             :default => 0
   end
 
+  add_index "chatters", ["created_at"], :name => "index_chatters_on_created_at"
   add_index "chatters", ["meet_id"], :name => "index_chatters_on_meet_id"
+  add_index "chatters", ["user_id"], :name => "index_chatters_on_user_id"
 
   create_table "invitations", :force => true do |t|
     t.integer  "meet_id"
@@ -32,7 +35,12 @@ ActiveRecord::Schema.define(:version => 20101215220903) do
     t.text     "invitee"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.text     "message"
   end
+
+  add_index "invitations", ["created_at"], :name => "index_invitations_on_created_at"
+  add_index "invitations", ["meet_id"], :name => "index_invitations_on_meet_id"
+  add_index "invitations", ["user_id"], :name => "index_invitations_on_user_id"
 
   create_table "meets", :force => true do |t|
     t.string   "name"
@@ -52,19 +60,15 @@ ActiveRecord::Schema.define(:version => 20101215220903) do
     t.float    "lerror"
     t.boolean  "collision"
     t.string   "host_id"
+    t.integer  "lock_version",   :default => 0, :null => false
+    t.integer  "hoster_id"
+    t.text     "cached_info"
+    t.integer  "type"
   end
 
   add_index "meets", ["host_id"], :name => "index_meets_on_host_id", :unique => true
+  add_index "meets", ["hoster_id"], :name => "index_meets_on_hoster_id"
   add_index "meets", ["time"], :name => "index_meets_on_time"
-
-  create_table "microposts", :force => true do |t|
-    t.string   "content"
-    t.integer  "user_id"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-  end
-
-  add_index "microposts", ["user_id"], :name => "index_microposts_on_user_id"
 
   create_table "mpost_records", :force => true do |t|
     t.integer  "mpost_id"
@@ -83,19 +87,33 @@ ActiveRecord::Schema.define(:version => 20101215220903) do
     t.datetime "updated_at"
     t.float    "lerror"
     t.string   "user_dev"
-    t.text     "devs",       :limit => 50000
-    t.decimal  "lng",                         :precision => 15, :scale => 10
-    t.decimal  "lat",                         :precision => 15, :scale => 10
+    t.text     "devs"
+    t.decimal  "lng",        :precision => 15, :scale => 10
+    t.decimal  "lat",        :precision => 15, :scale => 10
     t.string   "note"
     t.integer  "host_mode"
     t.boolean  "collision"
     t.string   "host_id"
+    t.integer  "status",                                     :default => 0
   end
 
   add_index "mposts", ["created_at"], :name => "index_mposts_on_created_at"
   add_index "mposts", ["meet_id"], :name => "index_mposts_on_meet_id"
   add_index "mposts", ["time"], :name => "index_mposts_on_time"
   add_index "mposts", ["user_id"], :name => "index_mposts_on_user_id"
+
+  create_table "mviews", :force => true do |t|
+    t.integer  "user_id"
+    t.integer  "meet_id"
+    t.string   "name"
+    t.string   "location"
+    t.datetime "time"
+    t.text     "description"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "mviews", ["user_id", "meet_id"], :name => "index_mviews_on_user_id_and_meet_id", :unique => true
 
   create_table "relationships", :force => true do |t|
     t.integer  "follower_id"
@@ -119,7 +137,8 @@ ActiveRecord::Schema.define(:version => 20101215220903) do
     t.string   "photo_content_type"
     t.integer  "photo_file_size"
     t.datetime "photo_updated_at"
-    t.boolean  "pending"
+    t.integer  "lock_version",       :default => 0,     :null => false
+    t.integer  "status",             :default => 0
   end
 
   add_index "users", ["email"], :name => "index_users_on_email", :unique => true

@@ -5,6 +5,7 @@ class AddMeetIdToChatters < ActiveRecord::Migration
   end
 
   def self.down
+    remove_index :chatters, :meet_id
     remove_column :chatters, :meet_id
   end
 end

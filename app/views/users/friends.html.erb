@@ -1,0 +1,10 @@
+<div class="main friends">
+  <h3> Your friends </h3>
+  <%= will_paginate @friends if @friends.class == WillPaginate::Collection %>
+  <table class="friends" summary="Meet friends">
+    <%= render :partial => 'user_long', :collection => @friends, :as => :user %>
+  </table>
+  <%= will_paginate @friends if @friends.class == WillPaginate::Collection %>
+</div>
+
+<%= render 'user_summary' %>

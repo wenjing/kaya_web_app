@@ -2,7 +2,7 @@
 
 <%= form_for @user, :html => { :multipart => true } do |f| %>
   <%= render 'shared/error_messages', :object => f.object %>
-  <%= render 'fields', :f => f %>
+  <%= render 'fields', :f => f, :user => @user %>
   <div class="actions">
     <%= f.submit "Update" %>
   </div>

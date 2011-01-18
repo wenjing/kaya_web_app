@@ -1,0 +1,25 @@
+<% if @meet %>
+  <%= form_for @invitation, :url => meet_invitations_path(@meet),
+                            :html => {:class => "form_toggle"} do |f| %>
+<% else %>
+<%= form_for @invitation, :url => user_invitations_path(@user),
+                          :html => {:class => "form_toggle"} do |f| %>
+<% end %>
+  <%= render 'shared/error_messages', :object => f.object %>
+  <div class="new_invitation form_toggle_content">
+    <%= f.label :invitee, "Type your friends emails" %><br/>
+    <%= f.text_area :invitee, :class => "limit_size expand30-150",
+                              :max_height => 100, :limit_size => 200,
+                              :placeholder => "Type your friends emails here" %><br/>
+    <%= f.label :message, "Type your optional messages" %><br/>
+    <%= f.text_area :message, :class => "limit_size expand300-400",
+                              :max_height => 200, :limit_size => 500,
+                              :placeholder => "Type optional messages here" %>
+  </div>
+  <div class="actions">
+    <%= form_cancel_button(f, "Discard", :discard, :remote => false,
+                           :class => "form_toggle_confirm", :confirm => "Are you sure?") %
+    <%= f.submit "Send", :name => :send, :class => "form_toggle_enable" %>
+    <%= f.submit "Send more", :name => :send_more, :class => "form_toggle_enable" %>
+  </div>
+<% end %>

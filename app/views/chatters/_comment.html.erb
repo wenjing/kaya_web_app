@@ -1,0 +1,19 @@
+<li class="chatter_comment hover_visibility_toggle dot_seperator" >
+  <p class="chatter_content">
+    <span class="user_avatar">
+      <%= link_to_user_image_small comment.user %><br/>
+    </span>
+    <span class="user_name"> <%= link_to_user_name comment.user %> </span>
+    " : "
+    <span class="chatter_content_body"><%= auto_link(comment.content) %></span>
+  </p>
+  <p class="statistic">
+    <span class="timestamp">P <%= time_ago_in_words(comment.created_at) %> ago</span>
+  </p>
+  <div class="chatter_actions hover_visibility_visible hover_faint">
+    <% if current_user?(chatter.user) || admin_user? %>
+      <%= button_to "X", comment, :method => :delete, :confirm => "You sure?",
+                            :title => "Delete this comment", :class => "x_button" %>
+    <% end %>
+  </div>
+</li>

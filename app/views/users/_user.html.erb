@@ -1,10 +1,18 @@
-<li>
-  <%#= gravatar_for user, :size => 30 %>
-  <%= image_tag user.photo.url(:small) %>
-  <%= link_to user.name, user %>
-  <% if !current_user?(user) && current_user.admin? %>
-  |
-  <%= link_to "delete", user, :method => :delete, :confirm => "You sure?",
-                              :title => "Delete #{user.name}" %>
-  <% end %>
-</li>
+<tr class="user_list hover_visibility_toggle hover_highlight">
+  <td class="user_avatar">
+    <%= link_to_user_image_small user %>
+  </td>
+  <td class="user_body">
+    <ul>
+    <li class="user_name">
+      <%= link_to_user_name user %>
+    </li>
+  </ul>
+  </td>
+  <td class="user_actions hover_visibility_visible hover_faint">
+    <% if !current_user?(user) && admin_user? %>
+      <%= button_to "X", user, :method => :delete, :confirm => "You sure?",
+                    :title => "Delete #{user.name_or_email}", , :class => "x_button" %>
+    <% end %>
+  </td>
+</tr>

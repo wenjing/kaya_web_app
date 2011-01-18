@@ -1,0 +1,23 @@
+<div class ="main meet">
+  <%= render 'chatters/topic_form' %>
+  <%= will_paginate @topics, :param_name => "chatters_page" if @topics.class==WillPaginate::Collection %>
+  <ul class="chatters">
+     <%= render :partial => 'chatters/topic', :collection => @topics, :as => :topic %>
+  </ul>
+  <%= will_paginate @topics, :param_name => "chatters_page" if @topics.class==WillPaginate::Collection %>
+</div>
+
+<div class="sidebar">
+  <div> class="meet_summary">
+    <%= render 'header' %>
+  </div>
+  <div> class="meet_friends">
+    <%= link_to @meet.friends_count > 0 ? "Add more friends ..." : "Add friends to this meet ...",
+                   new_meet_invitation_path(@meet) %>
+    <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
+    <table class="friends" summary="Meet friends">
+      <%= render :partial => 'users/user_short', :collection => @friends, :as => :user %>
+    </table>
+    <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
+  </div>
+</div>

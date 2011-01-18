@@ -1,0 +1,24 @@
+<%= form_for @mview, :url => meet_url(@meet),
+                     :html => {:method => :put, :class => "form_toggle"} do |f| %>
+  <%= render 'shared/error_messages', :object => f.object %>
+
+  <div class=new_meet_profile form_toggle_content">
+    <%= f.label :name, "Name this meet" %><br/>
+    <%= f.text_area :name, :class => "limit_size expand30-90",
+                           :limit_size => 100,
+                           :placeholder => "Type your meet name ..." %><br/>
+    <%= f.label :address, "Name this meet location" %><br/>
+    <%= f.text_area :location, :class => "limit_size expand30-90",
+                            :limit_size => 100,
+                            :placeholder => "Type your meet location ..." %>
+    <%#= f.label :address, "Describe this meet" %><br/>
+    <%#= f.text_area :description, :class => "limit_size expand300-400",
+                            :limit_size => 500,
+                            :placeholder => "Type your meet description ..." %>
+  </div>
+  <div class="actions">
+    <%= form_cancel_button(f, "Discard", :discard, :remote => true,
+                           :class => "form_toggle_confirm", :confirm => "Are you sure?") %
+    <%= f.submit "Save", :name => :save, :class => form_toggle_visible %>
+  </div>
+<% end %>

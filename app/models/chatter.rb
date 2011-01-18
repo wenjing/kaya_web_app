@@ -1,12 +1,19 @@
 class Chatter < ActiveRecord::Base
+  attr_accessor :loaded_top_comments
   attr_accessible :content, :photo 
 
-  belongs_to :meet
-  belongs_to :user
+  belongs_to :meet, :inverse_of => :topics
+  belongs_to :user, :inverse_of => :chatters
+  belongs_to :topic, :class_name => "Chatter", :inverse_of => :comments
+  has_many :comments, :class_name => "Chatter", :foreign_key => "topic_id",
+                      :dependent => :destroy, :inverse_of => :topic
 
-  validates :content, :presence => true, :length => { :maximum => 250 }
-  validates :user_id, :presence => true
-  validates :meet_id, :presence => true
+  validates :content, :presence => true, :length => { :maximum => 500 }
+  validates :user_id, :presence => true,
+                      :numericality => { :greater_than => 0, :only_integer => true }
+  validates :meet_id, :numericality => { :greater_than => 0, :only_integer => true }
+  validates :topic_id, :numericality => { :allow_nil => true,
+                                          :greater_than => 0, :only_integer => true },
 
   # Paperclips
   has_attached_file :photo,
@@ -27,9 +34,52 @@ class Chatter < ActiveRecord::Base
   validates_attachment_content_type :photo,
     :content_type => ['image/jpg', 'image/jpeg', 'image/gif', 'image/png']
 
-  default_scope :order => 'chatters.created_at DESC'
+  default_scope :order => 'chatters.updated_at DESC'
 
-  def chatter_photo
-    self.photo.url(:small)
+  # Query chatters of meets where user has membership
+  scope :related_chatter_ids, lambda {|user|
+    includes(:meet=>:mposts).select("DISTINCT chatters.id").where("mposts.user_id = ?", user.id)
+  }
+  scope :all_chatters_of, lambda {|chatter_ids|
+    where("chatters.id IN (?)", topic_ids)
+  }
+  scope :related_topic_ids, lambda {|user|
+    includes(:meet=>:mposts).select("DISTINCT chatters.id")
+                            .where("mposts.user_id = ? AND chatters.topic_id = ?", user.id, nil)
+  }
+  scope :all_topics_of, lambda {|topic_ids|
+    includes(:comments).where("chatters.id IN (?) AND chatters.topic_id = ?", topic_ids, nil)
+  }
+  scope :user_meet_chatters, lambda {|user, meet|
+    where("chatters.user_id = ? AND chatters.meet_id = ?", user.id, meet.id)
+  }
+
+  serialize :cached_info
+
+  def update_comments_count
+    self.cached_info ||= Hash.new
+    self.cached_info[:comments_count] = comment_ids.count
+    sefl.cached_info[:top_comment_ids] = comment_ids.to_a.slice(0..9)
   end
+
+  def top_comment_ids
+    return cached_info[:top_comment_ids] || []
+  end
+  def top_comments
+    return Chatter.find(top_comment_ids).compact!
+  end
+
+  def topic?
+    return !topic_id?
+  end
+  def comment?
+    return !topic?
+  end
+  def chatter_photo
+    return photo? ? photo.url(:normal) : ""
+  end
+  def chatter_photo_small
+    return photo? ? photo.url(:small) : ""
+  end
+
 end

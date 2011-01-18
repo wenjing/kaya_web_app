@@ -1,5 +1,5 @@
 .container {
-  width: 710px;
+  width: 750px;
 }
 
 body {
@@ -20,6 +20,7 @@ section {
   font-size: 120%;
   padding: 20px;
   background: #fff;
+  min-height: 500px;
 }
 
 section h1 {
@@ -104,7 +105,7 @@ a.signup_button {
 footer {
   text-align: center;
   margin-top: 10px;
-  width: 710px;
+  width: 750px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -194,31 +195,31 @@ ul.users li {
 
 /*  Micropost styling */
 
-h1.micropost {
+h1.chatter {
   margin-bottom: 0.3em;
 }
 
-table.microposts {
+table.chatters {
   margin-top: 1em;
 }
 
-table.microposts tr {
+table.chatters tr {
   height: 70px;
 }
 
-table.microposts tr td.gravatar {
+table.chatters tr td.gravatar {
   border-top: 1px solid #ccc;
   vertical-align: top;
   width: 50px;
 }
 
-table.microposts tr td.micropost {
+table.chatters tr td.chatters {
   border-top: 1px solid #ccc;
   vertical-align: top;
   padding-top: 10px;
 }
 
-table.microposts tr td.micropost span.timestamp {
+table.chatters tr td.chatter span.timestamp {
   display: block;
   font-size: 85%;
   color: #666;
@@ -236,15 +237,228 @@ div.user_info span.user_name {
   position: absolute;
 }
 
-div.user_info span.microposts {
+div.user_info span.chatter {
   font-size: 80%;
 }
 
-form.new_micropost {
+form.new_chatter {
   margin-bottom: 2em;
 }
 
-form.new_micropost textarea {
-  height: 4em;
+form.new_chatter textarea {
+  height: 2em;
+  width: 42em;
+  max-width: 42em;
   margin-bottom: 0;
+}
+
+form.new_invitation {
+  margin-bottom: 2em;
+}
+
+form.new_invitation textarea {
+  width: 50em;
+  max-width: 65em;
+  margin-bottom: 0;
+}
+
+form.new_invitation textarea#invitation_invitee {
+  height: 3em;
+}
+
+form.new_invitation textarea#invitation_message {
+  height: 25em;
+}
+
+form.meet_profile {
+  margin-bottom: 2em;
+}
+
+form.meet_profile textarea {
+  width: 50em;
+  max-width: 65em;
+  margin-bottom: 0;
+}
+
+form.meet_profile textarea#meet_name {
+  height: 4em;
+}
+
+form.new_profile textarea#meet_location {
+  height: 6em;
+}
+
+form.meet_profile textarea#meet_time {
+  height: 4em;
+}
+
+form.meet_profile textarea#meet_description {
+  height: 25em;
+}
+
+.header_user {
+  width: 300px;
+  max-width: 300px;
+}
+
+.avatar {
+  width: 70px;
+  max-width:70px;
+}
+
+.meet_static_map {
+  width: 135px;
+  max-width:135px;
+}
+
+/* For inputLimiter js: limit text size */
+.limit_size_box {
+  border: 1px solid #000;
+  border-top: none;
+  background-color: #ffc;
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
+/* For table row highlight */
+/*.hover_highlight.hover_highlighted {
+   background-color: #eee;
+} */
+.hover_highlight:hover {
+  background-color: #eee;
+}
+/*.hover_visibility_toggle .hover_visibility_visible {
+  visibility:hidden;
+}
+.hover_visibility_toggle .hover_visibility_hidden {
+  visibility:visible;
+}
+.hover_visibility_toggle:hover .hover_visibility_visible {
+  visibility:visible;
+}
+.hover_visibility_toggle:hover .hover_visibility_hidden {
+  visibility:hidden;
+}
+.hover_display_toggle .hover_display_item,
+.hover_display_toggle .hover_display_block,
+.hover_display_toggle .hover_display_inline {
+  display : none;
+}
+.hover_display_toggle:hover hover_display_item {
+  display : run-in;
+}
+.hover_display_toggle:hover hover_display_block {
+  display : block;
+}
+.hover_display_toggle:hover hover_display_inline {
+  display : inline;
+}*/
+.hover_faint {
+  opacity:0.3;
+  font-size: 70%;
+  width: 50px;
+  max-width:50px;
+}
+.hover_faint:hover {
+  opacity:1.0;
+}
+
+ul.jsddm {
+  margin: 0;
+  padding: 0;
+}
+ul.jsddm li {
+  float: left;
+  list-style: none;
+  font: 12px Tahoma, Arial;
+}
+ul.jsddm li a {
+  display: block;
+  background: #324143;
+  padding: 5px 12px;
+  text-decoration: none;
+  border-right: 1px solid white;
+  width: 70px;
+  color: #EAFFED;
+  white-space: nowrap;
+}
+ul.jsddm li a:hover {
+  background: #24313C
+}
+ul.jsddm li ul {
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  visibility: hidden;
+  border-top: 1px solid white;
+}
+ul.jsddm li ul li {
+  float: none;
+  display: inline;
+}
+ul.jsddm li ul li a {
+  width: auto;
+  background: #A9C251;
+  color: #24313C;
+}
+ul.jsddm li ul li a:hover {
+  background: #8EA344;
+}
+
+.pagination a {
+  border: 1px solid #BEBEBE;
+  color: #256C98;
+  text-decoration: none;
+}
+.pagination a, .pagination span {
+  padding: 0.2em 0.5em;
+}
+.pagination .prev_page, .pagination .next_page {
+  border: 1px solid white;
+}
+
+/* seperator line between items */ 
+.dot_seperator {
+  background: url(public/images/bg-a.gif) repeat-x -2px 100%;
+  margin: 0px 0px 10px;
+  padding: 0px 0px 10px;
+}
+.solid_seperator,
+.dotted_seperator,
+.dashed_seperator {
+  border-top-color: #E9E9E9;
+  border-top-width: 1px
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.solid_seperator,
+  border-top-style: solid;
+}
+.dotted_seperator {
+  border-top-style: dotted;
+}
+.dashed_seperator {
+  border-top-style: dashed;
+}
+.solid_seperator :first-child,
+.dotted_seperator :first-child,
+.dashed_seperator :first-child {
+  border-top-width: 0px;
+}
+
+/* cursor on all clickable items */
+a, .force_clickable,
+input[type=submit], input[type=button], input[type=reset] {
+  cursor: pointer;
+}
+
+/* reset button */
+input:reset, input.reset {
+  background-color: yellow;
+  border-color: red;
+}
+
+/* disabled link */
+a[href='##'] {
+  color: black;
 }

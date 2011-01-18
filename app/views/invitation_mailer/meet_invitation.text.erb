@@ -1,0 +1,13 @@
+<% if !message.blank? %>
+  <% message %>
+<% end %>
+
+===================================================================================
+
+You've been invited by your friend <%= user.name_or_email %> to join a Kaya Meet.
+
+Please sign in and follow this link: <%= url %> to confirm.
+
+Sincerely,
+
+Your Kaya

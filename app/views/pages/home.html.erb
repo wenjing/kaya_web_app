@@ -1,26 +1,7 @@
-<% if signed_in? %>
-
-  <table class="front" summary="For signed-in users">
-    <tr>
-      <td class="main">
-        <h1 class="micropost">Who have you met?</h1>
-        <%#= render 'shared/micropost_form' %>
-        <%= render 'shared/meet_feed' %>
-      </td>
-      <td class="sidebar round">
-        <%= render 'shared/user_info' %>
-        <%#= render 'shared/stats' %>
-      </td>
-    </tr>
-  </table>
-
-<% else %>
-
 <h1>Kaya Meet!</h1>
 <p>
-  This is the home page for Kaya Meet!
+  This is the home page for Kaya Meet!<br/>
+  More than <%= number_to_human @meets_count, :precision=>2, :significant=>true %> meets and counting
 </p>
 
 <%= link_to "Sign up now!", signup_path, :class => "signup_button round" %>
-
-<% end %>

@@ -21,8 +21,8 @@ KayaWebApp::Application.configure do
   config.active_support.deprecation = :log
 
   # Overwrite these values
-  config.threadsafe!
-  config.log_level = :warn
+  #config.threadsafe!
+  #config.log_level = :warn
   require 'kaya_base'
   Rails.kaya_dblock = true
 

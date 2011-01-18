@@ -1,0 +1,26 @@
+<div class="pending_meet_detail hover_display_visible" id="pending_meet_#{meet.id}">
+  <div class="user_avatar">
+    <%= link_to_user_image_small meet.meet_inviter %>
+  </div>
+  <div class="user_name">
+    <%= link_to_user_name meet.meet_inviter %>
+  </div>
+  <div class="invitation_message">
+    meet.meet_invitation_message
+  </div>
+
+  <div class="other_inviters">
+    <% other_inviters = meet.meet_other_inviters %>
+    <% if other_inviters.present? %>
+      Also invited by <%= other_inviters.size %> other friends
+      <% other_inviters.slice(0..9).each {|inviter| %>
+        <div class="user_avatar">
+          <%= link_to_user_image_small inviter %>
+        </div>
+        <div class="user_name">
+          <%= link_to_user_name inviter %>
+        </div>
+      <% } %>
+    <% end %>
+  </div>
+</div>

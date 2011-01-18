@@ -15,6 +15,7 @@
   <%= f.password_field :password_confirmation %>
 </div>
 <div class="field">
+  <%= image_tag(user.user_avatar_small) %>
   <%= f.label :photo %><br />
   <%= f.file_field :photo %>
 </div>

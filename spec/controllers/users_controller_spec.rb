@@ -93,11 +93,12 @@ describe UsersController do
       get :show, :id => @user
       response.should have_selector('h1', :content => @user.name)
     end
-    
-    it "should have a profile image" do
-      get :show, :id => @user
-      response.should have_selector('h1>img', :class => "gravatar")
-    end
+
+# Gravatar is no longer used
+#   it "should have a profile image" do
+#     get :show, :id => @user
+#     response.should have_selector('h1>img', :class => "gravatar")
+#   end
     
     it "should have the right URL" do
       get :show, :id => @user
@@ -246,11 +247,12 @@ describe UsersController do
       response.should have_selector('title', :content => "Edit user")
     end
     
-    it "should have a link to change the Gravatar" do
-      get :edit, :id => @user
-      response.should have_selector('a', :href => 'http://gravatar.com/emails',
-                                         :content => "change")
-    end
+# Gravatar is not long used   
+#   it "should have a link to change the Gravatar" do
+#     get :edit, :id => @user
+#     response.should have_selector('a', :href => 'http://gravatar.com/emails',
+#                                        :content => "change")
+#   end
   end
 
   describe "PUT 'update'" do
@@ -329,12 +331,12 @@ describe UsersController do
       
       it "should require matching users for 'edit'" do
         get :edit, :id => @user
-        response.should redirect_to(root_path)
+        response.should redirect_to(root_path+"422.html")
       end
       
       it "should require matching users for 'update'" do
         put :update, :id => @user, :user => {}
-        response.should redirect_to(root_path)
+        response.should redirect_to(root_path+"422.html")
       end
     end
   end
@@ -356,7 +358,7 @@ describe UsersController do
       it "should protect the action" do
         test_sign_in(@user)
         delete :destroy, :id => @user
-        response.should redirect_to(root_path)
+        response.should redirect_to(root_path+"422.html")
       end
     end
     

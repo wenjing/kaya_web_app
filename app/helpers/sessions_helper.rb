@@ -2,7 +2,7 @@ module SessionsHelper
   
   def sign_in(user)
     cookies.permanent.signed[:remember_token] = [user.id, user.salt]
-    current_user = user
+    self.current_user = user
   end
   
   def current_user=(user)
@@ -19,11 +19,11 @@ module SessionsHelper
   
   def sign_out
     cookies.delete(:remember_token)
-    current_user = nil
+    self.current_user = nil
   end
 
   def current_user?(user)
-    user == current_user
+    user && current_user && user.id == current_user.id
   end
 
   def current_user_id?(user_id)
@@ -35,16 +35,44 @@ module SessionsHelper
   end
   
   def authenticate
-    deny_access unless signed_in? || basic_authenticate
+    deny_access unless signed_in? || basic_authenticate || temp_authenticate
+    pending_access(current_user) if current_user.pending?
   end
 
   def basic_authenticate
-    authenticate_or_request_with_http_basic do |username, password|
+    # hong.zhao, Shall not request for http_basic. Otherwise browser will keep user
+    # signed in even she signed out.
+    authenticate_with_http_basic do |username, password|
       user = User.authenticate(username, password)
-      if !user.nil?
-        sign_in(user)
-      end
+      sign_in(user) if !user.nil?
     end
+  end
+
+  # Pass username and temporary password on url. Used for pending user email confirmation.
+  def temp_authenticate
+    user_id, user_passcode = params[:id], params[:pcd]
+    user = User.find_by_id(user_id)
+    if (!user.nil? && user.pending?)
+      user = User.authenticate(user.email, user_passcode)
+      sign_in(user) if !user.nil?
+    end
+  end
+  # 10 digit random number
+  def passcode
+     Array.new(10) {("0".."9").to_a.sample}.join
+  end
+  def pending_user_url(user)
+    if (user.pending? && user.temp_password)
+      return edit_user_url(user.id)+"?pcd=#{user.temp_password}"
+    else
+      return user_url(user.id)
+    end
+  end
+  def pending_user_path(user)
+    if (user.pending? && user.temp_password)
+      return edit_user_path(user.id)+"?pcd=#{user.temp_password}"
+    else
+      return user_url(user.id)
   end
 
   def deny_auth
@@ -52,23 +80,25 @@ module SessionsHelper
   end
 
   def deny_access
-    store_location
-    redirect_to signin_path, :notice => "Please sign in to access this page."
-  end
-  
-  def store_location
-    session[:return_to] = request.fullpath
-  end
-  
-  def redirect_back_or(default)
-    redirect_to(session[:return_to] || default)
-    clear_return_to
-  end
-  
-  def clear_return_to
-    session[:return_to] = nil
+    respond_to do |format|
+      format.html {
+        redirect_away signin_path, :notice => "Please sign in to access this page."
+      }
+      format.json { header :unauthorized }
+    end
   end
 
+  def pending_access(user)
+    if !current_url?(edit_user_path(user.id))
+      respond_to do |format|
+        format.html {
+          redirect_to edit_user_path(user.id), :notice => "Please complete your profile first."
+        }
+        format.json { header :unauthorized }
+      end
+    end
+  end
+  
   private
   
     def user_from_remember_token

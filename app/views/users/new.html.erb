@@ -1,8 +1,10 @@
 <h1>Sign up</h1>
+Fill in your name and email and press Sign up. A confirmation mail will be sent to your email address.<br/>
+Please follow the instruction to complete your signup.<br/>
 
 <%= form_for @user, :html => { :multipart => true } do |f| %>
   <%= render 'shared/error_messages', :object => f.object %>
-  <%= render 'fields', :f => f %>
+  <%= render 'signup_fields', :f => f, :user => @user %>
   <div class="actions">
     <%= f.submit "Sign up" %>
   </div>  

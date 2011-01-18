@@ -1,0 +1,9 @@
+<div class="sidebar">
+  <div class="user_summary follow_display"
+    <% if @user && @user.id && !current_user?(@user) %>
+      <%= render 'header' %>
+    <% else %>
+      <%= render 'profile' %>
+    <% end %>
+  </div>
+</div>
