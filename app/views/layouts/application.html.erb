@@ -14,7 +14,7 @@
     <div class="container">
       <%= render 'layouts/header' %>
       <%= render 'layouts/notifier' %>
-      <section class="round">
+      <section>
         <% flash.each do |key, value| %>
           <div class="flash <%= key %>"><%= value %></div>
         <% end %>

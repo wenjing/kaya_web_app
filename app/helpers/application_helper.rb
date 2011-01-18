@@ -2,7 +2,7 @@ module ApplicationHelper
   
   # Return a title on a per-page basis.
   def title
-    base_title = "Kaya Mobile App"
+    base_title = "Kaya Meet"
     if @title.nil?
       base_title
     else
@@ -11,7 +11,7 @@ module ApplicationHelper
   end
   
   def logo
-    image_tag("kaya-logo-2-blueletter-on-white-3.jpg", :alt => "Kaya Mobile App", :class => "round")
+#    image_tag("logo_04.png", :alt => "Kaya Meet")
   end
 
   def invalid_url

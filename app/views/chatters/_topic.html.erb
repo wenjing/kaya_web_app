@@ -23,7 +23,7 @@
       <%= render :partial => 'comment', :collection => topic.comments, :as => :comment %>
     </ul>
   </div>
-  <div class="chatter_actions hover_visibility_visible hover_faint">
+  <div class="actions hover_visibility_visible hover_faint">
     <% if current_user?(chatter.user) || admin_user? %>
       <%= button_to "X", chatter, :method => :delete, :confirm => "You sure?",
                             :title => "Delete this comment", :class => "x_button" %>

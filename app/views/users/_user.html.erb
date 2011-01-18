@@ -9,7 +9,7 @@
     </li>
   </ul>
   </td>
-  <td class="user_actions hover_visibility_visible hover_faint">
+  <td class="actions hover_visibility_visible hover_faint">
     <% if !current_user?(user) && admin_user? %>
       <%= button_to "X", user, :method => :delete, :confirm => "You sure?",
                     :title => "Delete #{user.name_or_email}", , :class => "x_button" %>

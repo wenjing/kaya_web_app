@@ -1,0 +1,21 @@
+<%= form_for(:session, :url => sessions_path) do |f| %>
+  <div class="field">
+    <%= f.label :email %><br />
+    <%= f.text_field :email %>
+  </div>
+  <div class="field">
+    <%= f.label :password %><br />
+    <%= f.password_field :password %>
+  </div>
+  <div class="actions">
+    <%= f.submit "Sign in" %>
+  </div>
+<% end %>
+<div id="signupbtn">
+  <h3><span>New to</span> kaya ?</h3>
+  <%= link_to "Sign up now!", signup_path %>
+</div>
+<div>
+  <h4>Forgot your password?</h4>
+  <%= link_to "Reset password!", reset_path %></p>
+</div>
