@@ -13,11 +13,11 @@
     <% end %>
   </td>
   <td class="actions">
-    <%= button_to "Confirm", confirm_meets_path(meet), :method => :post,
+    <%= button_to "Confirm", confirm_meet_path(meet), :method => :post,
                            :title => "Confirm this invitation" %>
   </td>
   <td class="actions hover_visiblity_visible hover_faint x_button">
-    <%= button_to "X", decline_meets_path(meet), :method => :delete,
+    <%= button_to "X", decline_meet_path(meet), :method => :delete,
                       :title => "Decline this invitation", :class => "x_button" %>
   </td>
 </tr>

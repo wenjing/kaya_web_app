@@ -1,9 +1,15 @@
-Thank you for joining Kaya Meet. You are just 1 step away to enjoy Kaya Meet's wonder features.
+Thank you for joining Kaya Meet. You are just 1 step away to enjoy Kaya Meet's wonderful features.
 
-Please follow this link: <%= url %>, complete your profile and start to experience a new social network like never before!
+Please follow this link: <%= @url %>, complete your profile and start to experience a new social network like never before!
 
-If you are signing up from phone, you can also use your signup email and this temporary password <%= password %> to sign in. You have to complete your profile after signed in.
+If you are signing up from phone, you can also use your signup email and this temporary password >>> <%= @password %> <<< to sign in. You have to complete your profile after signed in.
 
 Sincerely,
 
 Your Kaya
+
+<% if Rails.env.development? %>
+DEBUG DEBUG DEBUG
+
+<%= "-H 'Accept: application/json' -X PUT -d 'name=NAME&password=PASSWORD&password_confirmation=PASSWORD' #{@root_url}users/#{@user.id}/update?pcd=#{@password}".html_safe %>
+<% end %>

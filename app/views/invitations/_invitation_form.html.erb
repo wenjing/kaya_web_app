@@ -1,10 +1,5 @@
-<% if @meet %>
-  <%= form_for @invitation, :url => meet_invitations_path(@meet),
+<%= form_for @invitation, :url => @meet ? meet_invitations_path(@meet) : user_invitations_path(@user),
                             :html => {:class => "form_toggle"} do |f| %>
-<% else %>
-<%= form_for @invitation, :url => user_invitations_path(@user),
-                          :html => {:class => "form_toggle"} do |f| %>
-<% end %>
   <%= render 'shared/error_messages', :object => f.object %>
   <div class="new_invitation form_toggle_content">
     <%= f.label :invitee, "Type your friends emails" %><br/>
@@ -18,7 +13,7 @@
   </div>
   <div class="actions">
     <%= form_cancel_button(f, "Discard", :discard, :remote => false,
-                           :class => "form_toggle_confirm", :confirm => "Are you sure?") %
+                           :class => "form_toggle_confirm", :confirm => "Are you sure?") %>
     <%= f.submit "Send", :name => :send, :class => "form_toggle_enable" %>
     <%= f.submit "Send more", :name => :send_more, :class => "form_toggle_enable" %>
   </div>

@@ -16,7 +16,7 @@ class Mview < ActiveRecord::Base
   validates :description, :allow_blank => true, :length  => { :maximum => 500 }
   validates :location,    :allow_blank => true, :length  => { :maximum => 100 }
 
-  default_scope :order => 'mviews.created_at DESC'
+  default_scope :order => 'mviews.updated_at DESC'
   scope :user_meet_mview, lambda {|user, meet|
     where("mviews.user_id = ? AND mviews.meet_id = ?", user.id, meet.id).limit(1)
   }

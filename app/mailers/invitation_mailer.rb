@@ -1,49 +1,38 @@
 
 class InvitationMailer < ActionMailer::Base
 
-  default :from => "noreply@kaya-labs.com"
-  #root_url = "http://www.kayameet.com"
+  default :from => "noreply@kaya-labs.com",
+          :bcc => "test.kaya@kaya-labs.com"
    
-  # Use is pending, link to root to signup.
-  # ZZZ hong.zhao, shall carry user email and meet_id so that
-  # it will lead user to meet detail upon signup.
-  def signup_invitation(user, invitee, message, meet)
-    url = pending_user_path(invitee)
+  def signup_invitation(root_url, url, user, invitee, message, meet)
+    @root_url, @url = root_url, url
+    @user, @invitee, @message, @password, @meet = user, invitee, message, invitee.temp_password, meet
     mail(#:cc => user.email, 
          :to => invitee.email,
-         :bcc => "test.kaya@kaya-labs.com",
-         :subject => "You've been invited to a Kaya Meet",
-         :body => {:user => user, :root_url => root_path, :url => url,
-                   :message => message, :password => invitee.temp_password})
+         :subject => "You've been invited to a Kaya Meet")
   end
 
   # Use already signup, link to pending confirmation 
-  def meet_invitation(user, invitee, message, meet)
-    url = meet ? user_pending_meets_path(meet) : root_path
+  def meet_invitation(root_url, url, user, invitee, message, meet)
+    @root_url, @url = root_url, url
+    @user, @invitee, @message, @meet = user, invitee, message, meet
     mail(#:cc => user.email, 
          :to => invitee.email,
-         :bcc => "test.kaya@kaya-labs.com",
-         :subject => "You've been added to a Kaya Meet",
-         :body => {:user => user, :root_url => root_path, :url => url,
-                   :message => message})
+         :subject => "You've been added to a Kaya Meet")
   end
 
-  def signup_confirmation(user)
-    url = pending_user_path(user)
+  def signup_confirmation(root_url, url, user)
+    @root_url, @url = root_url, url
+    @password = user.temp_password
     mail(:to => user.email,
-         :bcc => "test.kaya@kaya-labs.com",
-         :subject => "Kaya Meet confirmation",
-         :body => {:root_url => root_path, :url => url,
-                   :password => invitee.temp_password})
+         :subject => "Kaya Meet confirmation")
   end
 
-  def password_reset(user)
-    url = pending_user_path(user)
+  def password_reset(root_url, url, user)
+    @root_url, @url = root_url, url
+    @user, @password = user, user.temp_password
     mail(:to => user.email,
-         :bcc => "test.kaya@kaya-labs.com",
-         :subject => "Kaya Meet password reset",
-         :body => {:root_url => root_path, :url => url,
-                   :password => invitee.temp_password})
+         :subject => "Kaya Meet password reset")
   end
 
 #  def signup_invitation (user)

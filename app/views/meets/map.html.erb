@@ -1,7 +1,7 @@
 <div class="main meet_map">
-  <%= render 'shared/map', :locals => {:meets => @meet.lat_lng.present? ? [@meet] : [],
+  <%= render :partial => 'shared/map', :locals => {:meets => @meet.lat_lng.present? ? [@meet] : [],
                                        :center_ll => @meet.lat_lng, :zoom => 15} %>
-  <% if @user.meets_count > 1 %>
+  <% if current_user.meets.count > 1 %>
     <%= link_to "More >>>", map_user_path(current_user), :title => "All meets" %>
   <% end %>
 </div>

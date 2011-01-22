@@ -4,6 +4,8 @@ require 'meet_processer'
 
 class DebugController < ApplicationController
   skip_before_filter :verify_authenticity_token
+  before_filter :authenticate
+  before_filter :admin_current_user
   before_filter :admin_debug
 
   def run
@@ -39,9 +41,8 @@ class DebugController < ApplicationController
       if (Rails.env.production? || !admin_user?)
         render_unauthorized
       else
-        render_unauthorized(:only=>:html)
+        #render_unauthorized(:only=>:html)
       end
     end
 
 end
-

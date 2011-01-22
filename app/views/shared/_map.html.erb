@@ -2,10 +2,10 @@
         type="text/javascript"></script>
 <script type="text/javascript">
 
-function initialize() {
+function GM_initialize() {
   if (GBrowserIsCompatible()) {
     var map = new GMap2(document.getElementById("map_canvas"));
-    map.setCenter(new GLatLng(<%= center_ll =%>), <%= zoom %>);
+    map.setCenter(new GLatLng(<%= center_ll %>), <%= zoom %>);
     map.addControl(new GSmallMapControl());
     map.addControl(new GMapTypeControl());
 
@@ -19,9 +19,9 @@ function initialize() {
     var marker_id = 0;
     <% meets.each_with_index {|meet, nn| %>
       <% next if meet.lat_lng.blank? %>
-      var point = new GLatLng(<%= meet.lat_lng %>)
-      markers[<%=nn%>] = new GMarker(point)
-      map.addOverlay(markers[<%=nn%>])
+      point = new GLatLng(<%= meet.lat_lng %>);
+      markers[<%=nn%>] = new GMarker(point);
+      map.addOverlay(markers[<%=nn%>]);
       GEvent.addListener(markers[<%=nn%>], "click", function() {
         //map.panTo(markers[<%=nn%>].getLatLng());
         markers[<%=nn%>].openInfoWindowHtml('<%= meet_marker meet %>');
@@ -57,10 +57,10 @@ function initialize() {
 
 </script>
 
-<div class="meet_map_content", onload="initialize()" onunload="GUnload()">
+<body class="meet_map_content" onload="GM_initialize()" onunload="GUnload()">
   <div id="map_canvas" style="width: 670px; height: 500px"></div>
   <%= submit_tag "Prev", :id => "map_canvas_prev", :disabled => meets.size <= 1 %>
   <%= submit_tag "Next", :id => "map_canvas_next", :disabled => meets.size <= 1 %>
   <%= submit_tag "Center", :id => "map_canvas_center", :disabled => meets.size != 1 %>
   <%= submit_tag "Reset", :id => "map_canvas_reset", :disabled => meets.empty? %>
-</div> 
+</body> 

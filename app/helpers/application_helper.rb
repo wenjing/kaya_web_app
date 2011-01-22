@@ -52,8 +52,8 @@ module ApplicationHelper
   # Save an action's uri in the session so it can be used to return to
   # Use a before_filter to run this on actions which will be redirected back to later on
   def store_return_point
-    session[:return_to] = request.request_uri
-    #session[:return_to] = request.fullpath
+    #session[:return_to] = request.request_uri
+    session[:return_to] = request.fullpath
   end
 
   # Redirects to the session[:return_to] uri if there is one and to the given block of params if not
@@ -62,7 +62,7 @@ module ApplicationHelper
     session[:return_to] = nil
     default_url ||= params.shift
     except_url = params.delete(:except_url)
-    if (url.blank? || (excpet_url && match_url?(url, url_for(except_url))))
+    if (url.blank? || (except_url && match_url?(url, url_for(except_url))))
       url = default_url
     end
     redirect_to(url, *params)
@@ -85,7 +85,7 @@ module ApplicationHelper
   def form_cancel_button(form, button, name, options={})
     remote = options.delete(:remote)
     remote = true if remote.nil?
-    options[:class] || = ""; options[:class] += " reset"
+    options[:class] ||= ""; options[:class] += " reset"
     form.submit(button.to_s, options.merge(:type => "button", :name => name.to_a,
                 :onclick => (remote ?  "this.form.reset()" : "this.form.reset().submit()")))
     #return submit(button.to_s, options.merge(:type => "reset", :name => name.to_a))

@@ -4,27 +4,27 @@ KayaWebApp::Application.routes.draw do
     resources :mposts, :only => [:create]
     resources :invitations, :only => [:create, :new]
     member do
-      get :meets, :friends, :comments, :map
-      #get :following, :followers
+      get :meets, :friends, :map, :pending_meets
     end
   end
   resources :meets, :only => [:show, :edit, :update, :destroy] do
     resources :invitations, :only => [:create, :new]
     resources :chatters,    :only => [:create]
     member do
-      #get :people, :map
-      get :map
+      get    :map
+      post   :confirm
+      delete :decline
     end
   end
-  resources :chatters,      :only => [:create, :destroy]
-    resources :chatters,    :only => [:create]
+  resources :chatters, :only => [:create, :destroy] do
+    resources :comments,    :only => [:create], :controller => :chatters
   end
   
   resources :sessions,      :only => [:new, :create, :destroy]
-  resources :mposts,	    :only => [:create]
-  resources :invitations,   :only => [:create, :new]
-  #resources :mposts,	    :only => [:create, :destroy]
-  #resources :relationships,:only => [:create, :destroy]
+  resources :mposts,	    :only => [:create, :show]
+  resources :invitations,   :only => [:create]
+  get  :new_reset,    :controller => :sessions, :as => :new_reset_session
+  post :create_reset, :controller => :sessions, :as => :reset_sessions
 
   root :to => "pages#home"
 
@@ -33,6 +33,7 @@ KayaWebApp::Application.routes.draw do
   match '/help',    :to => 'pages#help'
   match '/signup',  :to => 'users#new'
   match '/signin',  :to => 'sessions#new'
+  match '/password_reset',  :to => 'sessions#new_reset'
   match '/signout', :to => 'sessions#destroy'
 
   if Rails.env.development?

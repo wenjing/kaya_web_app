@@ -1,11 +1,11 @@
 class ChattersController < ApplicationController
   skip_before_filter :verify_authenticity_token
-  before_filter :only => [:update] do |controller|
-    controller.filter_params(:chatters, :strip => [:content])
+  before_filter :only => [:create] do |controller|
+    controller.filter_params(:chatter, :strip => [:content])
   end
   before_filter :authenticate
-  before_filter :authorized_chatter_owner, :only => :destroy
   before_filter :authorized_chatter, :only => :create
+  before_filter :authorized_chatter_owner, :only => :destroy
   #before_filter :authroized_chatter_meet_owner, :only => :show
 
   JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo_small],
@@ -15,8 +15,11 @@ class ChattersController < ApplicationController
                                           :photo_file_size, :photo_updated_at] }
 
   def create
-    @chatter = Chatter.new(@filterd_params)
-    if ((@chatter.content.blank? && !@chatter.photo) || params[:discard])
+    assert_internal_error(@meet)
+    @filtered_params.delete(:meet_id)
+    @filtered_params.delete(:chatter_id)
+    @chatter = current_user.chatters.build(@filtered_params)
+    if ((@chatter.content.blank? && !@chatter.photo?) || params[:discard])
       # Empty post, quietly ignore it.
       respond_to do |format|
         format.html { redirect_back @meet }
@@ -24,21 +27,19 @@ class ChattersController < ApplicationController
       end
     else
       # A comment can not have a photo. Silently drop the photo.
-      @chatter.photo = nil if (@chatter.photo? && @topic)
-      current_user.chatters << @chatter
-      @meet.chatters << @chatter
-      if @chatter.photo?
-        @meet.photos << @chatter
-      end
-      if @topic # a comment to this topic
-        @topic.comments << @chatter
-        @topic.comements_count += 1
-      else # a new topic of the meet
-        @meet.topics << @chatter
-        @meet.topics_count += 1
-      end
+      @chatter.photo = nil if @topic
       if @chatter.save
-        @topic.save if @topic
+        @meet.chatters << @chatter
+        @meet.photos << @chatter if @chatter.photo?
+        if @topic # a comment to this topic
+          @topic.comments << @chatter
+        else # a new topic of the meet
+          @meet.topics << @chatter
+        end
+        if @topic
+          @topic.update_comments_count
+          @topic.save
+        end
         @meet.opt_lock_protected { @meet.update_chatters_count; @meet.save }
         respond_to do |format|
           format.html { redirect_back @meet, :flash => { :success => "Posted!" } }
@@ -68,10 +69,10 @@ class ChattersController < ApplicationController
 # end
 
   def destroy
-    delete_chatters(current_user, [@chatter])
+    delete_chatters([@chatter])
     respond_to do |format|
-      format.html { redirect_back meet, :flash => { :success => "Chatter deleted!" }
-      format.json { header :ok }
+      format.html { redirect_back meet, :flash => { :success => "Chatter deleted!" } }
+      format.json { head :ok }
     end
   end
   

@@ -36,7 +36,10 @@ module SessionsHelper
   
   def authenticate
     deny_access unless signed_in? || basic_authenticate || temp_authenticate
-    pending_access(current_user) if current_user.pending?
+    pending_access(current_user) if (current_user && current_user.pending?)
+  end
+  def authenticate_pending_ok
+    deny_access unless signed_in? || basic_authenticate || temp_authenticate
   end
 
   def basic_authenticate
@@ -72,7 +75,8 @@ module SessionsHelper
     if (user.pending? && user.temp_password)
       return edit_user_path(user.id)+"?pcd=#{user.temp_password}"
     else
-      return user_url(user.id)
+      return user_path(user.id)
+    end
   end
 
   def deny_auth
@@ -82,20 +86,18 @@ module SessionsHelper
   def deny_access
     respond_to do |format|
       format.html {
-        redirect_away signin_path, :notice => "Please sign in to access this page."
+        redirect_away signin_url, :notice => "Please sign in to access this page."
       }
-      format.json { header :unauthorized }
+      format.json { head :unauthorized }
     end
   end
 
   def pending_access(user)
-    if !current_url?(edit_user_path(user.id))
-      respond_to do |format|
-        format.html {
-          redirect_to edit_user_path(user.id), :notice => "Please complete your profile first."
-        }
-        format.json { header :unauthorized }
-      end
+    respond_to do |format|
+      format.html {
+        redirect_to edit_user_url(user.id), :notice => "Please complete your profile first."
+      }
+      format.json { head :unauthorized }
     end
   end
   
@@ -109,4 +111,3 @@ module SessionsHelper
       cookies.signed[:remember_token] || [nil, nil]
     end
 end
-

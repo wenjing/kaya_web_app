@@ -158,7 +158,7 @@ jQuery(function($){
 
     return this;
   };
-  # Also disable resize on all auto expander textarea's
+  // Also disable resize on all auto expander textarea's
   $("textarea[class*=expand]").TextAreaExpander().css({'resize':'none'});
 
 
@@ -205,7 +205,7 @@ jQuery(function($){
           else (target_offset + target_height > target_bottom)
             target_offset = target_bottom - target_height;
         }
-        item.css('position','fixed').('top', target_offset+'px')
+        item.css('position','fixed').css('top', target_offset+'px');
       } else
         item.toggle();
     });
@@ -218,7 +218,7 @@ jQuery(function($){
       var params = $(this).get_params('hover_display_toggle');
       var hover_display_item;
       if (params.hover_display_id != undefined)
-        hover_display_item = $('.hover_display_visible #' + params.hover_display_id + ', '
+        hover_display_item = $('.hover_display_visible #' + params.hover_display_id + ', ' +
                                '.hover_display_hidden #' + params.hover_display_id);
       else
         hover_display_item = $(this).find('.hover_display_visible, .hover_display_hidden');
@@ -255,7 +255,7 @@ jQuery(function($){
       var params = $(this).get_params('hover_visibility_toggle');
       var hover_visibility_item;
       if (params.hover_visibility_id != undefined)
-        hover_visibility_item = $('.hover_visibility_visible #' + params.hover_visibility_id + ', '
+        hover_visibility_item = $('.hover_visibility_visible #' + params.hover_visibility_id + ', ' +
                                   '.hover_visibility_hidden #' + params.hover_visibility_id);
       else
         hover_visibility_item = $(this).find('.hover_visibility_visible, .hover_visibility_hidden');
@@ -334,8 +334,8 @@ jQuery(function($){
           $(this).change(check_toggle);
         });
         form_check_content.each (function() {
-          # Force toggle when value changed, keep it on even when changed back
-          # to original value
+          // Force toggle when value changed, keep it on even when changed back
+          // to original value
           $(this).change(force_toogle(true));
         });
       });
@@ -386,7 +386,7 @@ jQuery(function($){
     function jsddm_open() {
       jsddm_canceltimer();
       jsddm_close();
-      # Drop down menu
+      // Drop down menu
       ddmenuitem = $(this).find('ul').eq(0).css('visibility', 'visible');
     }
     function jsddm_close() {
@@ -414,7 +414,7 @@ jQuery(function($){
   $.fn.outter_html = function(s) {
     this.each(function() {
       wrapper_html = $(s);
-      wrapper_html.insertBefore($(this).html($(this));
+      wrapper_html.insertBefore($(this).html($(this)));
     });
   }
 
@@ -444,7 +444,7 @@ jQuery(function($){
       // change the scroll of the page.
       view.bind( "scroll resize", function(){
         var placeholder_top = placeholder.offset().top;
-        var placeholder_bottom = placehoder_top + view.height();
+        var placeholder_bottom = placeholder_top + view.height();
         var view_top = view.scrollTop();
         var view_bottom = view_top + view.height()
         // Check to see if the view had scroll down past the top of the placeholder
@@ -459,7 +459,7 @@ jQuery(function($){
           placeholder.height(placeholder.height());
           // Make the message fixed.
           item.addClass("follow_display_fixed").css('position','fixed');
-          if (top_offset != undeinfed)
+          if (top_offset != undefined)
             item.css('top', top_offset+'px')
           else if (bottom_offset != undeinfed)
             item.css('bottom', bottom_offset+'px')
@@ -472,7 +472,7 @@ jQuery(function($){
           // Remove the fixed position class on the message. This will pop it back into its
           // static position.
           item.removeClass("follow_display_fixed").css('position','');
-          if (top_offset != undeinfed)
+          if (top_offset != undefined)
             item.css('top', '');
           else if (bottom_offset != undeinfed)
             item.css('bottom', '');
@@ -484,4 +484,5 @@ jQuery(function($){
 
   // Disable disabled a href="## "link
   $('a[href=##]').click(function(){ return false; });
+
 })

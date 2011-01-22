@@ -48,7 +48,7 @@ module UsersHelper
     else
       return pending ? link_to(user.name_or_email, "##",
                                :title => "Confirm first to access meets with list") :
-                     ? link_to_unless_current(user.name_or_email, meets_user_path(user),
+                       link_to_unless_current(user.name_or_email, meets_user_path(user),
                                :title => "Meets with #{user.name_or_email}")
     end
   end
@@ -69,9 +69,9 @@ module UsersHelper
   end
 
   def link_to_pending_meet_count(user)
-    count = user.pending_meets_count
-    return count ?
-            link_to_unless_current("#{count} meet invitations", user_pending_meets_path(user) 
+    count = user.true_pending_meets.count
+    return count > 0 ?
+            link_to_unless_current("#{count} meet invitations", pending_meets_user_path(user),
                                     :title => "All pending meet invitations") : "".html_safe
   end
 

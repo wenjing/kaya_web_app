@@ -27,21 +27,23 @@ KayaWebApp::Application.configure do
   Rails.kaya_dblock = true
 
   #Paperclip
-  Paperclip.options[:command_path] = "/Users/wenjing/Downloads/ImageMagick-6.6.5/bin"
-  #Paperclip.options[:command_path] = ENV["IMAGE_MAGICK_PATH"]
+  #Paperclip.options[:command_path] = "/Users/wenjing/Downloads/ImageMagick-6.6.5/bin"
+  Paperclip.options[:command_path] = ENV["IMAGE_MAGICK_PATH"]
 
   # Mailer
-  #ActionMailer::Base.delivery_method = :smtp 
-  #ActionMailer::Base.perform_deliveries = true 
-  #ActionMailer::Base.raise_delivery_errors = false 
-  #ActionMailer::Base.default :charset => "utf-8" 
-  #ActionMailer::Base.smtp_settings = {
-  #  :address => "smtp.gmail.com",
-  #  :port => "25",
-  #  :domain => "kaya-labs.com",
-  #  :authentication => :login,
-  #  :user_name => "test.kaya@kaya-labs.com",
-  #  :password => "zhaohon1"
-  #}
+  #config.action_mailer.default_url_options = {:host => "0.0.0.0:3000"}
+  config.action_mailer.delivery_method = :smtp 
+  config.action_mailer.perform_deliveries = true 
+  config.action_mailer.raise_delivery_errors = false 
+  config.action_mailer.default :charset => "utf-8" 
+  config.action_mailer.smtp_settings = {
+    :address              => "smtp.gmail.com",
+    :port                 => 587,
+    :domain               => "kaya-labs.com",
+    :user_name            => "test.kaya@kaya-labs.com",
+    :password             => "kayam33t",
+    :authentication       => "login",
+    :ssl                  => true  
+  }  
 
 end

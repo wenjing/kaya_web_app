@@ -2,18 +2,18 @@ class Chatter < ActiveRecord::Base
   attr_accessor :loaded_top_comments
   attr_accessible :content, :photo 
 
-  belongs_to :meet, :inverse_of => :topics
+  belongs_to :meet, :inverse_of => :chatters
   belongs_to :user, :inverse_of => :chatters
   belongs_to :topic, :class_name => "Chatter", :inverse_of => :comments
   has_many :comments, :class_name => "Chatter", :foreign_key => "topic_id",
                       :dependent => :destroy, :inverse_of => :topic
 
-  validates :content, :presence => true, :length => { :maximum => 500 }
-  validates :user_id, :presence => true,
-                      :numericality => { :greater_than => 0, :only_integer => true }
-  validates :meet_id, :numericality => { :greater_than => 0, :only_integer => true }
-  validates :topic_id, :numericality => { :allow_nil => true,
-                                          :greater_than => 0, :only_integer => true },
+  validates :content, :length => { :allow_blank => true, :maximum => 500 }
+# validates :user_id, :presence => true,
+#                     :numericality => { :greater_than => 0, :only_integer => true }
+# validates :meet_id, :numericality => { :greater_than => 0, :only_integer => true }
+# validates :topic_id, :numericality => { :allow_nil => true,
+#                                         :greater_than => 0, :only_integer => true }
 
   # Paperclips
   has_attached_file :photo,
@@ -45,10 +45,10 @@ class Chatter < ActiveRecord::Base
   }
   scope :related_topic_ids, lambda {|user|
     includes(:meet=>:mposts).select("DISTINCT chatters.id")
-                            .where("mposts.user_id = ? AND chatters.topic_id = ?", user.id, nil)
+                            .where("mposts.user_id = ? AND chatters.topic_id IS NULL", user.id)
   }
   scope :all_topics_of, lambda {|topic_ids|
-    includes(:comments).where("chatters.id IN (?) AND chatters.topic_id = ?", topic_ids, nil)
+    includes(:comments).where("chatters.id IN (?) AND chatters.topic_id IS NULL", topic_ids)
   }
   scope :user_meet_chatters, lambda {|user, meet|
     where("chatters.user_id = ? AND chatters.meet_id = ?", user.id, meet.id)
@@ -58,10 +58,13 @@ class Chatter < ActiveRecord::Base
 
   def update_comments_count
     self.cached_info ||= Hash.new
-    self.cached_info[:comments_count] = comment_ids.count
-    sefl.cached_info[:top_comment_ids] = comment_ids.to_a.slice(0..9)
+    comment_ids0 = comment_ids.to_a
+    self.cached_info[:comments_count] = comment_ids0.count
+    self.cached_info[:top_comment_ids] = comment_ids0.slice(0..9)
   end
-
+  def comments_count
+    return cached_info[:comments_count] || 0
+  end
   def top_comment_ids
     return cached_info[:top_comment_ids] || []
   end

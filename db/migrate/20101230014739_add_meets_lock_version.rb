@@ -9,10 +9,10 @@ class AddMeetsLockVersion < ActiveRecord::Migration
     add_index :invitations, :meet_id
 
     # Fill in existing Meet records' cache info
-    Meet.find(:all).each {|meet|
-      meet.extract_information
-      meet.save
-    }
+#   Meet.find(:all).each {|meet|
+#     meet.extract_information
+#     meet.save
+#   }
   end
 
   def self.down

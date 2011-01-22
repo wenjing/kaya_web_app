@@ -1,13 +1,23 @@
-<% if !message.blank? %>
-  <% message %>
+<% if !@message.blank? %>
+  <%= @message %>
 <% end %>
 
 ===================================================================================
 
-You've been invited by your friend <%= user.name_or_email %> to join a Kaya Meet.
+You've been invited by your friend <%= @user.name_or_email %> to join a Kaya Meet.
 
-Please sign in and follow this link: <%= url %> to confirm.
+Please sign in and follow this link: <%= @url %> to confirm.
 
 Sincerely,
 
 Your Kaya
+
+<% if Rails.env.development? %>
+DEBUG DEBUG DEBUG
+
+To confirm meet
+<%= "-H 'Accept: application/json' -u #{@invitee.email}:PASSWORD -X POST -d '' #{@root_url}meets/#{@meet.id}/confirm".html_safe %>
+
+To decline meet
+<%= "-H 'Accept: application/json' -u #{@invitee.email}:PASSWORD -X DELETE #{@root_url}meets/#{@meet.id}/decline".html_safe %>
+<% end %>

@@ -28,7 +28,7 @@ class Meet < ActiveRecord::Base
   attr_accessor :meet_mview, :hoster_mview
   attr_accessor :loaded_top_users, :loaded_top_chatters
   attr_accessor :meet_invitations
-# attr_accessible :name, :description, :type,
+# attr_accessible :name, :description, :meet_type,
 #                 :time, :location, :street_address, :city, 
 #                 :state, :zip, :country, :lng, :lat, :lerror,
 #                 :image_url, :collision
@@ -39,21 +39,20 @@ class Meet < ActiveRecord::Base
 
   has_many :users, :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 0]
-  has_many :deleted_users, :class_name => "Meet",
+  has_many :deleted_users, :class_name => "User", :source => :user,
                    :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 1]
-  has_many :pending_users, :class_name => "Meet",
+  has_many :pending_users, :class_name => "User", :source => :user,
                    :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 2]
 
   has_many :chatters, :dependent => :destroy, :inverse_of => :meet
-  has_many :topics, :class_name => "Chatter", :inverse_of => :meet,
-                    :conditions => ['chatters.topic_id = ?', nil]
+  has_many :topics, :class_name => "Chatter",
+                    :conditions => ['chatters.topic_id IS NULL']
   has_many :photos, :class_name => "Chatter",
-                    :conditions => ['chatters.photo_file_size != ? AND chatters.photo_file_size > ?',
-                                    nil, 0]
+                    :conditions => ['chatters.photo_file_size NOT NULL AND chatters.photo_file_size > ?', 0]
 # has_many :latest_chatters, :class_name => "Chatter", :limit => 3,
-#                   :conditions => ['chatters.content != ? && chatters.content != ?', nil, ""]
+#                   :conditions => ['chatters.content NOT NULL && chatters.content != ?', ""]
 
   has_many :invitations, :dependent => :destroy, :inverse_of => :meet
   has_many :mviews, :dependent => :destroy, :inverse_of => :meet
@@ -71,7 +70,7 @@ class Meet < ActiveRecord::Base
 
   default_scope :order => 'meets.time DESC'
 
-  serialize cached_info
+  serialize :cached_info
 
   # Following functions are created by hong.zhao
   # They are required by backend processer.
@@ -101,7 +100,7 @@ class Meet < ActiveRecord::Base
       unique_users << mpost.user_id
       self.collision = true if mpost.collision?
       if host_id.blank? # only process host_id once, because they are all same
-        self.host_id = host_id.split.last if mpost.host_id.present?
+        self.host_id = mpost.host_id.split.last if mpost.host_id.present?
       end
     }
     self.time = (mposts.min_by {|h| h.time}).time unless mposts.empty?
@@ -135,9 +134,10 @@ class Meet < ActiveRecord::Base
     # Can not call users before it is saved. It may not be availabe and may confuse rails.
     # Instead, count number of users through unique_users.
     self.cached_info ||= Hash.new
+    self.cached_info[:users_count] = unique_users.count
     self.cached_info[:top_user_ids] = unique_users.to_a.slice(0..9)
-    self.cached_info[:users_count] = unique_users.size
     extract_meet_type
+    return self
   end
 
   # The extra user is manually added. She carry no useful information.
@@ -147,20 +147,23 @@ class Meet < ActiveRecord::Base
     # the user must be new to this meet.
     if !include_user?(user)
       self.cached_info ||= Hash.new
-      self.cached_info[:users_count] || =0
+      self.cached_info[:users_count] ||= 0
       cached_info[:top_user_ids] << user.id if cached_info[:top_user_ids].size < 10
       self.cached_info[:users_count] += 1
       extract_meet_type
     end
+    return self
   end
 
   def update_chatters_count
     self.cached_info ||= Hash.new
-    self.cached_info[:topics_count] = topics_ids.count
-    self.cached_info[:chatters_count] = chatter_ids.count
-    self.cached_info[:photos_count] = photos_ids.count
-    sefl.cached_info[:top_topic_ids] = topic_ids.to_a.slice(0..9)
-    sefl.cached_info[:top_chatter_ids] = chatter_ids.to_a.slice(0..9)
+    topic_ids0, chatter_ids0 = topic_ids.to_a, chatter_ids.to_a
+    self.cached_info[:topics_count] = topic_ids0.count
+    self.cached_info[:chatters_count] = chatter_ids0.count
+    self.cached_info[:photos_count] = photo_ids.count
+    self.cached_info[:top_topic_ids] = topic_ids0.slice(0..9)
+    self.cached_info[:top_chatter_ids] = chatter_ids0.slice(0..9)
+    return self
   end
 
   def check_geocode(retries=0) # check geocode information, try to aquire if missing
@@ -172,7 +175,7 @@ class Meet < ActiveRecord::Base
   end
 
   def of_type?(of_type)
-    return of_type.blank? || type == of_type
+    return of_type.blank? || meet_type == of_type
   end
 
   def top_user_ids
@@ -180,6 +183,7 @@ class Meet < ActiveRecord::Base
   end
   def top_friend_ids(except)
     return (cached_info[:top_user_ids] || []).reject {|v| v==except.id}
+  end
   def top_users
     return User.find(top_user_ids).compact!
   end
@@ -259,34 +263,42 @@ class Meet < ActiveRecord::Base
   # pit fall. If it is a trough relation and some FKs are nil. It will include
   # nil into the _ids array. The associate itself takes care of it but not _ids.
   # Make a sanity check to skip all nil elements
-  def safe_user_ids
-    return user_ids.to_a.compat
+  # Just found another problem, _ids does not honer conditions statement.
+  # Have to overwrite the original one.
+  def user_ids
+    return users.to_a.collect {|v| v.id}.compact
+  end
+  def deleted_user_ids
+    return deleted_users.to_a.collect {|v| v.id}.compact
+  end
+  def pending_user_ids
+    return pending_users.to_a.collect {|v| v.id}.compact
   end
   def include_user?(user)
-    # User user_ids instead of users could potentially save loading
-    # full user info from DB.
-    return user && safe_user_ids.include?(user.id)
+    return user && user_ids.include?(user.id)
   end
   def include_pending_user?(user)
-    return user && safe_pending_user_ids.include?(user.id)
+    return user && pending_user_ids.include?(user.id)
   end
   # Can not purely rely on pending_users's relation. A confirmed one may still show up
   # in pending list. A user may be added after a pending is created. There is no mechanism
   # to promote all related pending requests when a user is added.
   # Have to filter out all users that is already confirmed
-  def safe_pending_user_ids
-    active_user_ids = safe_user_ids.to_set
-    return pending_user_ids.select {|v| !v.nil? && !active_user_ids.include?(v)}
-  end
-  def safe_pending_users
+  def true_pending_users
     return pending_users.to_a.select {|user| !include_user?(user)}
+  end
+  def topic_ids
+    return topics.to_a.collect {|v| v.id}.compact
+  end
+  def photo_ids
+    return photos.to_a.collect {|v| v.id}.compact
   end
 
   def static_map_url(width=120, height=120, zoom=15, marker="mid")
     return "" unless (lat? && lng?)
-    url = "http://maps.google.com/maps/api/staticmap?"
-    #url += "center=#{lat},{#lng}&zoom=#{zoom}&size=#{width}x#{height}"
-    url += "zoom=#{zoom}&size=#{width}x#{height}"
+    url = "http://maps.google.com/maps/api/staticmap"
+    url += "?style=lightness:30|saturation:30||gamma:0.4"
+    url += "&zoom=#{zoom}&size=#{width}x#{height}"
     url += "&maptype=roadmap&markers=color:green|size:#{marker}|#{lat},#{lng}&sensor=false"
   end
   def static_map_url_small
@@ -409,9 +421,10 @@ private
   end
 
   def extract_meet_type
-    self.type = users_count == 1 ? 1 :
-                users_count == 2 ? 2 :
-                users_count >= 3 ? 3 : 0
+    self.meet_type = users_count == 1 ? 1 :
+                     users_count == 2 ? 2 :
+                     users_count >= 3 ? 3 : 0
+    return self
   end
 
 end

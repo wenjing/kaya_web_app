@@ -12,7 +12,7 @@
   <td class="actions hover_visibility_visible hover_faint">
     <% if !current_user?(user) && admin_user? %>
       <%= button_to "X", user, :method => :delete, :confirm => "You sure?",
-                    :title => "Delete #{user.name_or_email}", , :class => "x_button" %>
+                    :title => "Delete #{user.name_or_email}", :class => "x_button" %>
     <% end %>
   </td>
 </tr>

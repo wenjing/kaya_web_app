@@ -496,7 +496,7 @@ module Cursorize
         if (type == "order" && ["ASC", "DESC"].include?(value.upcase)) # only one type of sort
           (cursor[:order]||=Hash.new)[attr] = value.upcase
         elsif (type == "before" || type == "after") # Time
-          ii = type == "before" ? 0 : 1
+          ii = type == "after" ? 0 : 1
           ((cursor[:where]||=Hash.new)[attr]||=Array.new)[ii] = Time.zone.parse(value)
         elsif (type == "from" || type == "to") # Fixnum
           ii = type == "from" ? 0 : 1
@@ -517,6 +517,15 @@ module Cursorize
     def self.enable!
       ::ActiveRecord::Base.class_eval do
         extend ActiveRecord
+        # Optimistic lock 
+        def opt_lock_protected(retries = 5, &block)
+          begin
+            block.call
+          rescue ::ActiveRecord::StaleObjectError
+            reload
+            retry if (retries -= 1) > 0
+          end
+        end
       end
       # support on associations and scopes
       [::ActiveRecord::Relation, ::ActiveRecord::Associations::AssociationCollection].each do |klass|
@@ -524,26 +533,16 @@ module Cursorize
       end
     end
 
-    # Optimistic lock 
-    def opt_lock_protected(retries = 5, &block)
-      begin
-        block.call
-      rescue ActiveRecord::StaleObjectError
-        reload
-        retry if (retries -= 1) > 0
-      end
-    end
-
     def cursorize(params={}, options={})
-      res = self.where("") # a fake where, make it, make it a relation object
+      res = self.where("") # a fake where, make it a relation object
       table = self.table_name()
       cursor = Cursorize::Base.cursorize_cursor(params, options[:only])
       return res if cursor.empty?
       
       if cursor[:where].present?
         cursor[:where].each {|attr, value|
-          res = res.where("#{table}.#{attr} >= ?", value[0]) unless value[0].present?
-          res = res.where("#{table}.#{attr} <= ?", value[1]) unless value[1].present?
+          res = res.where("#{table}.#{attr} >= ?", value[0]) if value[0].present?
+          res = res.where("#{table}.#{attr} <= ?", value[1]) if value[1].present?
         }
       end
       # Sort
@@ -580,7 +579,8 @@ class Array
         where.all? {|attr, value| # check all conditions
           v_value = v.respond_to?(attr) ? v.send(attr) : nil
           (v_value.nil? && options[:allow_nil]) ||
-          (!v_value.nil? && (value[0].nil? || v_value >= value[0]) && (value[1].nil? || v_value <= value[1]))
+          (!v_value.nil? && (value[0].nil? || v_value >= value[0]) &&
+                            (value[1].nil? || v_value <= value[1]))
         }
       }
     end

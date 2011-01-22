@@ -996,7 +996,7 @@ class MeetPool
   def earliest_mpost
     earliest = nil
     block = Proc.new {|cluster|
-      mpost = cluster.earliest
+      mpost = cluster.earliest_mpost
       if mpost 
         earliest  = mpost if (earliest == nil ||
                               earliest.trigger_time > mpost.trigger_time)

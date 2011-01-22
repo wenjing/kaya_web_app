@@ -7,24 +7,22 @@ class MpostsController < ApplicationController
   skip_before_filter :verify_authenticity_token
   before_filter :authenticate
   before_filter :only => [:create] do |controller|
+    controller.filter_params(:mpost, :strip => [:email])
+  end
+  before_filter :only => [:create] do |controller|
     controller.correct_user(params[:user_id]) if params[:user_id]
   end
   before_filter :authorized_mpost_owner, :only => [:show]
 
   def create
+    assert_unauthorized(false, :except=>:json)
     saved = false
     @user ||= current_user
-    if (params[:mpost].nil?)
-      @mpost = @user.mposts.build(params)
-    else
-      @mpost = @user.mposts.build(params[:mpost])
-    end
+    @mpost = @user.mposts.build(@filtered_params)
     Rails.kaya_dblock {saved = @mpost.save}
 
-    assert_internal_error(saved)
     if saved
       respond_to do |format|
-        format.html { redirect_back root_path, :flash => { :success => "Mpost created!" } }
         format.json { render :json => @mpost.to_json(:except => [:updated_at, :created_at]) }
       end
 
@@ -46,20 +44,21 @@ class MpostsController < ApplicationController
         # Or use the worker version
         #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
       end
+    else
+      respond_to do |format|
+        format.json { render :json => @mpost.errors.to_json, :status => :unprocessable_entity }
+      end
     end
   end
 
-# def show
-#   respond_to do |format|
-#     format.html {
-#       render @mpost
-#       @title = "mobile posts"
-#     }
-#     format.json {
-#       render :json => @mpost.to_json(:except => [:created_at, :updated_at])
-#     }
-#   end
-# end
+  def show
+    assert_unauthorized(false, :except=>:json)
+    respond_to do |format|
+      format.json {
+        render :json => @mpost.to_json(:except => [:created_at, :updated_at])
+      }
+    end
+  end
 #
 # def destroy
 #

@@ -1,6 +1,6 @@
 <tr class="meet_summary_list hover_visibility_toggle hover_highlight force_clickable",
-    force_clickable="url=><%="#{meet_path(meet)}"%>", title="Meet detail">
-  <%= meet_summary meet %>
+  force_clickable="<%= %Q{url=>#{meet_path(meet)}}%>", title="Meet detail">
+  <%= meet_summary_list meet %>
   <% if defined?(long_format) && long_format %>
     <td class="meet_static_map">
       <%=link_to_meet_static_map_small meet %>

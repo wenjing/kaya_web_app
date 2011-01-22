@@ -46,14 +46,33 @@ class Mpost < ActiveRecord::Base
 
   default_scope :order => 'mposts.created_at DESC'
   scope :user_meet_mposts, lambda {|user, meet|
-      where("mposts.user_id = ? AND mposts.meet_id = ? AND (mposts.status = ? OR mposts.status = ?)",
-            user.id, meet.id, nil, 0)
+      where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
+            user.id, meet.id, 0)
+  }
   scope :pending_user_meet_mposts, lambda {|user, meet|
       where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
             user.id, meet.id, 2)
   }
 
   serialize :devs, Hash # shall use Set, but rails serialize does not work with it
+
+  def active?
+    return status == 0
+  end
+  def deleted?
+    return status == 1
+  end
+  def pending?
+    return status == 2
+  end
+  def delete
+    self.status = 1
+    return self
+  end
+  def recovery
+    self.status = 0
+    return self
+  end
 
   # The devs are fed as a comma seperated string. They are converted into a set and save
   # to db by marshal it into text. Fortunately, db marshal/unmarshl parts are handled by rails
@@ -120,13 +139,6 @@ class Mpost < ActiveRecord::Base
   end
   def add_dev(other_dev)
     devs[other_dev] = nil
-  end
-
-  def delete
-    status = 1
-  end
-  def recovery
-    status = 0
   end
 
 end

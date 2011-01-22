@@ -1,15 +1,30 @@
-<% if !message.blank? %>
-  <% message %>
+<% if !@message.blank? %>
+  <%= @message %>
 <% end %>
 
 ===================================================================================
 
-You've been invited by your friend <%= user.name_or_email %> to join Kaya Meet.
+You've been invited by your friend <%= @user.name_or_email %> to join Kaya Meet.
 
-To sign up is super easy, just follow this link: <%= url %>, complete your profile and start to experience a new social network like never before!
+Sign up is super easy, just follow this link: <%= @url %>, complete your profile and start to experience a new social network like never before!
 
-If you are using your phone, please down app first. Then you can use your email and this temporary password <%= password %> to sign in. You have to complete your profile after signed in.
+If you are using your phone, please install app first. Then you can use your email and this temporary password >>> <%= @password %> <<< to sign in. You have to complete your profile after signed in.
 
 Sincerely,
 
 Your Kaya
+
+<% if Rails.env.development? %>
+DEBUG DEBUG DEBUG
+
+To update profile
+<%= "-H 'Accept: application/json' -d 'name=NAME&password=PASSWORD&password_confirmation=PASSWORD' -X PUT #{@root_url}users/#{@invitee.id}/update&pcd=#{@password}".html_safe %>
+
+<% if @meet %>
+To confirm meet
+<%= "-H 'Accept: application/json' -X POST -d '' #{@root_url}meets/#{@meet.id}/confirm".html_safe %>
+
+To decline meet
+<%= "-H 'Accept: application/json' -X DELETE #{@root_url}meets/#{@meet.id}/decline".html_safe %>
+<% end %>
+<% end %>

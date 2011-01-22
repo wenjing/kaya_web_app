@@ -1,5 +1,5 @@
 <% comment = Chatter.new %>
-<%= form_for comment, :url => chatter_chatters_path(@topic),
+<%= form_for comment, :url => chatter_comments_path(@topic),
                       :html => { :multipart => true, :class => "form_toggle" } do |f| %>
   <%= render 'shared/error_messages', :object => f.object %>
   <div class="user_avatar form_toggle_visible">
@@ -12,7 +12,7 @@
                               :placeholder => "Write your comment ..." %>
   </div>
   <div class="actions form_toggle_visible">
-    <%= form_cancel_button(f, "Discard", :discard) %
+    <%= form_cancel_button(f, "Discard", :discard) %>
     <%= f.submit "Comment", :name => :post %>
   </div>
 <% end %>

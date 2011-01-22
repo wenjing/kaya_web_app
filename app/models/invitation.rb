@@ -18,4 +18,14 @@ class Invitation < ActiveRecord::Base
     where("invitations.user_id = ? AND invitations.meet_id = ?", user.id, meet.id)
   }
 
+  def pending_mpost_ids
+    return pending_mpost.to_a.collect {|v| v.id}.compact
+  end
+  def checked_mpost_ids
+    return checked_mposts.to_a.collect {|v| v.id}.compact
+  end
+  def inviter_name
+    return user.name_or_email
+  end
+
 end
