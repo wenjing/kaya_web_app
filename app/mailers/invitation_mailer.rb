@@ -23,7 +23,7 @@ class InvitationMailer < ActionMailer::Base
 
   def signup_confirmation(root_url, url, user)
     @root_url, @url = root_url, url
-    @password = user.temp_password
+    @user, @password = user, user.temp_password
     mail(:to => user.email,
          :subject => "Kaya Meet confirmation")
   end

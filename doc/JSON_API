@@ -1,0 +1,128 @@
+1. Create user by admin user without confirmation ***
+
+curl -u admin@kaya-labs.com:password -d "name=Judith Williams&email=bessy.moo.1@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
+
+*** Require admin user accout. To create a admin accout, have to use 'rails console' or 'heroku console'.
+> rails console
+irb> admin = User.create(:name=>"admin", :email=>"admin@kaya-labs.com", :password=>"password", :password_confirmation=>"password")
+irb> admin.toggle!(:admin)
+irb> exit
+>
+
+
+2. Create user with confirmation
+
+curl -d "email=bessy.moo.1@kaya-labs.com" ${url_root}/users
+
+Confirmation email will be sent to the user. Can use the lines after DEBUG DEBUG line to construct curl
+command to update user profile. Other confirmation email all come with similar DEBUG lines.
+
+
+3. Creat meet
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&devs=Bessy Moo 2:3&&user_dev=Bessy Moo 1:2&lerror=2" ${url_root}/mposts
+
+
+4. Get all meet list
+
+curl -u bessy.moo.1@kaya-labs.com:password -d "" -X GET ${url_root}/users/2/meets
+
+
+5. Get partial meet list
+
+curl -u bessy.moo.1@kaya-labs.com:password -d "before_updated_at=2010-11-27T09:05:12-08:00" -X GET ${url_root}/users/2/meets
+
+curl -u bessy.moo.1@kaya-labs.com:password -d "after_updated_at=2010-11-27T09:05:12-08:00" -X GET ${url_root}/users/2/meets
+
+curl -u bessy.moo.1@kaya-labs.com:password -d "after_time=2010-11-27T09:05:12-08:00&limit=3" -X GET ${url_root}/users/2/meets
+
+curl -u bessy.moo.1@kaya-labs.com:password -d "offset=10&limit=30" -X GET ${url_root}/users/2/meets
+
+
+6. Write a chatter to meet
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "content=my topic 2" ${url_root}/meets/1/chatters
+
+
+7. Write a comment to chatter
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "content=my comment 1" ${url_root}/chatters/1/comments
+
+
+8. Write a invitation (not attaching to any meet)
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "invitee=bessy.mee.1@kaya-labs.com&message=invitation to a new user" ${url_root}/users/2/invitations
+
+If the user already signup, no email will be sent. Otherwise a email will be sent out.
+
+
+9. Write a meet invitation (with meet)
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "invitee=bessy.mee.2@kaya-labs.com&message=meet to a new user" ${url_root}/meets/1/invitations
+
+If the user already signup and already in this meet, no email will be sent.
+If the user already signup and no in the meet yet, a meet invitation email will be sent.
+Otherwise similar email like case 8 will be sent out.
+
+
+10. Send invitation to multiple users
+
+curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "invitee=bessy.moo.2@kaya-labs.com&message=meet to a existing user" ${url_root}/meets/1/invitations
+
+
+11. Update profile on pending user and mark user as confirmed (some for invitation user)
+
+For testing purpose, can use admin accout to update any user's profile and change fron pending to confirmed.
+
+curl -u admin@kaya-labs.com:password -X PUT -d "name=Diana Clarke&email=bessy.mee.1@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users/7
+
+Or, can construct curl command using lines after DEBUG DEBUG in email to proceed as normal user.
+
+curl -H 'Accept: application/json' -X PUT -d 'name=NAME&password=PASSWORD&password_confirmation=PASSWORD' http://0.0.0.0:3000/users/18/update?pcd=8328388503
+
+
+12. Get pending meet list
+
+curl -u bessy.moo.4@kaya-labs.com:password -X GET ${url_root}/users/5/pending_meets
+
+The result is similar to meet list except it also includes following fields: meet_inviter, meet_invitation_messsage
+and other_inviters (if more invited by more than 1 person)
+
+
+13. Confirm a pending meet
+
+curl -u bessy.moo.4@kaya-labs.com:password -X POST -d '' ${url_root}/meets/1/confirm
+
+
+14. Decline a pending meet
+
+curl -u bessy.mee.3@kaya-labs.com:password -X DELETE ${url_root}/meets/1/decline
+
+
+15. Edit a meet (give name and location)
+
+curl -u bessy.moo.1@kaya-labs.com:password -X PUT -d "name=My first meet&location=My office" ${url_root}/meets/10
+
+*16. Delete a meet
+
+curl -u bessy.moo.1@kaya-labs.com:password -X DELETE ${url_root}/meets/10
+
+*17. Delete a chatter
+
+curl -u bessy.moo.1@kaya-labs.com:password -X DELETE ${url_root}/chatters/2
+
+*16, 17 not in current development scope
+
+
+18. Password reset
+
+curl -X POST -d "email=bessy.mee.1@kaya-labs.com" ${url_root}/create_reset
+
+Email will be sent to user with temporary password.
+
+
+19. Get meet detail
+
+curl -u bessy.moo.1@kaya-labs.com:password -X GET ${url_root}/meets/1
+
+It also includes following fields: meet_name, meet_address (see 15)
