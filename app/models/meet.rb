@@ -50,9 +50,9 @@ class Meet < ActiveRecord::Base
   has_many :topics, :class_name => "Chatter",
                     :conditions => ['chatters.topic_id IS NULL']
   has_many :photos, :class_name => "Chatter",
-                    :conditions => ['chatters.photo_file_size NOT NULL AND chatters.photo_file_size > ?', 0]
+                    :conditions => ['chatters.photo_file_size IS NOT NULL AND chatters.photo_file_size > ?', 0]
 # has_many :latest_chatters, :class_name => "Chatter", :limit => 3,
-#                   :conditions => ['chatters.content NOT NULL && chatters.content != ?', ""]
+#                   :conditions => ['chatters.content IS NOT NULL && chatters.content != ?', ""]
 
   has_many :invitations, :dependent => :destroy, :inverse_of => :meet
   has_many :mviews, :dependent => :destroy, :inverse_of => :meet
@@ -311,8 +311,8 @@ class Meet < ActiveRecord::Base
   def lat_lng
     return (lat?&&lng?) ? "#{lat}, #{lng}" : ""
   end
-  def address_or_ll
-    loc = address
+  def address_or_ll(br)
+    loc = address(br)
     return loc.present? ? loc : lat_lng
   end
   def location_or_ll
@@ -353,16 +353,16 @@ class Meet < ActiveRecord::Base
            (hoster_mview && hoster_mview.location.present?) ? hoster_mview.location :
            location
   end
-  def meet_address
+  def meet_address(br=false)
     return (meet_mview && meet_mview.location.present?) ? meet_mview.location :
            (hoster_mview && hoster_mview.location.present?) ? hoster_mview.location :
-           address
+           address(br)
   end
   def meet_location_or_ll
     return meet_location.present? ? meet_location : location_or_ll
   end
-  def meet_address_or_ll
-    return meet_address.present? ? meet_address : address_or_ll
+  def meet_address_or_ll(br=false)
+    return meet_address.present? ? meet_address(br) : address_or_ll(br)
   end
 
 
@@ -412,9 +412,12 @@ private
     end
   end
 
-  def address
+  def address(br=false)
     address = ""
-    address += "#{street_address}, " if street_address.present?
+    if street_address.present?
+      address += "#{street_address},"
+      address += br ? "<br>" : " "
+    end
     address += "#{city}, " if city.present?
     address += "#{state}" if state.present?
     return address
