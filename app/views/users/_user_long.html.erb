@@ -1,24 +1,24 @@
-<tr class="user_summary_list hover_highlight force_clickable",
+<tr id="user_list" class="hover_highlight force_clickable",
   <% if current_user?(user[0]) %>
     force_clickable="url=><%="#{user_path(user[0])}"%>", title="<%=user[0].name_or_email%>" >
   <% else %>
     force_clickable="url=><%="#{meets_user_path(user[0])}"%>", title="<%="Meets with #{user[0].name_or_email}"%>" >
   <% end %>
-  <td class="user_avatar">
+  <td id="user_avatar">
     <%= link_to_user_image_small user[0] %>
   </td>
-  <td class="user_summary_body">
+  <td id="user_summary_body">
     <ul>
-    <li class="user_name">
+    <li id="user_name">
       <%= link_to_user_name user[0] %>
     </li>
-    <li class="user_statistics">
-      MT <%= link_to_meet_time user[1][0] %>
-      F# <%= link_to_user_meets_text user[0], "#{user[1].size} times" %>
+    <li id="user_statistics">
+      LM <%= link_to_meet_time user[1][0] %>
+      M# <%= link_to_user_meets_text user[0], "#{user[1].size} times" %>
     </li>
     </ul>
   </td>
-  <td>
+  <td id="user_list_action">
     <%= link_to_user_detail_arrow user[0] %>
   </td>
 </tr>

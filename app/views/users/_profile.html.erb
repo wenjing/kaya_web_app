@@ -1,18 +1,20 @@
 <% if current_user %>
   <%  recent_meets = current_user.recent_meets(3.months) %>
-  <div class="user_summary_profile">
-    <div class="user_avatar">
+  <div id="user_summary_profile">
+    <div id="user_avatar">
       <%= link_to_user_image current_user %>
     </div>
-    <div class="user_summary_body">
+    <div id="user_summary_body">
       <ul>
-      <li class="user_name">
+      <li id="user_name">
         <%= link_to_user_name current_user, false %>
       </li>
-      <li class="user_statistics">
-        M# <%= link_to_user_meets_text current_user, "#{recent_meets.size} meets" %>
+      <li id="user_statistics">
+        M# <%= link_to_user_meets_text current_user, "#{recent_meets.size}" %>
         F# <%= link_to_user_friends_text current_user,
-                            "#{current_user.all_friends(recent_meets, true)} friends" %>
+                            "#{current_user.all_friends(recent_meets, true)}" %>
+      </li>
+      <li id="user_profile_action">
         <%= link_to "Edit Profile", edit_user_path(current_user) %>
       </li>
       </ul>

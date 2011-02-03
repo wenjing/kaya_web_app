@@ -1,0 +1,11 @@
+<div id="meet_friends_body">
+  <% if !current_page?(new_meet_invitation_path(@meet)) %>
+    <%= link_to @meet.friends_count > 0 ? "Add more friends to this meet" : "Add friends to this meet",
+                new_meet_invitation_path(@meet), :id => "add_friends", :class => "link_button" %>
+  <% end %>
+  <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
+  <table id="meet_friends" summary="Meet friends">
+    <%= render :partial => 'users/user_short', :collection => @friends, :as => :user %>
+  </table>
+  <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
+</div>

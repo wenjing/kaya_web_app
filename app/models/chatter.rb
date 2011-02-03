@@ -63,10 +63,10 @@ class Chatter < ActiveRecord::Base
     self.cached_info[:top_comment_ids] = comment_ids0.slice(0..9)
   end
   def comments_count
-    return cached_info[:comments_count] || 0
+    return cached_info ? (cached_info[:comments_count] || 0) : 0
   end
   def top_comment_ids
-    return cached_info[:top_comment_ids] || []
+    return cached_info ? (cached_info[:top_comment_ids] || []) : []
   end
   def top_comments
     return Chatter.find(top_comment_ids).compact!

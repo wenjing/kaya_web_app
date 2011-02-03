@@ -67,7 +67,7 @@ Otherwise similar email like case 8 will be sent out.
 
 10. Send invitation to multiple users
 
-curl -u bessy.moo.1@kaya-labs.com:password -X POST -d "invitee=bessy.moo.2@kaya-labs.com&message=meet to a existing user" ${url_root}/meets/1/invitations
+curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "invitee=bessy.mee.3@kaya-labs.com,bessy.moo.4@kaya-labs.com&message=meet to both existing and new users" ${url_root}/meets/1/invitations
 
 
 11. Update profile on pending user and mark user as confirmed (some for invitation user)

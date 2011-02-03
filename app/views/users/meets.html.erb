@@ -1,11 +1,19 @@
-<div class="main meets">
-  <h3> Your recent meets </h3>
+<% content_for :main_content do %>
+  <% if current_user?(@user) %>
+    <h3> Your recent meets </h3>
+  <% else %>
+    <h3> Your recent meets with <span id="user_name"><%= @user.name_or_email %></span> </h3>
+  <% end %>
   <%= link_to "Show on map", map_user_path_of_type(@user, params[:meet_type]) if @meets.present? %>
   <%= will_paginate @meets, :params => {:meet_type=>params[:meet_type]} if @meets.class == WillPaginate::Collection %>
-  <table class="meets" summary="User meets">
+  <table id="meets" summary="User meets"><tbody>
     <%= render :partial => 'meets/meet_long', :collection => @meets, :as => :meet %>
-  </table>
+  </tbody></table>
   <%= will_paginate @meets, :params => {:meet_type=>params[:meet_type]} if @meets.class == WillPaginate::Collection %>
-</div>
+<% end %>
 
-<%= render 'user_summary' %>
+<% content_for :side_content do %>
+  <%= render 'users/user_summary' %>
+<% end %>
+
+<%= render 'shared/main_side' %>

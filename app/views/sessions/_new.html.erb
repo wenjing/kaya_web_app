@@ -1,21 +1,18 @@
-<%= form_for(:session, :url => sessions_path) do |f| %>
-  <div class="field">
+<%= form_for(:session, :url => sessions_path, :html=>{:id=>"signin_form"}) do |f| %>
+  <div id="session_field">
     <%= f.label :email %><br />
-    <%= f.text_field :email %>
+    <%= f.text_field :email, :size=>40 %>
   </div>
-  <div class="field">
+  <div id="session_field">
     <%= f.label :password %><br />
-    <%= f.password_field :password %>
+    <%= f.password_field :password, :size=>40 %>
   </div>
-  <div class="actions">
+  <div id="session_action" class="clearfix">
     <%= f.submit "Sign in" %>
+    <%= link_to "Forget your password?", password_reset_path, :id=>"forget", :class=>"right" %></p>
   </div>
 <% end %>
-<div id="signupbtn">
+<div id="signup">
   <h3><span>New to</span> kaya ?</h3>
-  <%= link_to "Sign up now!", signup_path %>
-</div>
-<div>
-  <h4>Forgot your password?</h4>
-  <%= link_to "Reset password!", password_reset_path %></p>
+  <%= link_to "Sign up now!", signup_path, :class=>"signup_button" %>
 </div>

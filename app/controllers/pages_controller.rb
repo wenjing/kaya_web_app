@@ -5,9 +5,6 @@ class PagesController < ApplicationController
   def home
     redirect_to user_url(current_user) if signed_in?
     @title = "Home"
-  end
-
-  def home_info
     #@users_count = User.count
     @meets_count = Meet.count
     #@meets = Meet.limit(10)

@@ -251,7 +251,7 @@ class ApplicationController < ActionController::Base
 
     def attach_meet_mview(user, meet)
       meet.meet_mview = Mview.user_meet_mview(user, meet).first
-      meet.hoster_mview = Mview.user_meet_mview(meet_hoster, meet).first if meet.has_hoster?
+      meet.hoster_mview = Mview.user_meet_mview(meet.hoster, meet).first if meet.has_hoster?
       #meet.meet_invitations = user.pending_invitations.where("meets.id = ?", meet.id).to_a
     end
 

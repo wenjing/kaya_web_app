@@ -93,7 +93,8 @@ class User < ActiveRecord::Base
     record.email = record.email.strip.downcase if record.email.present?
   }
   before_save {|record|
-    record.encrypt_password if !exclusive_procedure?
+    password ||= temp_password
+    record.encrypt_password
   }
 
   default_scope :order => 'users.email ASC'
@@ -246,7 +247,7 @@ class User < ActiveRecord::Base
   # Return a hash of friends with array common meets as value
   def meets_friends
     friends = Hash.new
-    meets.each {|meet|
+    meets.to_a.each {|meet|
       meet.users.each {|meet_user|
         (friends[meet_user] ||= Array.new) << meet if meet_user != self
       }
@@ -302,7 +303,7 @@ class User < ActiveRecord::Base
   end
 
   def encrypt_password
-    self.salt = make_salt if new_record?
+    self.salt ||= make_salt
     self.encrypted_password = encrypt(password)
   end
 

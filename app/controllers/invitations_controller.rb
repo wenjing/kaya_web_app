@@ -16,7 +16,12 @@ class InvitationsController < ApplicationController
   def new
     @user ||= current_user
     @invitation = Invitation.new
-    @title = @meet ? "Add friends to meet" : "Invite friends"
+    if @meet
+      @title = "Add friends to this meet"
+      @friends = @meet.friends(current_user).paginate(:page => params[:friends_page], :per_page => 25)
+    else
+      @title = "Invite friends"
+    end
   end
 
   def create
@@ -38,14 +43,19 @@ class InvitationsController < ApplicationController
     if @invitation.save
       # Send emails
       invitees = Set.new
-      @invitation.invitee.split(/[, \t\r\n]+/).each {|invitee_email|
+      @invitation.invitee.split(/[,; \t\r\n]+/).each {|invitee_email|
         invitee_email = invitee_email.strip.downcase
         invitee = User.find_by_email(invitee_email)
         if invitee.present? # already exists
           # Ignore general (non-meet related) invitation to existing user
           # And, obviously, can not send invitation to self.
-          # However, resend invitation if user is invitation pending.
-          invitees << invitee if ((invitee.invitation_pending? || @meet) && invitee.id != @user.id)
+          # However, resend invitation if user is invitation pending or she is not already 
+          # included in the meet.
+          if (invitee.id != @user.id &&
+              (invitee.invitation_pending? ||
+               (@meet && !@meet.include_user?(invitee))))
+            invitees << invitee
+          end
         else # create a new pending user
           invitee = User.new(:email=>invitee_email)
           invitee.temp_password = passcode
@@ -60,10 +70,6 @@ class InvitationsController < ApplicationController
       }
       if @meet # add users to this meet
         invitees.each {|invitee|
-          # Ignore meet invitation to user who is already in the meet???
-          # However, only skip procedure adding this user to meet but still
-          # send out invitation.
-          next if @meet.include_user?(invitee)
           # This is a bit tricky. Since meet and user are related through mpost.
           # Have to create a mpost first.
           mpost = invitee.mposts.build(:time=>@meet.time, :user_dev=>invitee.dev, :devs=>"invitee.dev",

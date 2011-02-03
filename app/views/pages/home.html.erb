@@ -1,7 +1,9 @@
+<div id="promote">
 <h1>Kaya Meet!</h1>
 <p>
-  This is the home page for Kaya Meet!<br/>
-  More than <%= number_to_human @meets_count, :precision=>2, :significant=>true %> meets and counting
+  This is the home page for Kaya Meet!<br>
+  More than <span id="total_count"><%= number_to_human @meets_count, :precision=>2, :significant=>true %></span> meets and counting...
 </p>
+</div>
 
 <%= render 'sessions/new' %>

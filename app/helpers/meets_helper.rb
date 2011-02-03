@@ -73,7 +73,7 @@ module MeetsHelper
     friends.each {|friend|
       html += ", " unless friend == friends.first
       html += %Q{
-        <span class="user_name"> #{link_to_user_name(friend, true, pending)} </span>
+        <span id="user_name"> #{link_to_user_name(friend, true, pending)} </span>
       }.html_safe
     }
     if more > 0
@@ -84,7 +84,7 @@ module MeetsHelper
                                 :title => "All friends of this meet")
     end
     if (!pending && !html.present? && !current_page?(new_meet_invitation_path(meet)))
-      return link_to_unless_current("add friends ...", new_meet_invitation_path(meet),
+      return link_to_unless_current("Add friends ...", new_meet_invitation_path(meet),
                                     :title => "Add friends to this meet")
     end
     return html
@@ -100,7 +100,7 @@ module MeetsHelper
       return html
     else
       return (!pending && !current_page?(new_meet_invitation_path(meet))) ? 
-               link_to_unless_current("add friends ...", new_meet_invitation_path(meet),
+               link_to_unless_current("Add friends ...", new_meet_invitation_path(meet),
                                       :title => "Add friends to this meet") : "".html_safe
     end
   end
@@ -124,112 +124,117 @@ module MeetsHelper
     html = "".html_safe
     #latest_chatters = meet.latest_chatters.to_a
     latest_chatters = meet.loaded_top_chatters
+    html += %Q{<div id="chatter_list" class="round_sharp raise_inner"><ul>}.html_safe
+    content_length = 0
     latest_chatters.each {|chatter|
       if chatter.content.present?
         content = truncate(chatter.content, :length => 50, :separator => ' ')
         html += %Q{
-          <li class=chatter_content>
-            <span class="user_name"> #{link_to_user_name chatter.user} </span>
-            <span class="chatter_content_body"> #{content} </span>
+          <li id="chatter_content">
+            <span id="user_name"> #{link_to_user_name chatter.user} </span>
+            <span id="chatter_statistic">
+              <span id="timestamp">
+                #{chatter.comments_count>0?"commented":"posted"} #{time_ago_in_words(chatter.updated_at)} ago
+              </span>
+              #C #{chatter.comments_count}
+            </span>
+            <div id="chatter_content_body"> #{content} </div>
           </li>}.html_safe
-        break if html.size > 50
+        content_length = content_length + content.size
+        break if content_length > 50
       end
     }
+    html += "</ul></div>".html_safe
+    return "".html_safe if content_length == 0
     return html
   end
 
   def meet_summary_pending(meet)
     return %Q{
-      <td class="meet_avatar">
-        #{link_to_meet_image meet, true}
-      </td>
-      <td class="meet_summary_body">
+      <div id="meet_summary_body">
       <ul>
-        <li class="meet_name">
+        <li id="meet_name">
           #{meet.meet_name.present? ? link_to_meet_name(meet, false, true) : ""}
         </li>
-        <li class="meet_description">
+        <li id="meet_description">
           #{false && meet.meet_description.present? ? link_to_meet_description(meet, true) : ""}
         </li>
-        <li class="meet_friends">
+        <li id="meet_friends">
           #{link_to_meet_friends meet, true}
         </li>
-        <li class="meet_time">
+        <li id="meet_time">
           #{link_to_meet_time meet, true}
         </li>
-        <li class="meet_hoster">
+        <li id="meet_hoster">
           #{meet.has_hoster? ? ("Hosted by "+link_to_user_name(meet.hoster, true, true)) : ""}
         </li>
-        <li class="meet_address">
-          #{link_to_meet_address meet, true}
+        <li id="meet_address">
+          <address>#{link_to_meet_address meet, true}</address>
         </li>
-        <li class="meet_statistics">
+        <li id="meet_statistic">
           #{meet_chatters_count(meet)}
         </li>
       <ul>
-      </td>
+      </div>
     }.html_safe
   end
 
-  def meet_summary_list(meet)
+  def meet_summary_list(meet, address=true)
     return %Q{
-      <td class="meet_avatar">
-        #{link_to_meet_image meet}
-      </td>
-      <td class="meet_summary_body">
+      <div id="meet_summary_body">
       <ul>
-        <li class="meet_name">
+        <li id="meet_name">
           #{meet.meet_name.present? ? link_to_meet_name(meet) : ""}
         </li>
-        <li class="meet_description">
+        <li id="meet_description">
           #{false && meet.meet_description.present? ? link_to_meet_description(meet) : ""}
         </li>
-        <li class="meet_friends">
+        <li id="meet_friends">
           #{link_to_meet_friends meet}
         </li>
-        <li class="meet_time">
+        <li id="meet_time">
           #{link_to_meet_time meet}
         </li>
-        <li class="meet_hoster">
+        <li id="meet_hoster">
           #{meet.has_hoster? ? ("Hosted by "+link_to_user_name(meet.hoster)) : ""}
         </li>
-        <li class="meet_address">
-          #{meet.meet_address_or_ll}
+        <li id="meet_address">
+          #{address ? link_to_meet_address(meet): ""}
         </li>
-        <li class="meet_statistics">
+        <li id="meet_statistic">
           #{meet_chatters_count(meet)}
         </li>
       <ul>
-      </td>
+      </div>
     }.html_safe
   end
 
   def meet_summary_brief(meet)
     return %Q{
-      <div class="meet_avatar">
+      <div id="meet_avatar" class="nod_left">
         #{link_to_meet_image meet}
       </div>
-      <div class="meet_summary_body">
+      <div id="meet_summary_body">
       <ul>
-        <li class="meet_name">
+        <li id="meet_name">
           #{meet.meet_name.present? ? link_to_meet_name(meet) : ""}
         </li>
-        <li class="meet_description">
+        <li id="meet_description">
           #{false && meet.meet_description.present? ? link_to_meet_description(meet) : ""}
         </li>
-        <li class="meet_friends_short">
+        <li id="meet_friends_short">
           #{link_to_meet_friends_short meet}
         </li>
-        <li class="meet_time">
+        <li id="meet_time">
           #{link_to_meet_time meet}
         </li>
-        <li class="meet_hoster">
+        <li id="meet_hoster">
           #{meet.has_hoster? ? ("Hosted by "+link_to_user_name(meet.hoster)) : ""}
         </li>
-        <li class="meet_address">
-          #{meet.meet_address_or_ll}
+        <li id="meet_address">
+          #{link_to_meet_address(meet)}
         </li>
-        <li class="meet_statistics">
+        <li id="meet_statistic">
           #{meet_chatters_count(meet)}
         </li>
       <ul>
@@ -239,7 +244,7 @@ module MeetsHelper
 
   def meet_marker(meet)
     return %Q{
-      <div class="meet_summary_marker">
+      <div id="meet_summary_marker">
         #{meet_summary_brief(meet)}
       </div>
     }.gsub(/\n/, "\\n").html_safe

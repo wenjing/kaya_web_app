@@ -1,9 +1,12 @@
 <h1>Edit user</h1>
 
-<%= form_for @user, :html => { :multipart => true } do |f| %>
+<%= form_for @user, :html => { :multipart => true, :id => "profile_form" } do |f| %>
+  <% if @user.temp_password.present? %>
+    <%= hidden_field_tag 'pcd', @user.temp_password %>
+  <% end %>
   <%= render 'shared/error_messages', :object => f.object %>
-  <%= render 'fields', :f => f, :user => @user %>
-  <div class="actions">
+  <%= render 'users/fields', :f => f, :user => @user %>
+  <div id="user_edit_action">
     <%= f.submit "Update" %>
   </div>
 <% end %>

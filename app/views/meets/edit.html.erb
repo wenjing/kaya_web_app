@@ -1,6 +1,10 @@
-<div class="main meet_edit">
+<% content_for :main_content do %>
   <h1>Edit your meet profile</h1>
-  <%= render 'mview_form' %>
-</div>
+  <%= render 'meets/mview_form' %>
+<% end %>
 
-<%= render 'meet_summary' %>
+<% content_for :side_content do %>
+  <%= render 'meets/meet_summary' %>
+<% end %>
+
+<%= render 'shared/main_side' %>

@@ -3,6 +3,25 @@
 
 jQuery(function($){
 
+  // Safe hover function using mouse location and element dimension. Ensure it works on
+  // all case. Hover over "tr" sometimes has glitch when mouse crossing "td" boundaries.
+  $.fn.safe_hover = function(f1, f2) {
+    this.each(function() {
+      $(this).hover(
+        function(e) { f1.apply(this, arguments); },
+        function(e) {
+          var offset = $(this).offset();
+          var width = $(this).width();
+          var height = $(this).height();
+          if (e.pageX <= offset.left || e.pageX >= offset.left+width ||
+              e.pageY <= offset.top || e.pageY >= offset.top+height) {
+            f2.apply(this, arguments);
+          }
+        }
+      );
+    });
+  }
+
   // Text area auto expender
   $.fn.inputlimiter = function(options) {
     var opts = $.extend({}, $.fn.inputlimiter.defaults, options);
@@ -180,10 +199,12 @@ jQuery(function($){
 
   // Float toggle visible item to best location considering container, window height
   // and current mouse location.
-  $.fn.hover_display_toggle = function(center, container_class) {
+  $.fn.hover_display_toggle = function(center, container_class, visible) {
     this.each(function() {
       var item = $(this);
-      if (item.is(":hidden") && container != undefined) {
+      if (visible && item.is(":hidden") || !visible && !item.is(":hidden"))
+        item.toggle();
+      if (!item.is(":hidden") && container != undefined) {
         var container = item.closest('.'+container);
         var view = $(window);
         var container_top = container.offset().top;
@@ -206,8 +227,7 @@ jQuery(function($){
             target_offset = target_bottom - target_height;
         }
         item.css('position','fixed').css('top', target_offset+'px');
-      } else
-        item.toggle();
+      }
     });
   }
 
@@ -216,18 +236,22 @@ jQuery(function($){
   $.fn.hover_display_toggle = function() {
     this.each(function() {
       var params = $(this).get_params('hover_display_toggle');
-      var hover_display_item;
-      if (params.hover_display_id != undefined)
-        hover_display_item = $('.hover_display_visible #' + params.hover_display_id + ', ' +
-                               '.hover_display_hidden #' + params.hover_display_id);
-      else
-        hover_display_item = $(this).find('.hover_display_visible, .hover_display_hidden');
-      $(this).hover(
+      var hover_visible_item, hover_hidden_item;
+      if (params.hover_display_id != undefined) {
+        hover_visible_item = $('.hover_display_visible#' + params.hover_display_id);
+        hover_hidden_item  = $('.hover_display_hidden#' + params.hover_display_id);
+      } else {
+        hover_visible_item = $(this).find('.hover_display_visible');
+        hover_hidden_item  = $(this).find('.hover_display_hidden');
+      }
+      $(this).safe_hover(
         function (e) {
-          hover_display_item.floating_toggle(e.pageY, params.container_class);
+          hover_visible_itema.floating_toggle(e.pageY, params.container_class, true);
+          hover_hidden_itema.floating_toggle(e.pageY, params.container_class, false);
         },
         function (e) {
-          hover_display_item.floating_toggle(e.pageY, params.container_class);
+          hover_visible_itema.floating_toggle(e.pageY, params.container_class, false);
+          hover_hidden_itema.floating_toggle(e.pageY, params.container_class, true);
         }
       );
     });
@@ -235,15 +259,17 @@ jQuery(function($){
   };
   $('.hover_display_toggle').hover_display_toggle();
   $('.hover_display_visible').hide();
+  $('.hover_display_hidden').show();
 
 
   // Like toggle, but apply to visibility instead
-  $.fn.toggle_visibility = function() {
+  $.fn.toggle_visibility = function(visible) {
     this.each(function() {
-      if ($(this).css('visibility') == 'hidden')
+      if (visible && $(this).css('visibility') == 'hidden') {
         $(this).css({'visibility':'visible'});
-      else
+      } else if (!visible && $(this).css('visibility') != 'hidden') {
         $(this).css({'visibility':'hidden'});
+      }
     });
     return this;
   }
@@ -253,15 +279,23 @@ jQuery(function($){
   $.fn.hover_visibility_toggle = function() {
     this.each(function() {
       var params = $(this).get_params('hover_visibility_toggle');
-      var hover_visibility_item;
-      if (params.hover_visibility_id != undefined)
-        hover_visibility_item = $('.hover_visibility_visible #' + params.hover_visibility_id + ', ' +
-                                  '.hover_visibility_hidden #' + params.hover_visibility_id);
-      else
-        hover_visibility_item = $(this).find('.hover_visibility_visible, .hover_visibility_hidden');
-      $(this).hover(
-        function () { hover_visibility_item.toggle_visibility(); },
-        function () { hover_visibility_item.toggle_visibility(); }
+      var hover_visible_item, hover_hidden_item;
+      if (params.hover_visibility_id != undefined) {
+        hover_visible_item = $('.hover_visibility_visible#' + params.hover_visibility_id);
+        hover_hidden_item  = $('.hover_visibility_hidden#' + params.hover_visibility_id);
+      } else {
+        hover_visible_item = $(this).find('.hover_visibility_visible');
+        hover_hidden_item  = $(this).find('.hover_visibility_hidden');
+      }
+      $(this).safe_hover(
+        function (e) {
+          hover_visible_item.toggle_visibility(true);
+          hover_hidden_item.toggle_visibility(false);
+        },
+        function (e) {
+          hover_visible_item.toggle_visibility(false);
+          hover_hidden_item.toggle_visibility(true);
+        }
       );
     });
     return this;
@@ -274,38 +308,38 @@ jQuery(function($){
   // Hide, display certain items depending on whether the form is active or not
   $.fn.form_toggle = function() {
     this.each(function() {
-      var form_content = $(this).find('.form_toggle_content')
-      var form_text_content = $(from_content).find('textarea,input:text,input:password')
-      var form_value_content = $(from_content).find('input:file')
-      var form_check_content = $(from_content).find('radio,checkbox,select')
+      var form_content = $($(this).find('.form_toggle_content'));
+      var form_text_content = $(form_content.find('textarea,input:text,input:password'));
+      var form_value_content = $(form_content.find('input:file'));
+      var form_check_content = $(form_content.find('radio,checkbox,select'));
       var params = $(this).get_params('form_toggle');
-      var form_toggle_item;
+      var form_toggle_visible, form_toggle_enable;
       if (params.form_toggle_id != undefined) {
-        form_toggle_visible = $('.form_toggle_visible #' + params.form_toggle_id);
-        form_toggle_enable = $('.form_toggle_enable #' + params.form_toggle_id);
+        form_toggle_visible = $('.form_toggle_visible#' + params.form_toggle_id);
+        form_toggle_enable = $('.form_toggle_enable#' + params.form_toggle_id);
       } else {
         form_toggle_visible = $(this).find('.form_toggle_visible');
         form_toggle_enable = $(this).find('.form_toggle_enable');
       }
       var permanent_toggle = false;
       var toggle_on = false;
-      var force_toggle = function(permanent) {
-        if (!toggle_on) {
+      var force_toggle = function(permanent, on) {
+        if (on && !toggle_on) {
           permanent_toggle = permanent;
           toggle_on = true;
-          form_toogle_visible.each (function() {
-            form_toggle_visible.show();
+          form_toggle_visible.each (function() {
+            $(this).show();
           });
-          form_toogle_enable.each (function() {
-            form_toggle_enable.removeAttr('disabled');
+          form_toggle_enable.each (function() {
+            $(this).removeAttr('disabled');
           });
-        } else if (!permanent_toggle) {
+        } else if (!on && toggle_on && !permanent_toggle) {
           toggle_on = false;
-          form_toogle_visible.each (function() {
-            form_toggle_visible.hide();
+          form_toggle_visible.each (function() {
+            $(this).hide();
           });
-          form_toogle_enable.each (function() {
-            form_toggle_enable.attr('disabled', 'disabled');
+          form_toggle_enable.each (function() {
+            $(this).attr('disabled', 'disabled');
           });
         }
         return this;
@@ -313,38 +347,39 @@ jQuery(function($){
       var check_toggle = function() {
         if (!permanent_toggle) {
           is_empty = true;
-          $.merge($.merge([],form_text_content),form_check_content).each (function() {
+          $($.merge($.merge([],form_text_content),form_value_content)).each (function() {
             if ($(this).val() != "") {
               is_empty = false;
-              break;
+              return false;
             }
           });
           if (toggle_on && is_empty)
-            force_toggle();
+            force_toggle(false, false);
           else if (!toggle_on && !is_empty)
-            force_toggle();
+            force_toggle(false, true);
         }
         return this;
       }
-      $form_content.each(function() {
-        form_text_content.each (function() {
-          $(this).focus(force_toggle(false)).blur(check_toggle);
-        });
-        form_value_content.each (function() {
-          $(this).change(check_toggle);
-        });
-        form_check_content.each (function() {
-          // Force toggle when value changed, keep it on even when changed back
-          // to original value
-          $(this).change(force_toogle(true));
-        });
+      form_text_content.each (function() {
+        $(this).focus(function(){force_toggle(false, true);})
+               .blur(function(){check_toggle();});
+               //.keyup(function(){check_toggle();});
+      });
+      form_value_content.each (function() {
+        $(this).change(function(){check_toggle();});
+      });
+      form_check_content.each (function() {
+        // Force toggle when value changed, keep it on even when changed back
+        // to original value
+        $(this).change(function(){force_toggle(true, true);});
       });
       // Bind form reset to remove permanent_toggle and triger force_toggle
       $(this).bind("reset", function() {
        permanent_toggle = false;
-       if (toggle_on)
-         force_toggle();
+       force_toggle(false, false);
       });
+      toggle_on = true;
+      check_toggle();
     });
     return this;
   };
@@ -422,7 +457,13 @@ jQuery(function($){
   // Following display item
   $.fn.follow_display = function() {
     this.each(function() {
-      var params = $(this).get_params("follow_display");
+      // when the following item is moved into a fixed position.
+      // Get a reference to the message whose position we want to "fix" on window-scroll.
+      var item = $(this);
+      // Get a reference to the window object; we will use this several time,
+      // so cache the jQuery wrapper.
+      var view = $(window);
+      var params = item.get_params("follow_display");
       var top_offset = params.top_offset;
       var bottom_offset = params.bottom_offset;
       if (top_offset != undefined)
@@ -432,43 +473,46 @@ jQuery(function($){
       else
         top_offset = 0;
       // Get a reference to the placeholder. This element will take up visual space
-      // when the following item is moved into a fixed position.
-      var placeholder = $("<div class=follow_display_placeholder></div>");
-      // Get a reference to the message whose position we want to "fix" on window-scroll.
-      var item = $(this);
-      // Get a reference to the window object; we will use this several time,
-      // so cache the jQuery wrapper.
-      var view = $(window);
+      var placeholder = item.clone();
+      placeholder = placeholder.insertBefore($(this));
+      placeholder.removeClass('follow_display')
+                 .addClass('follow_display_placeholder')
+                 .hide().css('visibility','hidden');
  
       // Bind to the window scroll and resize events. Remember, resizing can also
       // change the scroll of the page.
-      view.bind( "scroll resize", function(){
-        var placeholder_top = placeholder.offset().top;
-        var placeholder_bottom = placeholder_top + view.height();
+      view.bind("scroll resize", function(){
+        placeholder.show();
+        var width = placeholder.outerWidth();
+        var height = placeholder.outerHeight();
+        var left = placeholder.offset().left;
+        var top = placeholder.offset().top;
+        var bottom = top + view.height();
+        var view_left = view.scrollLeft();
         var view_top = view.scrollTop();
-        var view_bottom = view_top + view.height()
+        var view_bottom = view_top + view.height();
         // Check to see if the view had scroll down past the top of the placeholder
         // AND that the item is not yet fixed.
         var to_be_fixed =
-             ((top_offset != undefined && (view_top > placeholder_top+top_offset)) ||
-             (bottom_offset != undefined && (view_bottom < placeholder_bottom-bottom_offset)));
+             ((top_offset != undefined && (view_top > top+top_offset)) ||
+             (bottom_offset != undefined && (view_bottom < bottom-bottom_offset)));
+        item.width(width).height(height).css('left',(left-view_left)+'px');
         if (!item.is(".follow_display_fixed") && to_be_fixed) {
           // The message needs to be fixed. Before we change its positon, we need to re-
           // adjust the placeholder height to keep the same space as the message.
           // NOTE: All we're doing here is going from auto height to explicit height.
-          placeholder.height(placeholder.height());
           // Make the message fixed.
           item.addClass("follow_display_fixed").css('position','fixed');
           if (top_offset != undefined)
             item.css('top', top_offset+'px')
           else if (bottom_offset != undeinfed)
             item.css('bottom', bottom_offset+'px')
+          item.css('margin-top','');
 
         // Check to see if the view has scroll back up above the message AND that the message is
         // currently fixed.
         } else if (item.is(".follow_display_fixed") && !to_be_fixed) {
           // Make the placeholder height auto again.
-          placeholder.removeAttr("height");
           // Remove the fixed position class on the message. This will pop it back into its
           // static position.
           item.removeClass("follow_display_fixed").css('position','');
@@ -477,12 +521,45 @@ jQuery(function($){
           else if (bottom_offset != undeinfed)
             item.css('bottom', '');
         }
+        if (!item.is(".follow_display_fixed")) {
+          item.css({'width':'','height':'','left':''});
+          item.css('margin-top',(parseInt(item.css('margin-top'))+placeholder.offset().top-item.offset().top)+'px');
+        }
       });
     });
   }
   $('.follow_display').follow_display();
 
+  // Hover highlight
+  $.fn.hover_highlight = function() {
+    this.each(function() {
+      $(this).safe_hover(
+        function (e) { $(this).addClass('hover_highlighted'); },
+        function (e) { $(this).removeClass('hover_highlighted'); }
+      );
+    });
+  }
+  $('.hover_highlight').hover_highlight();
+
+  // Hover faint
+  $.fn.hover_check = function() {
+    this.each(function() {
+      $(this).safe_hover(
+        function (e) { $(this).addClass('hover_checked'); },
+        function (e) { $(this).removeClass('hover_checked'); }
+      );
+    });
+  }
+  $('.hover_faint').hover_check();
+
   // Disable disabled a href="## "link
   $('a[href=##]').click(function(){ return false; });
 
+  // Mark click down for href
+//$('a').mousedown(function(){ $(this).addClass('click_down'); })
+//      .mouseup(function(){ $(this).removeClass('click_down')})
+//      .mouseout(function(){ $(this).removeClass('click_down')});
+
+  // Disable right click
+  //$(this).bind("contextmenu", function(e) { e.preventDefault(); });
 })

@@ -27,23 +27,23 @@ class MpostsController < ApplicationController
       end
 
       # Expedite from backup processer to give hosted post a quick response.
-      # Under heavy load backup processser could backup. Host post need a meet_id
-      # to kick start a host.
-      if @mpost.is_host_owner?
-        meet = Meet.new
-        Rails.kaya_dblock {
-          meet.mposts << mpost
-          @user.hosted_meets << meet
-        }
-        meet.host = @mpost.user
-        meet.extract_information
-        Rails.kaya_dblock {meet.save}
-      else
+      # Under heavy load backend processser could backup to some extent.
+      # Hoster need a meet_id to kick start a host.
+#     if @mpost.is_host_owner?
+#       meet = Meet.new
+#       Rails.kaya_dblock {
+#         meet.mposts << mpost
+#         @user.hosted_meets << meet
+#       }
+#       meet.host = @mpost.user
+#       meet.extract_information
+#       Rails.kaya_dblock {meet.save}
+#     else
         # Enqueue directly wihtin same server
         MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
         # Or use the worker version
         #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
-      end
+#     end
     else
       respond_to do |format|
         format.json { render :json => @mpost.errors.to_json, :status => :unprocessable_entity }

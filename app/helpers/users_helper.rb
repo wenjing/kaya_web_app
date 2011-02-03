@@ -38,7 +38,7 @@ module UsersHelper
     end
   end
 
-  def link_to_user_name(user, current_you=true, pending=false)
+  def link_to_user_name(user, current_you=false, pending=false)
     if (current_user?(user) && current_you)
       return "You".html_safe
     elsif user.blank?
@@ -71,8 +71,9 @@ module UsersHelper
   def link_to_pending_meet_count(user)
     count = user.true_pending_meets.count
     return count > 0 ?
-            link_to_unless_current("#{count} meet invitations", pending_meets_user_path(user),
-                                    :title => "All pending meet invitations") : "".html_safe
+            link_to_unless_current("You have #{count} meet invitations", pending_meets_user_path(user),
+                                    :title => "All pending meet invitations",
+                                    :class => "link_button") : "".html_safe
   end
 
 end

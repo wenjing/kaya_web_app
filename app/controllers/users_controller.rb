@@ -4,8 +4,8 @@ class UsersController < ApplicationController
   before_filter :only => [:create, :update] do |controller|
     controller.filter_params(:user, :strip => [:email])
   end
-  before_filter :authenticate, :except => [:new, :create, :update]
-  before_filter :authenticate_pending_ok, :only => [:update]
+  before_filter :authenticate, :except => [:new, :create, :edit, :update]
+  before_filter :authenticate_pending_ok, :only => [:edit, :update]
   before_filter :only => [:create] do |controller|
     signed_in? || basic_authenticate
   end
@@ -264,6 +264,9 @@ class UsersController < ApplicationController
       saved = @user.update_attributes(@filtered_params)
     }
     if saved
+      # After password update, salt is changed, session becomes invalid.
+      # Automatically re-signin after profile update
+      re_sign_in(@user)
       respond_to do |format|
         format.html { redirect_back @user, :flash => { :success => "Profile updated!" } }
         format.json { render :json => @user.to_json(JSON_USER_DETAIL_API) }
@@ -307,7 +310,7 @@ class UsersController < ApplicationController
       mviews = Mview.user_meets_mview(user, meets).to_a
       meets.each {|meet|
         meet.meet_mview = mviews.select {|mview| mview.meet_id == meet.id}.first
-        meet.hoster_mview = Mview.user_meet_mview(meet_hoster, meet).first if meet.has_hoster?
+        meet.hoster_mview = Mview.user_meet_mview(meet.hoster, meet).first if meet.has_hoster?
       }
     end
 

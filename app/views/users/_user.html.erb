@@ -1,4 +1,4 @@
-<tr class="user_list hover_visibility_toggle hover_highlight">
+<tr id="user_list" class="hover_visibility_toggle hover_highlight">
   <td class="user_avatar">
     <%= link_to_user_image_small user %>
   </td>
@@ -9,10 +9,11 @@
     </li>
   </ul>
   </td>
-  <td class="actions hover_visibility_visible hover_faint">
+  <td class="user_action">
     <% if !current_user?(user) && admin_user? %>
       <%= button_to "X", user, :method => :delete, :confirm => "You sure?",
-                    :title => "Delete #{user.name_or_email}", :class => "x_button" %>
+                               :title => "Delete #{user.name_or_email}",
+                               :class => "mini_button hover_visibility_visible hover_faint" %>
     <% end %>
   </td>
 </tr>

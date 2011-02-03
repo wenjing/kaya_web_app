@@ -1,14 +1,16 @@
-<div class="main">
+<% content_for :main_content do %>
   <h3> Your pending meet invitations </h3>
   <%= will_paginate @pending_meets if @pending_meets.class == WillPaginate::Collection %>
   <table class="pending_meets" summary="User pending meets">
-    <%= render :partial => 'pending_meet', :collection => @pending_meets, :as => :meet %>
+    <%= render :partial => 'meets/pending_meet', :collection => @pending_meets, :as => :meet %>
   </table>
   <%= will_paginate @pending_meets if @pending_meets.class == WillPaginate::Collection %>
-</div>
+<% end %>
 
-<div class="sidebar">
+<% content_for :side_content do %>
   <div class="pending_meet_detail_container">
-    <%= render :partial => 'pending_meet_detail', :collection => @pending_meets, :as => :meet %>
+    <%= render :partial => 'meets/pending_meet_detail', :collection => @pending_meets, :as => :meet %>
   </div>
-</div>
+<% end %>
+
+<%= render 'shared/main_side' %>

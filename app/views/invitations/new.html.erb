@@ -1,4 +1,4 @@
-<div class="main invitation">
+<% content_for :main_content do %>
   <% if @meet %>
     <h1>Add your friends to this meet</h1>
     <%= render 'invitation_form' %>
@@ -6,10 +6,21 @@
     <h1>Invite your friends</h1>
     <%= render 'invitation_form' %>
   <% end %>
-</div>
-
-<% if @meet %>
-  <% render 'meets/meet_summary' %>
-<% else %>
-  <% render 'users/user_summary' %>
 <% end %>
+
+<% content_for :side_content do %>
+<% end %>
+<% content_for :side_content do %>
+  <% if @meet %>
+    <div id="meet_summary" class="raise">
+      <%= render 'meets/header' %>
+    </div>
+    <div id="meet_friends">
+      <%= render 'meets/meet_friends' %>
+    </div>
+  <% else %>
+    <%= render 'users/user_summary' %>
+  <% end %>
+<% end %>
+
+<%= render 'shared/main_side' %>

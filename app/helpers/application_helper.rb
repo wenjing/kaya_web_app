@@ -11,7 +11,7 @@ module ApplicationHelper
   end
   
   def logo
-#    image_tag("logo_04.png", :alt => "Kaya Meet")
+     image_tag("logo_04.png", :alt => "Kaya Meet")
   end
 
   def invalid_url
@@ -55,11 +55,14 @@ module ApplicationHelper
     #session[:return_to] = request.request_uri
     session[:return_to] = request.fullpath
   end
+  def clear_return_point
+    session[:return_to] = nil;
+  end
 
   # Redirects to the session[:return_to] uri if there is one and to the given block of params if not
   def redirect_back(*params)
     url = session[:return_to]
-    session[:return_to] = nil
+    clear_return_point
     default_url ||= params.shift
     except_url = params.delete(:except_url)
     if (url.blank? || (except_url && match_url?(url, url_for(except_url))))
@@ -85,12 +88,28 @@ module ApplicationHelper
   def form_cancel_button(form, button, name, options={})
     remote = options.delete(:remote)
     remote = true if remote.nil?
-    options[:class] ||= ""; options[:class] += " reset"
-    form.submit(button.to_s, options.merge(:type => "button", :name => name.to_a,
-                :onclick => (remote ?  "this.form.reset()" : "this.form.reset().submit()")))
+    options[:class] ||= "";
+    options[:class] += " reset" if remote
+    form.submit(button.to_s,
+                options.merge(:type => remote ? "button" : "submit", :name => name.to_s)
+                       .merge(remote ? {:onclick => "this.form.reset()"} : {}))
     #return submit(button.to_s, options.merge(:type => "reset", :name => name.to_a))
     #return form.submit(button.to_s, options.merge(:name => name.to_a))
     #return link_to(button.to_s, ".", options)
+  end
+
+  def width_holder(size=100)
+    return %Q{
+      <div style="visibility:hidden;height:0px">
+        #{'1 '*50}
+      </div>
+    }.html_safe
+  end
+  def height_holder(height)
+    return %Q{
+      <div style="width:1px;min-height:#{height}px;position:relative;margin-left:-10000px;float:left">
+      </div>
+    }.html_safe
   end
   
 end

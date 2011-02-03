@@ -51,6 +51,7 @@ class SessionsController < ApplicationController
   end
 
   def new
+    sign_out
     @title = "Sign in"
   end
   

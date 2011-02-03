@@ -4,7 +4,7 @@
 
 function GM_initialize() {
   if (GBrowserIsCompatible()) {
-    var map = new GMap2(document.getElementById("map_canvas"));
+    var map = new GMap2(document.getElementById("meet_map_canvas"));
     map.setCenter(new GLatLng(<%= center_ll %>), <%= zoom %>);
     map.addControl(new GSmallMapControl());
     map.addControl(new GMapTypeControl());
@@ -27,16 +27,16 @@ function GM_initialize() {
         markers[<%=nn%>].openInfoWindowHtml('<%= meet_marker meet %>');
       });
     <% } %>
-    var map_reset = document.getElementById("map_canvas_reset");
+    var map_reset = document.getElementById("map_reset");
     map_reset.addEventListener("click", function() {
       marker_id = 0;
       map.setCenter(new GLatLng(<%= center_ll =%>), <%= zoom %>);
     });
-    var map_center = document.getElementById("map_canvas_center");
+    var map_center = document.getElementById("map_center");
     map_center.addEventListener("click", function() {
       map.setCenter(new GLatLng(<%= center_ll =%>), map.getZoom());
     });
-    var map_next = document.getElementById("map_canvas_next");
+    var map_next = document.getElementById("map_next");
     map_next.addEventListener("click", function() {
       marker_id += 1;
       if (marker_id > markers.length) {
@@ -44,7 +44,7 @@ function GM_initialize() {
       }
       GEvent.trigger(markers[marker_id], 'click')
     });
-    var map_prev = document.getElementById("map_canvas_prev");
+    var map_prev = document.getElementById("map_prev");
     map_prev.addEventListener("click", function() {
       marker_id -= 1;
       if (marker_id < 0) {
@@ -57,10 +57,12 @@ function GM_initialize() {
 
 </script>
 
-<body class="meet_map_content" onload="GM_initialize()" onunload="GUnload()">
-  <div id="map_canvas" style="width: 670px; height: 500px"></div>
-  <%= submit_tag "Prev", :id => "map_canvas_prev", :disabled => meets.size <= 1 %>
-  <%= submit_tag "Next", :id => "map_canvas_next", :disabled => meets.size <= 1 %>
-  <%= submit_tag "Center", :id => "map_canvas_center", :disabled => meets.size != 1 %>
-  <%= submit_tag "Reset", :id => "map_canvas_reset", :disabled => meets.empty? %>
+<body id="meet_map_body" onload="GM_initialize()" onunload="GUnload()">
+  <div id="meet_map_canvas"></div>
+  <div id="meet_map_action" class="clearfix">
+    <%= submit_tag "Prev", :id => "map_prev", :class=>"left", :disabled => meets.size <= 1 %>
+    <%= submit_tag "Next", :id => "map_next", :class=>"left", :disabled => meets.size <= 1 %>
+    <%= submit_tag "Reset", :id => "map_reset", :class=>"right", :disabled => meets.empty? %>
+    <%= submit_tag "Center", :id => "map_center", :class=>"right", :disabled => meets.size != 1 %>
+  </div>
 </body> 

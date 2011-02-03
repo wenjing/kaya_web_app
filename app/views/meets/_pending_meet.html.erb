@@ -1,0 +1,37 @@
+<tr id="meet_pending" class="hover_highlight hover_visibility_toggle xhover_display_toggle"
+  hover_display_toggle="hover_display_id=>pending_meet_#{meet.id},container_class=>pending_meet_detail_container">
+  <td id="meet_pending_delete">
+    <%= button_to "X", meet, :method => :delete, :confirm => "You sure?",
+                             :title => "Delete this meet",
+                             :class => "mini_button hover_visibility_visible hover_faint",
+                             :id => "meet_delete_button" %>
+  </td>
+  <td id="meet_avatar">
+    <div class="nod_left">
+      <%= link_to_meet_image meet, false %>
+    </div>
+  </td>
+  <td id="meet_summary_body">
+    <%= meet_summary_list meet, false %>
+  </td>
+  <td id="meet_static_map">
+    <%=link_to_meet_static_map_small meet %>
+    <div id="meet_address">
+      <%= link_to_meet_address(meet) %>
+    </div>
+  </td>
+  <td id="meet_inviter">
+    <% if meet.meet_inviter.present? %>
+      <div id="user_avatar">
+        <%= link_to_user_image_small meet.meet_inviter %>
+      </div>
+      <div id="user_name">
+        <%= link_to_user_name meet.meet_inviter %>
+      <div>
+    <% end %>
+  </td>
+  <td id="meet_pending_action">
+    <%= button_to "Confirm", confirm_meet_path(meet), :method => :post,
+                           :title => "Confirm this invitation" %>
+  </td>
+</tr>

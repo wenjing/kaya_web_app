@@ -1,0 +1,32 @@
+<header id="signedin_banner">
+  <div class="clearfix container">
+    <nav>
+    <ul class="jsddm clearfix">
+      <li><%#= link_to "Home", current_user %></li>
+      <li><%= link_to "Meets", meets_user_path(current_user) %><ul>
+        <li><%= link_to "Solo", meets_user_path_of_type(current_user, 1) %></li>
+        <li><%= link_to "Private", meets_user_path_of_type(current_user, 2) %></li>
+        <li><%= link_to "Group", meets_user_path_of_type(current_user, 3) %></li>
+      </ul></li>
+      <li><%= link_to "Friends", friends_user_path(current_user) %></li>
+      <li><%#= link_to "Comments", comments_user_path(current_user) %></li>
+      <li full_border><%= link_to "Map", map_user_path(current_user) %><ul>
+        <li><%= link_to "Solo", map_user_path_of_type(current_user, 1) %></li>
+        <li><%= link_to "Private", map_user_path_of_type(current_user, 2) %></li>
+        <li><%= link_to "Group", map_user_path_of_type(current_user, 3) %></li>
+      </ul></li>
+      <li no_border id="user_profile_title">
+        <span id="user_avatar"><%= image_tag(current_user.user_avatar_small) %></span>
+        <span id="user_name"><%= current_user.name_or_email %></span>
+        <ul>
+        <li><%= link_to "Help", help_path %></li>
+        <li><%= link_to "Settings", edit_user_path(current_user) %></li>
+        <li><%= link_to "Invite Friends", new_user_invitation_path(current_user) %></li>
+        <li><%= link_to "Sign out", signout_path %></li>
+        <li><%= link_to "Not #{current_user.name_or_email}", signin_path %></li>
+        </ul>
+      </li>
+    </ul>
+    </nav>
+  </div>
+</header>

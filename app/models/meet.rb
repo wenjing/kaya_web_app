@@ -90,6 +90,7 @@ class Meet < ActiveRecord::Base
     notes = Hash.new
     self.collision = false
     mposts.each {|mpost|
+      next unless mpost.active?
       if mpost.note.present? # Only count non-empty note
         if notes[mpost.note]
           notes[mpost.note] += 1
@@ -125,7 +126,7 @@ class Meet < ActiveRecord::Base
                               note.present? ? note : "Meet",
                               zone_time.strftime("%Y-%m-%d %I:%M%p"),
                               #zone_time.iso8601,
-                              has_hoster? ? " hosted by #{hoster.name_of_email}" : "",
+                              has_hoster? ? " hosted by #{hoster.name_or_email}" : "",
                               the_address.present? ? " at #{the_address}" : "",
                               pluralize(unique_users.count, "attandent"))
 
@@ -334,7 +335,7 @@ class Meet < ActiveRecord::Base
   def meet_other_inviters
     main_inviter = meet_inviter
     return main_inviter ?
-            meet_invitations.slice(1..-1).collect {|v| v.user}.unique.delete(main_inviter) : []
+            meet_invitations.collect {|v| v.user}.uniq.reject {|v| v==main_inviter} : []
   end
   def meet_name
     return (meet_mview && meet_mview.name.present?) ? meet_mview.name :
@@ -365,6 +366,14 @@ class Meet < ActiveRecord::Base
     return meet_address.present? ? meet_address(br) : address_or_ll(br)
   end
 
+  def see_or_seen_by?(to)
+    return false if !to
+    mposts.each {|mpost|
+      #next unless mpost.active?
+      return true if mpost.see_or_seen_by?(to)
+    }
+    return false
+  end
 
 private
  
@@ -375,6 +384,7 @@ private
     # is less than 30feet, 100feet
     [30.0, 100.0, -1.0].each {|val|
       mposts.each {|mpost|
+        next unless mpost.active?
         if (mpost.lng? && mpost.lat? && mpost.lerror? &&
             (val <= 0.0 || mpost.lerror < val))
           lngs << mpost.lng
@@ -415,7 +425,10 @@ private
   def address(br=false)
     address = ""
     if street_address.present?
-      address += "#{street_address},"
+      brief = street_address.split(",").last
+      brief = street_address if brief.blank?
+      brief.strip!
+      address += "#{brief},"
       address += br ? "<br>" : " "
     end
     address += "#{city}, " if city.present?

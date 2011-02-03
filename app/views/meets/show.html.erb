@@ -1,23 +1,21 @@
-<div class ="main meet">
-  <%= render 'chatters/topic_form' %>
+<% content_for :main_content do %>
   <%= will_paginate @topics, :param_name => "chatters_page" if @topics.class==WillPaginate::Collection %>
-  <ul class="chatters">
-     <%= render :partial => 'chatters/topic', :collection => @topics, :as => :topic %>
+  <ul id="chatters">
+    <li id="new_topic" class="dot_seperator">
+      <%= render 'chatters/topic_form' %>
+    </li>
+    <%= render :partial => 'chatters/topic', :collection => @topics, :as => :topic %>
   </ul>
   <%= will_paginate @topics, :param_name => "chatters_page" if @topics.class==WillPaginate::Collection %>
-</div>
+<% end %>
 
-<div class="sidebar">
-  <div> class="meet_summary">
-    <%= render 'header' %>
+<% content_for :side_content do %>
+  <div id="meet_summary" class="raise">
+    <%= render 'meets/header' %>
   </div>
-  <div> class="meet_friends">
-    <%= link_to @meet.friends_count > 0 ? "Add more friends ..." : "Add friends to this meet ...",
-                   new_meet_invitation_path(@meet) %>
-    <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
-    <table class="friends" summary="Meet friends">
-      <%= render :partial => 'users/user_short', :collection => @friends, :as => :user %>
-    </table>
-    <%= will_paginate @friends, :param_name => "friends_page" if @friends.class==WillPaginate::Collection %>
+  <div id="meet_friends">
+    <%= render 'meets/meet_friends' %>
   </div>
-</div>
+<% end %>
+
+<%= render 'shared/main_side' %>

@@ -71,3 +71,9 @@ text-overflow: ellipsis;
   -o-transform: rotate(-3deg);
   transform: rotate(-3deg);
 }
+
+.broke-endless-pages 
+/ * Grey background */
+.background-color: rgb(238, 238, 238);
+/ * Grey dot seperator background */
+.border-top: 1px dotted #8E8E8E;

@@ -1,7 +1,6 @@
-<div class="sidebar">
-  <% if @meet && @meet.id %>
-    <div class="meet_summary follow_display"
-      <%= render 'header' %>
-    </div>
-  <% end %>
-</div>
+<% meet_map = true if !defined?(meet_map) %>
+<% if @meet && @meet.id %>
+  <div id="meet_summary" class="follow_display raise" follow_display="top_offset=>10px">
+    <%= render :partial => 'meets/header', :locals => {:meet_map => meet_map} %>
+  </div>
+<% end %>

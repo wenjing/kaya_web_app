@@ -3,11 +3,11 @@ Please type your email address and press Send button.<br/>
 An email will be send to you, please follow the  instruction complete your password reset.
 
 <%= form_for(:session, :url => reset_sessions_path) do |f| %>
-  <div class="field">
+  <div id="reset_field">
     <%= f.label :email %><br />
     <%= f.text_field :email %>
   </div>
-  <div class="actions">
+  <div class="reset_action">
     <%= f.submit "Send" %>
   </div>
 <% end %>

@@ -414,19 +414,34 @@ private
            mpost_time_from_now(cluster.earliest_mpost) > @@cold_time_limit
   end
 
-  def assign_mposts_to_meet(mposts, meet)
+  # Delete any mpost whose host_id is included in mposts
+  def delete_joined_mposts_from_meet(mposts, meet)
+    host_ids = Set.new
+    mposts.each { |mpost| host_ids << mpost.host_id if mpost.host_id.present? }
+    meet.mposts.each {|mpost|
+      if host_ids.include?(mpost.host_id)
+        mpost.delete; mpost.save
+      end
+    }
     meet.opt_lock_protected {
-      mposts.each {|mpost|
-        Rails.kaya_dblock {meet.mposts << mpost} 
-      }
+      meet.extract_information
+      Rails.kaya_dblock {meet.save}
+    }
+  end
+
+  def assign_mposts_to_meet(mposts, meet)
+    mposts.each {|mpost|
+      Rails.kaya_dblock {meet.mposts << mpost} 
+    }
+    meet.opt_lock_protected {
       meet.extract_information
       Rails.kaya_dblock {meet.save}
     }
   end
 
   def assign_mpost_to_meet(mpost, meet)
+    Rails.kaya_dblock {meet.mposts << mpost}
     meet.opt_lock_protected {
-      Rails.kaya_dblock {meet.mposts << mpost}
       meet.extract_information
       Rails.kaya_dblock {meet.save}
     }
@@ -444,25 +459,111 @@ private
           meet.id, pluralize(mpost.size, "mpost"))
   end
 
-  def add_mposts_to_hosted_meet(mposts, meet)
+  def add_owners_to_hosted_meet(mposts, meet)
+    # The meet is already created by owner, use this mpost to assign hoster_id and meet_name
+    ng_mposts = mposts
+    if (meet && !mpost.empty?)
+      hoster = nil
+      mpost.each {|mpost|
+        user = mpost.user
+        hoster_id = mpost.hoseter_from_host_id
+        # Some sanity check, make sure this is the owner
+        if (meet.include_user?(user) && user.id == hoster_id)
+          ng_mposts.delete(mpost)
+          hoster ||= user
+          meet_name = mpost.meet_name_from_host_id
+          if meet_name.present?
+            mview = Mview.user_meet_mview(user, meet).first
+            if !mview
+              mview = Mview.new
+              mview.user = user
+              mview.meet = meet
+            end
+            # Do not overwrite existing meet name
+            mview.name = meet_name if mview.name.blank?
+            mview.save
+          end
+        end
+      }
+      # Assign hoster if no hoster exists yet. Only support one hoster per meet.
+      meet.opt_lock_protected {
+        if (!meet.has_hoster && hoster)
+          meet.hoster = hoster; meet.save
+        end
+      }
+    end
+    return ng_mposts
+  end
+  def add_guests_to_hosted_meet(mposts, meet)
     # Even with host_id, still have to check devs to confirm they are actually linked
     ng_mposts = mposts
-    if meet
+    if (meet && !mposts.empty?)
       ok_mposts = Array.new
+      hoster = nil
       mposts.each {|mpost|
-        meet.mposts.each {|meet_mpost|
-          # Maybe better only to check against meet_mpost that is host or proxy mode
-          if mpost.see_or_seen_by?(meet_mpost)
-            ok_mposts << mpost
-            ng_mposts.delete(mpost)
-          end
-        }
+        # Maybe better only to check against meet_mpost that is host or proxy mode
+        if meet.see_or_seen_by?(mpost)
+          ok_mposts << mpost
+          ng_mposts.delete(mpost)
+          hoster ||= User.find(mpost.hoster_from_host_id)
+        end
       }
       if !ok_mposts.empty?
-        create_meet_from_mposts(ok_mposts, meet)
-        debug(:processer, 2, "*** add to hosted meet %d of %s",
-              meet.id, pluralize(mpost.size, "ok_mposts"))
+        assign_mposts_to_meet(ok_mposts, meet)
+        # Assign hoster if no hoster exists yet. Only support one hoster per meet.
+        meet.opt_lock_protected {
+          if (!meet.has_hoster? && hoster)
+            meet.hoster = hoster; meet.save
+          end
+        }
       end
+    end
+    return ng_mposts
+  end
+
+  def add_owners_to_joined_meet(mposts, meet)
+    ng_mposts = mposts
+    if (meet && !mpost.empty?)
+      ok_mposts = Array.new
+      xx_mposts = Array.new
+      mpost.each {|mpost|
+        user = mpost.user
+        # Some sanity check, make sure it is legit and only for collision purpose
+        if meet.include_user?(user)
+          if !mpost.collison?
+            ok_mposts << mpost 
+          else
+            xx_mposts << mpost 
+          end
+          ng_mposts.delete(mpost)
+        end
+      }
+      assign_mposts_to_meet(ok_mposts, meet) if !ok_mposts.empty?
+      delete_joined_mposts_from_meet(xx_mposts, meet) if !xx_mposts.empty?
+    end
+    return ng_mposts
+  end
+  def add_guests_to_joined_meet(mposts, meet)
+    # The owner of joined meet must already be in the meet already.
+    ng_mposts = mposts
+    if (meet && !mposts.empty?)
+      ok_mposts = Array.new
+      xx_mposts = Array.new
+      mposts.each {|mpost|
+        owner = Mpost.join_owner(mpost).first
+        # Sanity check, join guest connect directly with ower
+        # However, not sure if this is true, skip the check for now.
+        #if meet.see_or_seen_by?(mpost)
+          if (!owner || !owner.collision?)
+            ok_mposts << mpost
+          else
+            xx_mposts << mpost 
+          end
+          ng_mposts.delete(mpost)
+        #end
+      }
+      assign_mposts_to_meet(ok_mposts, meet) if !ok_mposts.empty?
+      # Unlike join owner, simply ignore join guest with collision
     end
     return ng_mposts
   end
@@ -474,7 +575,6 @@ private
           meet.id, pluralize(mposts.size, "mpost"))
     return meet
   end
-
   def create_meet_from_mpost(mpost)
     meet = Meet.new
     assign_mpost_to_meet(mpost, meet)
@@ -680,16 +780,25 @@ private
   end
 
   def process_pending_mposts
-    hosted_guests = Hash.new
+    host_owners = Hash.new
+    host_guests = Hash.new
+    join_owners = Hash.new
+    join_guests = Hash.new
     @meet_pool.pending_mposts.each {|mpost|
       if mpost.is_processed?
         # Shall we do something here?
       elsif mpost.is_host_owner?
         # Shall not come here, expedite to process_mpost for quick response
         #create_meet_from_mpost(mpost)
+        # The meet is already created. Use this mpost to mark hoster and meet_name in mview.
+        (host_owners[mpost.meet_from_host_id] ||= Array.new) << mpost
       elsif mpost.is_host_guest?
         # Collect all mposts of same meet, so we can process them all at once
-        (hosted_guests[mpost.host_meet] ||= Array.new) << mpost
+        (host_guests[mpost.meet_from_host_id] ||= Array.new) << mpost
+      elsif mpost.is_join_owner?
+        (join_owners[mpost.meet_from_host_id] ||= Array.new) << mpost
+      elsif mpost.is_join_guest?
+        (join_guests[mpost.meet_from_host_id] ||= Array.new) << mpost
       elsif is_definitely_cold?(mpost) # must not in meet_pool, check db directly
         if !assign_mpost_to_cold_meets_if_possible(mpost)
           # Create a orphan meet and assigned this mpost as solo member
@@ -713,17 +822,31 @@ private
     }
     @meet_pool.pending_mposts.clear
 
-    hosted_guests.each_pair {|meet_id, mposts|
-      meet = Mpost.includes(:mposts).find_by_id(meet_id)
-      ng_mposts = meet.has_hoster? ? add_mposts_to_hosted_meet(mposts, meet) : mposts
-      # Under normal circumstance, this shall never happen unless someone try to
-      # abuse the system. We can either quitely ignore these posts, or we can play it
-      # nicely by converting them to peer mode posts and put back to pool to be processed later.
-      ng_mposts.each {|mpost|
-        mpost.force_to_peer_mode
-        mpost.save
-        @meet_pool.pending_mposts << mpost
-      }
+    ng_mposts = Array.new
+    host_owners.each_pair {|meet_id, mposts|
+      meet = Meet.includes(:mposts).find_by_id(meet_id)
+      ng_mposts.concat(add_owners_to_hosted_meet(mposts, meet))
+    }
+    host_guests.each_pair {|meet_id, mposts|
+      meet = Meet.includes(:mposts).find_by_id(meet_id)
+      ng_mposts.concat(add_guests_to_hosted_meet(mposts, meet))
+    }
+    join_owners.each_pair {|meet_id, mposts|
+      meet = Meet.includes(:mposts).find_by_id(meet_id)
+      ng_mposts.concat(add_owners_to_joined_meet(mposts, meet))
+    }
+    join_guests.each_pair {|meet_id, mposts|
+      meet = Meet.includes(:mposts).find_by_id(meet_id)
+      ng_mposts.concat(add_guests_to_joined_meet(mposts, meet))
+    }
+
+    # Under normal circumstance, this shall never happen unless someone try to
+    # abuse the system. We can either quitely ignore these posts, or we can play it
+    # nicely by converting them to peer mode posts and put back to pool to be processed later.
+    ng_mposts.each {|mpost|
+      mpost.force_to_peer_mode
+      mpost.save
+      @meet_pool.pending_mposts << mpost
     }
   end
 
@@ -745,16 +868,16 @@ private
   end
 
   def process_mpost_core(mpost)
-    if (!mpost.is_processed? && mpost.is_host_owner?)
+#   if (!mpost.is_processed? && mpost.is_host_owner?)
       # Unconditionally create a meet from it
       # Expedite to here to improve response time
       # Further moved up to mpost_controller to be handled directly over there.
       # Ensure quick respond even when backup process is backing up
       # create_meet_from_mpost(mpost)
       # mpost.user.hosted_meets << mpost.meet
-    else
+#   else
       @meet_pool.pending_mposts << mpost
-    end
+#   end
   end
 
   def process_meets_core
@@ -1028,6 +1151,7 @@ class MeetRelation
     # Don't case relation between meet members, only fillin between mposts
     # and meet.mposts
     meet.mposts.each {|mpost| 
+      #next unless mpost.active?
       graph[mpost] = Array.new
       # Fillin seeds with meet.mposts. Since meet can not be re-configured, they
       # all have infinite coeff values.
@@ -1038,6 +1162,7 @@ class MeetRelation
       graph_mpost = Array.new
       node_coeff = 0.0
       meet.mposts.each {|meet_mpost| 
+        #next unless meet_mpost.active?
         if mpost.see_or_seen_by?(meet_mpost)
           coeff = coeff_calculator.call(mpost, meet_mpost)
           graph_mpost << [meet_mpost, coeff]

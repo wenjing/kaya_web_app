@@ -8,20 +8,30 @@
     <%= stylesheet_link_tag :all %>
     <%= csrf_meta_tag %>
     <%= render 'layouts/stylesheets' %>
-    <%= javascript_include_tag :defaults, :cache => true %>
+    <%#= javascript_include_tag :defaults, :cache => true %>
+    <%= javascript_include_tag :defaults %>
   </head>
   <body>
-    <div class="container">
-      <%= render 'layouts/header' %>
-      <%= render 'layouts/notifier' %>
-      <section>
-        <% flash.each do |key, value| %>
-          <div class="flash <%= key %>"><%= value %></div>
-        <% end %>
-        <%= yield %>
-      </section>
-      <%= render 'layouts/footer' %>
-      <%= debug(params) if Rails.env.development? %>
-    </div>
+  <% if !signed_in? %>
+    <%= render 'layouts/welcome_header' %>
+  <% else %>
+    <%= render 'layouts/signedin_header' %>
+  <% end %>
+    <section>
+      <div id="top_shadow">
+        <div id="top_left_section"><div id="top_right_section">
+        </div></div>
+      </div>
+      <div id="left_section"><div id="right_section"><div class="container">
+        <div id="main_section">
+          <% flash.each do |key, value| %>
+            <div class="flash <%= key %>"><%= value %></div>
+          <% end %>
+          <%= yield %>
+       </div>
+      </div></div></div>
+    </section>
+    <%= render 'layouts/footer' %>
+    <%= debug(params) if Rails.env.development? %>
   </body>
 </html>

@@ -1,3 +1,6 @@
+require 'meet'
+require 'user'
+require 'mpost'
 class AddTopicIdToChatters < ActiveRecord::Migration
   def self.up
     remove_column :mposts, :status
@@ -26,6 +29,14 @@ class AddTopicIdToChatters < ActiveRecord::Migration
       meet.extract_information
       meet.update_chatters_count
       meet.save
+    }
+    User.all.each {|user|
+      user.status = 0 if user.status.nil?
+      user.save
+    }
+    Mpost.all.each {|mpost|
+      mpost.status = 0 if mpost.status.nil?
+      mpost.save
     }
   end
 

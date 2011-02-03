@@ -1,0 +1,11 @@
+<div id="main_section_body">
+<div id="main">
+  <%= height_holder(600) %>
+  <%= content_for :main_content %>
+</div>
+
+<div id="sidebar"><div>
+  <%= width_holder %>
+  <%= render 'shared/notifier' %>
+  <%= content_for :side_content %>
+</div>

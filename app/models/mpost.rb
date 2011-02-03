@@ -53,6 +53,9 @@ class Mpost < ActiveRecord::Base
       where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
             user.id, meet.id, 2)
   }
+  scope :join_owner, lambda {|join_guest|
+      where("mposts.host_id = ? AND mposts.host_mode = ?", join_guest.host_id, 3)
+  }
 
   serialize :devs, Hash # shall use Set, but rails serialize does not work with it
 
@@ -74,6 +77,10 @@ class Mpost < ActiveRecord::Base
     return self
   end
 
+  def collision?
+    return !collision.nil? && collision != 0
+  end
+
   # The devs are fed as a comma seperated string. They are converted into a set and save
   # to db by marshal it into text. Fortunately, db marshal/unmarshl parts are handled by rails
   # automatically. Mpost relations are checked by device ids. It performs better by using Set
@@ -92,19 +99,32 @@ class Mpost < ActiveRecord::Base
     return meet_id? # might be faster than check meet directly
   end
   def is_host_owner?
-    return host_mode.present? && host_mode == 1
+    return host_mode.present? && host_mode == 1 && host_id.present?
   end
   def is_host_guest?
-    return !is_host_owner? && host_id.present?
+    return host_mode.present? && host_mode == 2 && host_id.present?
   end
-  def host_meet
-    # extract meet_id part
-    return host_id.present? ? host_id.split(":").last : nil
+  def is_join_owner?
+    return host_mode.present? && host_mode == 3 && host_id.present?
+  end
+  def is_join_guest?
+    return host_mode.present? && host_mode == 4 && host_id.present?
   end
   def force_to_peer_mode 
     host_mode = 0
     host_id = nil
   end
+
+  def meet_from_host_id # extract meet_id from host_id
+    return host_id.present? ? host_id.split(":").last : nil
+  end
+  def hoster_from_host_id # extract meet_id from host_id
+    return is_host_owner? || is_host_guest? ? host_id.split(":").second : nil
+  end
+  def meet_name_from_host_id # extract meet_name from host_id
+    return (is_host_owner? || is_host_guest?) ? host_id.split(":").third : nil
+  end
+
   # Trigger time is when the mpost is sampled. Shall be same as time. This one
   # is used instead to make sure it is utc time.
   # Also, make sure trigger time is no later than created time

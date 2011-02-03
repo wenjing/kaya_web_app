@@ -1,0 +1,7 @@
+<div id="notifier">
+  <% if signed_in? && !current_page?(pending_meets_user_path(current_user)) %>
+    <div id="pending_invitation_notifier">
+      <%= link_to_pending_meet_count(current_user) %>
+    </div>
+  <% end %>
+</div>

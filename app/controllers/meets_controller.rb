@@ -133,19 +133,19 @@ class MeetsController < ApplicationController
       assert_internal_error(@meet)
       pending_mposts = Mpost.pending_user_meet_mposts(current_user, @meet).to_a
       if accept
-        pending_mposts.each {|mpost| mpost.status = 0; mpost.save}
         @meet.opt_lock_protected {
           if !@meet.include_user?(current_user)
             @meet.extract_information_from_extra_user(current_user)
             @meet.save
           end
+          pending_mposts.each {|mpost| mpost.status = 0; mpost.save}
         }
       else
         delete_mposts(pending_mposts)
       end
       respond_to do |format|
         format.html { 
-          if (accept && current_user.true_pending_meets.count = 0)
+          if (accept && current_user.true_pending_meets.count == 0)
             # The only pending meet is confirmed, got to meet detail
             redirect_to meet_path(@meet)
           else

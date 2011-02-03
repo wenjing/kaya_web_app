@@ -1,8 +1,22 @@
 module SessionsHelper
   
   def sign_in(user)
-    cookies.permanent.signed[:remember_token] = [user.id, user.salt]
-    self.current_user = user
+    if !current_user?(user)
+      sign_out
+      cookies.permanent.signed[:remember_token] = [user.id, user.salt]
+      self.current_user = user
+    end
+  end
+  def sign_out(clear_rp=true)
+    cookies.delete(:remember_token)
+    # redirect_back is invalid once user signed out
+    clear_return_point
+    self.current_user = nil
+  end
+
+  def re_sign_in(user)
+    sign_out(false)
+    sign_in(user)
   end
   
   def current_user=(user)
@@ -17,11 +31,6 @@ module SessionsHelper
     !current_user.nil?
   end
   
-  def sign_out
-    cookies.delete(:remember_token)
-    self.current_user = nil
-  end
-
   def current_user?(user)
     user && current_user && user.id == current_user.id
   end
@@ -39,7 +48,8 @@ module SessionsHelper
     pending_access(current_user) if (current_user && current_user.pending?)
   end
   def authenticate_pending_ok
-    deny_access unless signed_in? || basic_authenticate || temp_authenticate
+    # More temp_auth to the first, it overwrites all other form of authentications
+    deny_access unless temp_authenticate || signed_in? || basic_authenticate || temp_authenticate
   end
 
   def basic_authenticate
@@ -55,7 +65,7 @@ module SessionsHelper
   def temp_authenticate
     user_id, user_passcode = params[:id], params[:pcd]
     user = User.find_by_id(user_id)
-    if (!user.nil? && user.pending?)
+    if (!user.nil? && user.pending? && !current_user?(user))
       user = User.authenticate(user.email, user_passcode)
       sign_in(user) if !user.nil?
     end
