@@ -1,7 +1,7 @@
-<% user = @user if !defined?(user) %>
 <% if user && user.id && !current_user?(user) %>
   <% meets = @meets || user.meets_with(current_user) %>
   <div id="user_summary_profile">
+    <%= height_holder(100) %>
     <div id="user_avatar">
       <%= link_to_user_image user %>
     </div>

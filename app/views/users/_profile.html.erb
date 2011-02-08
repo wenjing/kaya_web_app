@@ -1,6 +1,7 @@
 <% if current_user %>
   <%  recent_meets = current_user.recent_meets(3.months) %>
   <div id="user_summary_profile">
+    <%= height_holder(100) %>
     <div id="user_avatar">
       <%= link_to_user_image current_user %>
     </div>

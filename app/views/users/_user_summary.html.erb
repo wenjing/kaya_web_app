@@ -1,6 +1,6 @@
 <div id="user_summary" class="raise follow_display" follow_display="top_offset=>10px">
   <% if @user && @user.id && !current_user?(@user) %>
-    <%= render 'users/header' %>
+    <%= render :partial => 'users/header', :locals => {:user => @user} %>
   <% else %>
     <%= render 'users/profile' %>
   <% end %>

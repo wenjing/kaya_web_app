@@ -285,9 +285,6 @@ section #sidebar {
   display: table;
   width: 100%;
 }
-#user_summary_profile {
-  display: table-row;
-}
 #user_summary_profile #user_avatar {
   vertical-align: top;
   display: table-cell;
@@ -304,6 +301,7 @@ section #sidebar {
   display: table;
   width: 100%;
 }
+#user_summary_profile,
 #meet_summary_header,
 #meet_summary_marker {
   display: table-row;
@@ -316,8 +314,9 @@ section #sidebar {
   vertical-align: top;
   display: table-cell;
 }
-#meet_summary_header div#meet_summary_body,
-#meet_summary_marker div#meet_summary_body {
+#meet_summary_header #meet_summary_body,
+#meet_summary_marker #meet_summary_body,
+#meet_summary_header #meet_action {
   vertical-align: top;
   text-align: right;
   display: table-cell;
@@ -366,7 +365,7 @@ section #sidebar {
 }
 #meet_summary_body ul {
   margin: 0px; 
-  padding: 0px;
+  padding: 0px 2px;
 }
 #meet_static_map #meet_address {
   font-size: 85%;

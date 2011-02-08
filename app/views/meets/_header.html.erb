@@ -1,6 +1,7 @@
 <% meet_map = true if !defined?(meet_map) %>
 <% if @meet && @meet.id %>
   <div id="meet_summary_header" class="hover_visibility_toggle">
+    <%= height_holder(120) %>
     <%= meet_summary_brief @meet %>
     <% if meet_map %>
       <div id='meet_static_map'>
