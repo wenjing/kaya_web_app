@@ -358,11 +358,18 @@ section #sidebar {
 #meet_pending td#meet_summary_body,
 #meet_list td#meet_summary_body {
   #vertical-align: bottom;
-  width: 150px;
+  width: 130px;
 }
 #meet_pending #meet_static_map,
 #meet_list #meet_static_map {
-  width: 100px;
+  width: 110px;
+}
+#meet_summary_body ul {
+  margin: 0px; 
+  padding: 0px;
+}
+#meet_static_map #meet_address {
+  font-size: 85%;
 }
 #meet_pending #meet_pending_delete,
 #meet_list #meet_list_delete {

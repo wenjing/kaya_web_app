@@ -60,7 +60,7 @@ module MeetsHelper
 
   def link_to_meet_static_map_small(meet, pending=false)
     #return "".html_safe if current_page?(map_meet_path(meet))
-    map_url = meet.static_map_url(100, 60, 14, "small")
+    map_url = meet.static_map_url(110, 60, 14, "small")
     return map_url.blank? ? "".html_safe :
            pending ? link_to(image_tag(map_url), "##", :title => "Confirm first to access meet map") :
                       link_to_unless_current(image_tag(map_url), map_meet_path(meet),
