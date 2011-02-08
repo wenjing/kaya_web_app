@@ -1,19 +1,20 @@
-<% if @user && @user.id && !current_user?(@user) %>
-  <% meets = @meets || @user.meets_with(current_user) %>
+<% user = @user if !defined?(user) %>
+<% if user && user.id && !current_user?(user) %>
+  <% meets = @meets || user.meets_with(current_user) %>
   <div id="user_summary_profile">
     <div id="user_avatar">
-      <%= link_to_user_image @user %>
+      <%= link_to_user_image user %>
     </div>
     <div id="user_summary_body">
       <ul>
       <li id="user_name">
-        <%= link_to_user_name @user %>
+        <%= link_to_user_name user %>
       </li>
       <li id="user_statistics">
         <% if meets.present? %>
           LM <%= link_to_meet_name meets.first%> <%= link_to_meet_time meets.first %>
         <% end %>
-        M# <%= link_to_user_meets_text @user, "#{meets.size}" %>
+        M# <%= link_to_user_meets_text user, "#{meets.size}" %>
       </li>
       </ul>
     </div>

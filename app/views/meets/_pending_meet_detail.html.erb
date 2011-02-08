@@ -1,12 +1,10 @@
-<div id="pending_meet_detail" class="hover_display_visible" id="pending_meet_#{meet.id}">
-  <div id="user_avatar">
-    <%= link_to_user_image_small meet.meet_inviter %>
-  </div>
-  <div id="user_name">
-    <%= link_to_user_name meet.meet_inviter %>
+<div class="hover_display_visible" id="<%= "pending_meet_#{meet.id}" %>">
+<div id="pending_meet_detail">
+  <div id="inviter_summary">
+    <%= render :partial => 'users/header', :locals => {:user => meet.meet_inviter} %>
   </div>
   <div id="invitation_message">
-    meet.meet_invitation_message
+    <%= meet.meet_invitation_message %>
   </div>
 
   <div id="other_inviters">
@@ -14,13 +12,11 @@
     <% if other_inviters.present? %>
       Also invited by <%= other_inviters.size %> other friends
       <% other_inviters.slice(0..9).each {|inviter| %>
-        <div id="user_avatar">
-          <%= link_to_user_image_small inviter %>
-        </div>
-        <div id="user_name">
-          <%= link_to_user_name inviter %>
+        <div id="inviter_summary">
+          <%= render :partial => 'users/header', :locals => {:user => inviter} %>
         </div>
       <% } %>
     <% end %>
   </div>
+</div>
 </div>

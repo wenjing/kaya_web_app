@@ -1,19 +1,22 @@
-<li id="chatter_comment" class="hover_visibility_toggle dot_seperator" >
+<li id="chatter_comment" class="dot_seperator">
+  <div class="hover_visibility_toggle"
+       hover_visibility_toggle="hover_visibility_id=>chatter_<%= comment.id %>" >
   <div id="chatter_content">
     <span id="user_avatar"> <%= link_to_user_image_small comment.user %> </span>
     <span id="user_name"> <%= link_to_user_name comment.user %> </span> :
     <span id="chatter_content_body"> <%= auto_link(comment.content) %> </span>
   </div>
   <div id="chatter_meta">
-  <div id="chatter_statistic">
-    <span id="timestamp"><%= time_ago_in_words(comment.created_at) %> ago</span>
-  </div>
-  <div id="chatter_action" class="right clear_right">
-    <% if current_user?(comment.user) || admin_user? %>
-      <%= button_to "X", comment, :method => :delete, :confirm => "You sure?",
-                                  :title => "Delete this comment",
-                                  :class => "mini_button hover_visibility_visible hover_faint" %>
-    <% end %>
-  </div>
+    <div id="chatter_statistic">
+      <span id="timestamp"><%= time_ago_in_words(comment.created_at) %> ago</span>
+    </div>
+    <div id="chatter_action" class="right clear_right">
+      <% if current_user?(comment.user) || admin_user? %>
+        <%= button_to "X", comment, :method => :delete, :confirm => "You sure?",
+                                    :title => "Delete this comment",
+                                    :id => "chatter_#{comment.id}",
+                                    :class => "mini_button hover_visibility_visible hover_faint" %>
+      <% end %>
+    </div>
   </div>
 </li>

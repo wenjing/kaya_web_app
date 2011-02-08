@@ -8,9 +8,7 @@
 <% end %>
 
 <% content_for :side_content do %>
-  <div class="pending_meet_detail_container">
-    <%= render :partial => 'meets/pending_meet_detail', :collection => @pending_meets, :as => :meet %>
-  </div>
+  <%= render :partial => 'meets/pending_meet_detail', :collection => @pending_meets, :as => :meet %>
 <% end %>
 
 <%= render 'shared/main_side' %>

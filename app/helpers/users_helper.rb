@@ -14,7 +14,7 @@ module UsersHelper
 
   def link_to_user_image(user)
     if user.blank?
-      return "K-50x50.jpg".html_safe
+      return image_tag("K-50x50.jpg")
     elsif user.user_avatar.present?
       return link_to_unless_current(image_tag(user.user_avatar),
                                     current_user?(user) ? user : meets_user_path(user),

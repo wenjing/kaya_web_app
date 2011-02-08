@@ -149,8 +149,8 @@ class ApplicationController < ActionController::Base
     mposts.each {|mpost|
       #next if mpost.destroyed?
       #user, meet = mpost.user, mpost.meet
-      #user.mposts.destroy(mpost)
-      #meet.mposts.destroy(mpost) if meet.present?
+      #user.mposts.delete(mpost)
+      #meet.mposts.delete(mpost) if meet.present?
       #mpost.destroy
       mpost.delete; mpost.save
     }
@@ -160,8 +160,8 @@ class ApplicationController < ActionController::Base
     mviews.each {|mview|
       next if mview.destroyed?
       user, meet = mview.user, mview.meet
-      user.mviews.destroy(mview)
-      meet.mviews.destroy(mview)
+      user.mviews.delete(mview)
+      meet.mviews.delete(mview)
       mview.destroy
     }
   end
@@ -170,8 +170,8 @@ class ApplicationController < ActionController::Base
     invitations.each {|invitation|
       next if invitation.destroyed?
       user, meet = invitation.user, invitation.meet
-      user.invitations.destroy(invitation)
-      meet.invitations.destroy(invitation) if meet.present?
+      user.invitations.delete(invitation)
+      meet.invitations.delete(invitation) if meet.present?
       invitation.destroy
     }
   end
@@ -187,20 +187,20 @@ class ApplicationController < ActionController::Base
         # Delete all current user's comments under this topic first
         chatter.comments.to_a.each {|comment|
           if comment.user_id == user.id
-            meet.chatters.destroy(comment)
-            meet.chatters.destroy(comment)
-            chatter.comments.destroy(comment)
+            meet.chatters.delete(comment)
+            user.chatters.delete(comment)
+            chatter.comments.delete(comment)
             comment.destroy
           end
         }
       end
       if (!chatter.topic? || chatter.comments.empty?)
         # Delete the chatter if it is not a topic or it is has no comments
-        meet.chatters.destroy(chatter)
+        meet.chatters.delete(chatter)
         update_meets << meet
-        user.chatters.destroy(chatter) if user.present?
+        user.chatters.delete(chatter) if user.present?
         if topic.present?
-          topic.comments.destroy(chatter)
+          topic.comments.delete(chatter)
           update_topics << topic
         end
         chatter.destroy

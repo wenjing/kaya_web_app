@@ -71,7 +71,7 @@ class ChattersController < ApplicationController
   def destroy
     delete_chatters([@chatter])
     respond_to do |format|
-      format.html { redirect_back meet, :flash => { :success => "Chatter deleted!" } }
+      format.html { redirect_back @meet, :flash => { :success => "Chatter deleted!" } }
       format.json { head :ok }
     end
   end

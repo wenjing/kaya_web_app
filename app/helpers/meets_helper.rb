@@ -23,9 +23,9 @@ module MeetsHelper
   end
 
   def link_to_meet_address(meet, pending=false)
-    address = meet.meet_address_or_ll
+    address = meet.meet_address_or_ll(true).html_safe
     return address.blank? ? "".html_safe :
-           meet.lat_lng.blank? ? address.html_safe :
+           meet.lat_lng.blank? ? address :
            pending ? link_to(address, "##", :title => "Confirm first to access meet map") :
                      link_to_unless_current(address, map_meet_path(meet),
                                     :title => "Larger map: #{meet.meet_location_or_ll}")

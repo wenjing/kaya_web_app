@@ -141,7 +141,7 @@ class InvitationsController < ApplicationController
 # end
 #
 # def destroy
-#   current_user.invitations.destroy(@invitation)
+#   current_user.invitations.delete(@invitation)
 #   @invitation.destroy
 #   redirect_back @user, :flash => { :success => "invitation deleted!" }
 # end

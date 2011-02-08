@@ -322,6 +322,15 @@ section #sidebar {
   text-align: right;
   display: table-cell;
 }
+#sidebar #pending_meet_detail {
+  background: #FFFEEE;
+  padding: 5px;
+  width: 100%;
+}
+#sidebar #inviter_summary {
+  display: table;
+  width: 100%;
+}
 .table { display: table; }
 .table_row { display: table-row; }
 .table_cell { display: table-cell; }
@@ -716,11 +725,6 @@ ul#chatters {
   width: 610px;
 }
 
-#chatter_comment,
-#chatter_topic {
-  #height: 70px;
-}
-
 #chatter_topic #chatter_content #user_avatar,
 #chatter_topic #chatter_comment #chatter_content #user_avatar {
   border-top: 1px solid #ccc;
@@ -787,210 +791,7 @@ form #meet_edit_action {
 
 form #new_comment textarea,
 form #comment_action {
-  width: 580px;
-}
-
-form #topic_action input,
-form #comment_action input,
-form #invitation_action input,
-form #meet_edit_action input {
-  margin-left: 5px;
-  margin-right: 5px;
-}
-
-form #new_topic,
-form #new_comment,
-form#new_invitation,
-form#new_mview {
-  #margin-bottom: 2em;
-}
-
-form #topic_action
-{
-  margin-bottom: 10px;
-}
-
-form #new_topic textarea {
-  height: 20px;
-}
-form #new_comment textarea {
-  height: 15px;
-}
-
-form#new_invitation textarea#invitation_invitee {
-  height: 30px;
-}
-form#new_invitation textarea#invitation_message {
-  height: 300px;
-}
-
-form#new_mview textarea#mview_name {
-  height: 30px;
-}
-form#new_mview textarea#mview_location {
-  height: 30px;
-}
-form#new_mview textarea#mview_time {
-  height: 30px;
-}
-form#new_mview textarea#mview_description {
-  height: 300px
-}
-
-/* Limit size textarea */
-.limit_size_box {
-  #border: 1px solid #000;
-  border-top: none;
-  background-color: #ffc;
-  padding: 0px 6px;
-  font-size: 9px;
-}
-
-/* Forced highlight (table row) */
-.hover_highlight.hover_highlighted {
-   background-color: #eee;
-}
-/*.hover_visibility_toggle .hover_visibility_visible {
-  visibility: hidden;
-}
-.hover_visibility_toggle .hover_visibility_hidden {
-  visibility: visible;
-}
-.hover_visibility_toggle: hover .hover_visibility_visible {
-  visibility: visible;
-}
-.hover_visibility_toggle: hover .hover_visibility_hidden {
-  visibility: hidden;
-}
-.hover_display_toggle .hover_display_item,
-.hover_display_toggle .hover_display_block,
-.hover_display_toggle .hover_display_inline {
-  display : none;
-}
-.hover_display_toggle:hover hover_display_item {
-  display : run-in;
-}
-.hover_display_toggle:hover hover_display_block {
-  display : block;
-}
-.hover_display_toggle:hover hover_display_inline {
-  display : inline;
-}*/
-
-/* Paginate */
-.pagination a {
-  border: 1px solid #BEBEBE;
-  color: #256C98;
-  text-decoration: none;
-}
-.pagination a, .pagination span {
-  padding: 0.2em 0.5em;
-}
-.pagination .prev_page, .pagination .next_page {
-  border: 1px solid white;
-}
-
-/* Seperator line between items */ 
-.dot_seperator {
-  background: url(../images/bg_a.gif) repeat-x -2px 100%;
-  margin: 0px 0px 10px;
-  padding: 0px 0px 10px;
-}
-.dot_seperator:last-child {
-  background: transparent;
-  margin: 0px 0px 0px;
-  padding: 0px 0px 0px;
-}
-
-.solid_seperator,
-.dotted_seperator,
-.dashed_seperator {
-  border-top-color: #E9E9E9;
-  border-top-width: 1px
-  padding-top: 5px;
-  padding-bottom: 5px;
-}
-.solid_seperator,
-  border-top-style: solid;
-}
-.dotted_seperator {
-  border-top-style: dotted;
-}
-.dashed_seperator {
-  border-top-style: dashed;
-}
-.solid_seperator: first-child,
-.dotted_seperator: first-child,
-.dashed_seperator: first-child {
-  border-top-width: 0px;
-}
-
-/* Cursor on all clickable items */
-a, .force_clickable,
-input[type=submit], input[type=button], input[type=reset] {
-  cursor: pointer;
-}
-
-/* Input reset button */
-input: reset, input.reset {
-  background-color: yellow;
-  border-color: red;
-}
-
-/* Disabled link */
-a[href='##'] {
-  color: black;
-}
-
-/* Borrowed from blueprint's grid css */
-.last {margin-right:0;}
-.border {padding-right:1px;margin-right:2px;border-right:1px solid #ddd;}
-.colborder {padding-right:22px;margin-right:22px;border-right:1px solid #ddd;}
-div.prepend-top, .prepend-top {margin-top:1.5em;}
-div.append-bottom, .append-bottom {margin-bottom:1.5em;}
-.box {padding:1.5em;margin-bottom:1.5em;background:#e5eCf9;}
-hr {background:#ddd;color:#ddd;clear:both;float:none;width:100%;height:1px;margin:0 0 1.45em;border:none;}
-hr.space {background:#fff;color:#fff;visibility:hidden;}.clearfix:after, .container:after {content:"\0020";display:block;height:0;clear:both;visibility:hidden;overflow:hidden;}
-.clearfix, .container {display:block;}
-.clear {clear:both;}
-.clear_left {clear:left;}
-.clear_right {clear:right}
-#chatter_comment #chatter_statistic,
-#chatter_topic #chatter_statistic {
-  display: inline-block;
-  font-size: 85%;
-  color: #666;
-  display: inline-block;
-}
-#chatter_comment #chatter_statistic #timestamp,
-#chatter_topic #chatter_statistic #timestamp {
-  font-style: italic;
-}
-
-#chatter_topic #chatter_photo {
-}
-
-/* Input forms */
-form textfield,
-form textarea {
-  width: 600px;
-  margin-bottom: 5px;
-}
-
-form #topic_action,
-form #comment_action,
-form #invitation_action,
-form #meet_edit_action {
-  width: 610px;
-  height: 20px;
-  #padding-left: 5px;
-  #padding-right: 5px;
-  margin-bottom: 5px;
-}
-
-form #new_comment textarea,
-form #comment_action {
-  width: 580px;
+  width: 578px;
 }
 
 form #topic_action input,

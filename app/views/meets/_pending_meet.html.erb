@@ -1,5 +1,5 @@
-<tr id="meet_pending" class="hover_highlight hover_visibility_toggle xhover_display_toggle"
-  hover_display_toggle="hover_display_id=>pending_meet_#{meet.id},container_class=>pending_meet_detail_container">
+<tr id="meet_pending" class="hover_highlight hover_visibility_toggle hover_display_toggle"
+  hover_display_toggle="hover_display_id=><%= "pending_meet_#{meet.id}" %>,container=>sidebar,top_offset=>10px,bottom_offset=>10px">
   <td id="meet_pending_delete">
     <%= button_to "X", meet, :method => :delete, :confirm => "You sure?",
                              :title => "Delete this meet",

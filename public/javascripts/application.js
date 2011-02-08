@@ -199,23 +199,22 @@ jQuery(function($){
 
   // Float toggle visible item to best location considering container, window height
   // and current mouse location.
-  $.fn.hover_display_toggle = function(center, container_class, visible) {
+  $.fn.floating_toggle = function(center, top_offset, bottom_offset, visible) {
     this.each(function() {
       var item = $(this);
+      var container = this.container;
       if (visible && item.is(":hidden") || !visible && !item.is(":hidden"))
         item.toggle();
-      if (!item.is(":hidden") && container != undefined) {
-        var container = item.closest('.'+container);
+      if (!item.is(":hidden") && container != null) {
         var view = $(window);
-        var container_top = container.offset().top;
+        var container_top = Math.max(container.offset().top, item.offset().top);
         var container_bottom = container_top + container.height();
-        var view_top = view.offset().top;
-        var view_bottom = view_top + view.height();
+        var view_top = view.scrollTop() + top_offset;
+        var view_bottom = view_top + view.height() - bottom_offset;
         var target_top = Math.max(container_top, view_top);
         var target_bottom = Math.min(container_bottom, view_bottom);
         target_height = container_bottom - target_top; 
         item.css('max_height',target_height).css('overflow','hidden');
-        item.toggle();
         target_height = item.height();
         var target_offset = target_top;
         // Try to pull item center closer to targeted center location
@@ -223,10 +222,13 @@ jQuery(function($){
           target_offset = center - target_height/2;
           if (target_offset < target_top)
             target_offset = target_top;
-          else (target_offset + target_height > target_bottom)
+          else if (target_offset + target_height > target_bottom)
             target_offset = target_bottom - target_height;
         }
-        item.css('position','fixed').css('top', target_offset+'px');
+        target_offset -= item.offset().top;
+        item.css('position','relative').css('top', target_offset+'px');
+      } else if (item.is(":hidden") && container != null) {
+        item.css('position','').css('top', '');
       }
     });
   }
@@ -236,6 +238,12 @@ jQuery(function($){
   $.fn.hover_display_toggle = function() {
     this.each(function() {
       var params = $(this).get_params('hover_display_toggle');
+      var top_offset = 0;
+      var bottom_offset = 0;
+      if (params.top_offset != undefined)
+        top_offset = parseInt(params.top_offset);
+      if (params.bottom_offset != undefined)
+        bottom_offset = parseInt(params.bottom_offset);
       var hover_visible_item, hover_hidden_item;
       if (params.hover_display_id != undefined) {
         hover_visible_item = $('.hover_display_visible#' + params.hover_display_id);
@@ -244,14 +252,32 @@ jQuery(function($){
         hover_visible_item = $(this).find('.hover_display_visible');
         hover_hidden_item  = $(this).find('.hover_display_hidden');
       }
-      $(this).safe_hover(
+      hover_visible_item.each(function() {
+        this.container = null;
+        if (params.container != undefined) {
+          var container = $(this).closest('#'+params.container);
+          this.container = container;
+        }
+      });
+      hover_hidden_item.each(function() {
+        this.container = null;
+        if (params.container != undefined) {
+          var container = $(this).closest('#'+params.container);
+          container.css('position','relative');
+          this.container = container;
+        }
+      });
+      var hover_item = $(this);
+      //var center = e.pageY;
+      var center = hover_item.offset().top + hover_item.height()/2;
+      hover_item.safe_hover(
         function (e) {
-          hover_visible_itema.floating_toggle(e.pageY, params.container_class, true);
-          hover_hidden_itema.floating_toggle(e.pageY, params.container_class, false);
+          hover_visible_item.floating_toggle(center, top_offset, bottom_offset, true);
+          hover_hidden_item.floating_toggle(center, top_offset, bottom_offset, false);
         },
         function (e) {
-          hover_visible_itema.floating_toggle(e.pageY, params.container_class, false);
-          hover_hidden_itema.floating_toggle(e.pageY, params.container_class, true);
+          hover_visible_item.floating_toggle(center, top_offset, bottom_offset, false);
+          hover_hidden_item.floating_toggle(center, top_offset, bottom_offset, true);
         }
       );
     });
@@ -287,7 +313,7 @@ jQuery(function($){
         hover_visible_item = $(this).find('.hover_visibility_visible');
         hover_hidden_item  = $(this).find('.hover_visibility_hidden');
       }
-      $(this).safe_hover(
+      $(this).hover(
         function (e) {
           hover_visible_item.toggle_visibility(true);
           hover_hidden_item.toggle_visibility(false);

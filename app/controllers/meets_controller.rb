@@ -101,8 +101,9 @@ class MeetsController < ApplicationController
         # Reload again to eager load to prevent db N+1 access
         #@meet = Meet.includes(:users, :chatters).find_by_id(params[:id])
         @friends = @meet.friends(current_user).paginate(:page => params[:friends_page], :per_page => 25)
-        @topics = @meet.topics.includes(:comments).paginate(:page => params[:chatters_page], :per_page => 25)
-        # This is for partial comment display by Ajax comment show all feature.
+        @topics = @meet.topics.includes([{:comments=>:user},:user])
+                              .paginate(:page => params[:chatters_page], :per_page => 25)
+        # This is for partial comment display by Ajax comment "show all" feature.
         #attach_topic_top_comments(@topics)
         @title = @meet.meet_name
         # Store return path for chatters, edit and delete

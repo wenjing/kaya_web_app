@@ -294,6 +294,7 @@ class User < ActiveRecord::Base
     return group_meets.to_a.collect {|v| v.id}.compact
   end
   def true_pending_meets
+    return [] if pending_meets.count == 0
     active_meet_ids = meet_ids.to_set
     return pending_meets.to_a.select {|meet| !active_meet_ids.include?(id)} || []
   end
