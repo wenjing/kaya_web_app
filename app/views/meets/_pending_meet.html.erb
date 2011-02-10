@@ -1,10 +1,11 @@
 <tr id="meet_pending" class="hover_highlight hover_visibility_toggle hover_display_toggle"
   hover_display_toggle="hover_display_id=><%= "pending_meet_#{meet.id}" %>,container=>sidebar,top_offset=>10px,bottom_offset=>10px">
   <td id="meet_pending_delete">
-    <%= button_to "X", meet, :method => :delete, :confirm => "You sure?",
-                             :title => "Delete this meet",
-                             :class => "mini_button hover_visibility_visible hover_faint",
-                             :id => "meet_delete_button" %>
+    <%= button_to "X", decline_meet_path(meet),
+                            :method => :delete, :confirm => "You sure?",
+                            :title => "Delete this meet",
+                            :class => "mini_button hover_visibility_visible hover_faint",
+                            :id => "meet_delete_button" %>
   </td>
   <td id="meet_avatar">
     <div class="nod_left">
@@ -31,7 +32,6 @@
     <% end %>
   </td>
   <td id="meet_pending_action">
-    <%= button_to "Confirm", confirm_meet_path(meet), :method => :post,
-                           :title => "Confirm this invitation" %>
+    <%= button_to "Confirm", confirm_meet_path(meet), :method => :post, :title => "Confirm this invitation" %>
   </td>
 </tr>

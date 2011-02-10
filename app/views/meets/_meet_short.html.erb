@@ -2,7 +2,7 @@
 <tr id="meet_list" class="hover_visibility_toggle hover_highlight force_clickable",
   force_clickable="<%= %Q{url=>#{meet_path(meet)}}%>", title="Meet detail">
   <td id="meet_list_delete">
-    <%= button_to "X", meet, :method => :delete, :confirm => "You sure?",
+    <%= button_to "X", meet_path(meet), :method => :delete, :confirm => "You sure?",
                              :title => "Delete this meet",
                              :class => "mini_button hover_visibility_visible hover_faint",
                              :id => "meet_delete_button" %>
@@ -18,14 +18,14 @@
   <% if long_format %>
     <td id="meet_static_map">
       <%=link_to_meet_static_map_small meet %>
-      <div id="meet_address"> <%= link_to_meet_address(meet) %> </div>
+      <div id="meet_address"> <%#= link_to_meet_address(meet) %> </div>
     </td>
     <td id="meet_list_chatter">
       <%= latest_chatters_brief meet %>
     </td>
   <% else %>
     <td id="meet_list_detail" class="hover_visibility_visible hover_faint">
-      <%#= link_to_meet_detail meet %>
+      <%= link_to_meet_detail meet %>
     </td>
   <% end %>
   <td id="meet_list_action">

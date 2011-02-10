@@ -7,17 +7,17 @@ module UsersHelper
 
   def link_to_user_detail_arrow(user)
     return link_to_unless_current(image_tag("blue_arrow.jpg"),
-                                  current_user?(user) ? user : meets_user_path(user),
+                                  current_user?(user) ? user_path(user) : meets_user_path(user),
                                   :title => current_user?(user) ?
                                       user.name_or_email : "Meets with #{user.name_or_email}")
   end
 
   def link_to_user_image(user)
     if user.blank?
-      return image_tag("K-50x50.jpg")
+      return image_tag(User.default_photo)
     elsif user.user_avatar.present?
       return link_to_unless_current(image_tag(user.user_avatar),
-                                    current_user?(user) ? user : meets_user_path(user),
+                                    current_user?(user) ? user_path(user) : meets_user_path(user),
                                     :title => current_user?(user) ?
                                         user.name_or_email : "Meets with #{user.name_or_email}")
     else
@@ -27,10 +27,10 @@ module UsersHelper
 
   def link_to_user_image_small(user)
     if user.blank?
-      return "K-50x50.jpg".html_safe
+      return image_tag(User.default_photo_small)
     elsif user.user_avatar_small.present?
       return link_to_unless_current(image_tag(user.user_avatar_small),
-                                    current_user?(user) ? user : meets_user_path(user),
+                                    current_user?(user) ? user_path(user) : meets_user_path(user),
                                     :title => current_user?(user) ?
                                         user.name_or_email : "Meets with #{user.name_or_email}")
     else
@@ -44,7 +44,7 @@ module UsersHelper
     elsif user.blank?
       return "Anonymous".html_safe
     elsif current_user?(user)
-      return link_to_unless_current(user.name_or_email, user, :title => user.name_or_email)
+      return link_to_unless_current(user.name_or_email, user_path(user), :title => user.name_or_email)
     else
       return pending ? link_to(user.name_or_email, "##",
                                :title => "Confirm first to access meets with list") :
@@ -60,8 +60,7 @@ module UsersHelper
   end
 
   def link_to_user_friends_text(user, text)
-    return link_to_unless_current(text, friends_user_path(user),
-                                  :title => "All friends")
+    return link_to_unless_current(text, friends_user_path(user), :title => "All friends")
   end
 
   def map_user_path_upto(user, meet_type, upto)

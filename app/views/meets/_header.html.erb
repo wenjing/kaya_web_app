@@ -9,7 +9,7 @@
       </div>
     <% end %>
     <div id="meet_action">
-      <%= button_to "X", @meet, :method => :delete, :confirm => "You sure?",
+      <%= button_to "X", meet_path(@meet), :method => :delete, :confirm => "You sure?",
                             :title => "Delete this meet",
                             :class => "mini_button hover_visibility_visible hover_faint",
                             :id => "meet_delete_button"%>

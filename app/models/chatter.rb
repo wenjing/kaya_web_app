@@ -18,6 +18,7 @@ class Chatter < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
+      #:original  => "1000x1000>",
       :small  => "80x120>",
       :normal => "160x200>"
     },
@@ -77,6 +78,12 @@ class Chatter < ActiveRecord::Base
   end
   def comment?
     return !topic?
+  end
+  def photo? # Overwrite the original one, this is much faster
+    return photo_content_type.present?
+  end
+  def chatter_photo_orig
+    return photo? ? photo.url : ""
   end
   def chatter_photo
     return photo? ? photo.url(:normal) : ""

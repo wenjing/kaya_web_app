@@ -12,10 +12,11 @@
     </div>
     <div id="chatter_action" class="right clear_right">
       <% if current_user?(comment.user) || admin_user? %>
-        <%= button_to "X", comment, :method => :delete, :confirm => "You sure?",
-                                    :title => "Delete this comment",
-                                    :id => "chatter_#{comment.id}",
-                                    :class => "mini_button hover_visibility_visible hover_faint" %>
+        <%= button_to "X", chatter_path(comment),
+                              :method => :delete, :confirm => "You sure?",
+                              :title => "Delete this comment",
+                              :id => "chatter_#{comment.id}",
+                              :class => "mini_button hover_visibility_visible hover_faint" %>
       <% end %>
     </div>
   </div>

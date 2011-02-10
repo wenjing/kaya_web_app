@@ -727,8 +727,12 @@ ul#users li {
 
 /* Topic/comments */
 ul#chatters {
-  margin-top: 1em;
-  width: 610px;
+  #margin-top: 0.5em;
+  padding-left: 0em;
+  width: 660px;
+}
+ul#chatter_comments {
+  padding-left: 2.5em;
 }
 
 #chatter_topic #chatter_content #user_avatar,
@@ -780,7 +784,7 @@ ul#chatters {
 /* Input forms */
 form textfield,
 form textarea {
-  width: 600px;
+  width: 648px;
   margin-bottom: 5px;
 }
 
@@ -788,16 +792,18 @@ form #topic_action,
 form #comment_action,
 form #invitation_action,
 form #meet_edit_action {
-  width: 610px;
+  width: 660px;
   height: 20px;
   #padding-left: 5px;
   #padding-right: 5px;
   margin-bottom: 5px;
 }
 
-form #new_comment textarea,
+form #new_comment textarea {
+  width: 612px;
+}
 form #comment_action {
-  width: 578px;
+  width: 624px;
 }
 
 form #topic_action input,

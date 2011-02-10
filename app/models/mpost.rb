@@ -98,6 +98,9 @@ class Mpost < ActiveRecord::Base
   def is_processed?
     return meet_id? # might be faster than check meet directly
   end
+  def is_peer_mode?
+    return host_mode.blank? || host_mode == 0
+  end
   def is_host_owner?
     return host_mode.present? && host_mode == 1 && host_id.present?
   end

@@ -64,6 +64,7 @@ class User < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
+      #:original => "1000x1000>",
       :small  => "30x30#",
       :normal => "50x50#"
     },
@@ -182,16 +183,24 @@ class User < ActiveRecord::Base
     return name || email
   end
 
-  def user_avatar
-    #"http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
-    return photo.url(:normal)
-    #return photo? ? photo.url(:normal) : ""
+  def self.default_photo
+    return "K-50x50.jpg"
   end
-
+  def self.default_photo_small
+    return "K-50x50.jpg"
+  end
+  def photo? # Overwrite the original one, this is much faster
+    return photo_content_type.present?
+  end
+  def user_avatar_orig
+    return photo? ? photo.url : User.default_photo
+  end
+  def user_avatar
+    return photo? ? photo.url(:normal) : User.default_photo
+  end
   def user_avatar_small
     #"http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
-    return photo.url(:small)
-    #return photo? ? photo.url(:small) : ""
+    return photo? ? photo.url(:small) : User.default_photo_small
   end
 
   # Return most recent meets upto limit

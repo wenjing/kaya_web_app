@@ -104,12 +104,16 @@ class Meet < ActiveRecord::Base
         self.host_id = mpost.host_id.split.last if mpost.host_id.present?
       end
     }
-    self.time = (mposts.min_by {|h| h.time}).time unless mposts.empty?
+
+    # Get non-host mode mposts, extract time and location from them if possible
+    peer_mposts = mposts.to_a.select {|mpost| mpost.is_peer_mode?}
+    peer_mposts = mposts.to_a if peer_mposts.blank?
+    # Extract earliest time
+    self.time = (peer_mposts.min_by {|h| h.time}).time unless peer_mposts.empty?
     self.time ||= Time.now
     self.time.utc
-
     # Extract location
-    extract_location
+    extract_location(peer_mposts)
 
     # Create a default name and description
     zone_time = time.in_time_zone(time_zone) # convert to meet local time
@@ -377,13 +381,13 @@ class Meet < ActiveRecord::Base
 
 private
  
-  def extract_location
+  def extract_location(peer_mposts)
     # Calculate weighted average lng+lat
     lngs, lats, lweights = Array.new, Array.new, Array.new
     # Fist we try to get from mpost with accurate location info, which is defined as error
     # is less than 30feet, 100feet
     [30.0, 100.0, -1.0].each {|val|
-      mposts.each {|mpost|
+      peer_mposts.each {|mpost|
         next unless mpost.active?
         if (mpost.lng? && mpost.lat? && mpost.lerror? &&
             (val <= 0.0 || mpost.lerror < val))

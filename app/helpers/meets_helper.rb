@@ -2,24 +2,24 @@ module MeetsHelper
   def link_to_meet_image(meet, pending=false)
    return pending ? link_to(image_tag(meet.image_url_or_default), "##",
                             :title => "Confirm first to access meet detail") :
-                    link_to_unless_current(image_tag(meet.image_url_or_default), meet,
+                    link_to_unless_current(image_tag(meet.image_url_or_default), meet_path(meet),
                             :title => "Meet detail")
   end
 
   def link_to_meet_detail(meet)
     return current_page?(meet) ?  "".html_safe :
-                  link_to_unless_current("detail ...", meet, :title => "Meet detail")
+                  link_to_unless_current("detail ...", meet_path(meet), :title => "Meet detail")
   end
 
   def link_to_meet_detail_arrow(meet)
-    return link_to_unless_current(image_tag("blue_arrow.jpg"), meet, :title => "Meet detail")
+    return link_to_unless_current(image_tag("blue_arrow.jpg"), meet_path(meet), :title => "Meet detail")
   end
 
   def link_to_meet_name(meet, show_not_named=false, pending=false)
     name = meet.meet_name
     return name.blank? ? (show_not_named ? "Not named yet".html_safe : "".html_safe) :
            pending ?  link_to(name, "##", :title => "Confirm first to access meet detail") :
-                      link_to_unless_current(name, meet, :title => "Meet Detail")
+                      link_to_unless_current(name, meet_path(meet), :title => "Meet Detail")
   end
 
   def link_to_meet_address(meet, pending=false)
@@ -37,7 +37,7 @@ module MeetsHelper
     time = zone_time.strftime("%Y-%m-%d %I:%M%p")
     return pending ? link_to("#{time_ago_in_words(meet.meet_time)} ago", "##",
                              :title => "Confirm first to access meet detail") :
-                     link_to_unless_current("#{time_ago_in_words(meet.meet_time)} ago", meet,
+                     link_to_unless_current("#{time_ago_in_words(meet.meet_time)} ago", meet_path(meet),
                              :title => "Meet detail: #{time}")
   end
 
@@ -46,7 +46,7 @@ module MeetsHelper
     return "".html_safe if description.blank?
     return !show_link ? descritpion.html_safe :
            pending ? link_to(description, "##", :title => "Confirm first to access meet detail") :
-                     link_to_unless_current(description, meet, :title => "Meet detail")
+                     link_to_unless_current(description, meet_path(meet), :title => "Meet detail")
   end
 
   def link_to_meet_static_map(meet, pending=false)
@@ -80,7 +80,7 @@ module MeetsHelper
       html += " and "
       html += pending ? link_to("#{more} more friends", "##",
                                 :title => "Confirm first to access friends list") :
-                        link_to_unless_current("#{more} more friends", meet,
+                        link_to_unless_current("#{more} more friends", meet_path(meet),
                                 :title => "All friends of this meet")
     end
     if (!pending && !html.present? && !current_page?(new_meet_invitation_path(meet)))
@@ -95,7 +95,7 @@ module MeetsHelper
       html = "Met with ".html_safe
       html += pending ? link_to("#{more} more friends", "##", 
                                 :title => "Confirm first to access friends list") :
-                        link_to_unless_current("#{meet.friends_count} friends", meet,
+                        link_to_unless_current("#{meet.friends_count} friends", meet_path(meet),
                                      :title => "All friends of this meet")
       return html
     else

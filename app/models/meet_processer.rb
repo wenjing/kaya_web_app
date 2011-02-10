@@ -462,11 +462,11 @@ private
   def add_owners_to_hosted_meet(mposts, meet)
     # The meet is already created by owner, use this mpost to assign hoster_id and meet_name
     ng_mposts = mposts
-    if (meet && !mpost.empty?)
+    if (meet && !mposts.empty?)
       hoster = nil
-      mpost.each {|mpost|
+      mposts.each {|mpost|
         user = mpost.user
-        hoster_id = mpost.hoseter_from_host_id
+        hoster_id = mpost.hoster_from_host_id
         # Some sanity check, make sure this is the owner
         if (meet.include_user?(user) && user.id == hoster_id)
           ng_mposts.delete(mpost)
@@ -487,7 +487,7 @@ private
       }
       # Assign hoster if no hoster exists yet. Only support one hoster per meet.
       meet.opt_lock_protected {
-        if (!meet.has_hoster && hoster)
+        if (!meet.has_hoster? && hoster)
           meet.hoster = hoster; meet.save
         end
       }
@@ -523,14 +523,14 @@ private
 
   def add_owners_to_joined_meet(mposts, meet)
     ng_mposts = mposts
-    if (meet && !mpost.empty?)
+    if (meet && !mposts.empty?)
       ok_mposts = Array.new
       xx_mposts = Array.new
-      mpost.each {|mpost|
+      mposts.each {|mpost|
         user = mpost.user
         # Some sanity check, make sure it is legit and only for collision purpose
         if meet.include_user?(user)
-          if !mpost.collison?
+          if !mpost.collision?
             ok_mposts << mpost 
           else
             xx_mposts << mpost 

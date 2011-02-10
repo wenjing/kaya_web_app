@@ -21,6 +21,8 @@ curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Kenneth Baker&emai
 curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Jessica Anderson&email=bessy.moo.3@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
 curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Simon White&email=bessy.moo.4@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
 curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Victoria White&email=bessy.moo.5@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
+curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Kenneth Jeffries&email=bessy.moo.a@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
+curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Felicity Johnson&email=bessy.moo.b@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
 
 # First meet (1,2,3)
 curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&devs=Bessy Moo 2:3&&user_dev=Bessy Moo 1:2&lerror=2" ${url_root}/mposts

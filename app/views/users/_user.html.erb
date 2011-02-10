@@ -11,9 +11,10 @@
   </td>
   <td class="user_action">
     <% if !current_user?(user) && admin_user? %>
-      <%= button_to "X", user, :method => :delete, :confirm => "You sure?",
-                               :title => "Delete #{user.name_or_email}",
-                               :class => "mini_button hover_visibility_visible hover_faint" %>
+      <%= button_to "X", user_path(user),
+                              :method => :delete, :confirm => "You sure?",
+                              :title => "Delete #{user.name_or_email}",
+                              :class => "mini_button hover_visibility_visible hover_faint" %>
     <% end %>
   </td>
 </tr>
