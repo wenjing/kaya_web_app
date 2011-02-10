@@ -68,6 +68,7 @@ class User < ActiveRecord::Base
       :small  => "30x30#",
       :normal => "50x50#"
     },
+    :convert_options => {:all => "-auto-orient"},
     :default_url => "http://www.kayameet.com/images/K-50x50.jpg",
     :path => ":attachment/:id/:style.:extension",
     :storage => :s3,
