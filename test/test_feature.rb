@@ -326,8 +326,10 @@ class FeaturesTest < TestBase
     }
     return true
   end
-  def self.test_all
+  def self.test_phase1
     setup
+  end
+  def self.test_phase2
     preamble
     test_validation
     test_cursorize

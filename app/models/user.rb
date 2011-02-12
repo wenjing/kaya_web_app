@@ -257,14 +257,15 @@ class User < ActiveRecord::Base
     # We want chatters related to user's meets.
     # Also, unlike friends, can not rely on meet time. Chatter time is independent 
     # of meet time.
-    top_ids = Chatter.related_topic_ids(self).limit(limit).to_a
+    top_ids = Chatter.related_topic_ids(self).limit(limit).select {|v| v.id}
     return Chatter.all_topics_of(top_ids)
   end
 
   # Return most recent met comments from time_ago
   def recent_chatters(time_ago)
     time_after = Time.now-time_ago
-    recent_ids = Chatter.related_topic_ids(self).where("chatters.created_at >= ?", time_after).to_a
+    recent_ids = Chatter.related_topic_ids(self)
+                        .where("chatters.created_at >= ?", time_after).select {|v| v.id}
     return Chatter.all_topics_of(recent_ids)
   end
 
@@ -330,37 +331,37 @@ class User < ActiveRecord::Base
 
   # The original meet_ids dose not work, it ignore all conditions
   def meet_ids
-    return Mpost.select(["DISTINCT(meet_id)"])
+    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
                 .collect {|v| v.meet_id}
     #return meets.to_a.collect {|v| v.id}.compact
   end
   def delete_meet_ids
-    return Mpost.select(["DISTINCT(meet_id)"])
+    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 1)
                 .collect {|v| v.meet_id}
     #return delete_meets.to_a.collect {|v| v.id}.compact
   end
   def pending_meet_ids
-    return Mpost.select(["DISTINCT(meet_id)"])
+    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 2)
                 .collect {|v| v.meet_id}
     #return pending_meets.to_a.collect {|v| v.id}.compact
   end
   def solo_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
                 .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 1)
                 .collect {|v| v.meet_id}
     #return solo_meets.to_a.collect {|v| v.id}.compact
   end
   def private_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
                 .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 2)
                 .collect {|v| v.meet_id}
     #return private_meets.to_a.collect {|v| v.id}.compact
   end
   def group_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
                 .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 3)
                 .collect {|v| v.meet_id}
     #return group_meets.to_a.collect {|v| v.id}.compact
@@ -412,7 +413,7 @@ class User < ActiveRecord::Base
       friend_ids = []
       while (!within_meet_ids.empty?)
         sliced_meet_ids = within_meet_ids.slice!(0, 100) # 100 meets at a time
-        friend_ids.concat(Mpost.select(["DISTINCT(user_id)"])
+        friend_ids.concat(Mpost.select(["DISTINCT(user_id)", "created_at"])
                                .where("user_id != ? AND meet_id IN (?)", id, sliced_meet_ids)
                                .collect {|v| v.user_id}).uniq!
         break if (limit != :all && friend_ids.size >= limit)
@@ -423,10 +424,10 @@ class User < ActiveRecord::Base
 
     def raw_meet_ids_of_type(type)
       if type == 0 || type == nil
-        return Mpost.select(["DISTINCT(meet_id)"])
+        return Mpost.select(["DISTINCT(meet_id)", "created_at"])
                     .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
       else
-        return Mpost.select(["DISTINCT(meet_id)"]).includes(:meet)
+        return Mpost.select(["DISTINCT(meet_id)", "created_at"]).includes(:meet)
                     .where("meet_id IS NOT NULL AND user_id = ? AND status = ? AND meet.meet_type = ?", id, 0, meet_type)
                     .collect {|v| v.meet_id}
       end

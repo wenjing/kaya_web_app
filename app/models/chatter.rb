@@ -40,13 +40,14 @@ class Chatter < ActiveRecord::Base
 
   # Query chatters of meets where user has membership
   scope :related_chatter_ids, lambda {|user|
-    includes(:meet=>:mposts).select("DISTINCT chatters.id").where("mposts.user_id = ?", user.id)
+    includes(:meet=>:mposts).select("DISTINCT(chatters.id)", "chatters.update_at")
+                            .where("mposts.user_id = ?", user.id)
   }
   scope :all_chatters_of, lambda {|chatter_ids|
     where("chatters.id IN (?)", topic_ids)
   }
   scope :related_topic_ids, lambda {|user|
-    includes(:meet=>:mposts).select("DISTINCT chatters.id")
+    includes(:meet=>:mposts).select("DISTINCT(chatters.id)", "chatters.update_at")
                             .where("mposts.user_id = ? AND chatters.topic_id IS NULL", user.id)
   }
   scope :all_topics_of, lambda {|topic_ids|
