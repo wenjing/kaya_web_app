@@ -8,10 +8,10 @@ load 'test_mpost.rb'
 load 'test_meet.rb'
 
 class FeaturesTest < TestBase
-  #@@meet_count = 1000
-  #@@user_count = 500
-  @@meet_count = 200
-  @@user_count = 50
+  #@@meet_count = 300
+  #@@user_count = 100
+  @@meet_count = 60
+  @@user_count = 20
   @@marker = "_features_test_"
   def self.destroy_all # all record created here carry _features_test_ marker
     super(/.*#{@@marker}.*/)
@@ -72,18 +72,19 @@ class FeaturesTest < TestBase
       sliced_mposts.each {|mpost|
         user = mpost.user
         res = rc_resource("mposts", user)
-        rsp = res.post_json(mpost.create); #should_rsp(rsp)
-        mpost.id = rsp.body_json("mpost")["id"].to_i if rsp.ok?
+        rsp = res.post_json(mpost.create); should_rsp(rsp); next unless rsp.ok?
+        mpost.id = rsp.body_json("mpost")["id"].to_i
       }
       # Wait 10 seconds
       sleep 10
     end
     # Get meet results
-    5.times { # Try 5 times, also as performance test
+    2.times { # Try 2 times, also as performance test
       sleep 20
       @@users.each {|user|
         res = rc_resource("users/#{user.id}/meets?after_updated_at=#{(start_time-2.minutes).iso8601}", user)
         rsp = res.get_json(); should_rsp(rsp)
+        next unless rsp.body_json()
         results = rsp.body_json()
         user.result_meets = []
         results.each {|result|
@@ -94,7 +95,8 @@ class FeaturesTest < TestBase
           meet.time = Time.parse(result["time"])
           meet.users = []
           res2 = rc_resource("meets/#{meet.id}", user)
-          rsp2 = res2.get_json(); should_rsp(rsp2)
+          rsp2 = res2.get_json(); should_rsp(rsp2);
+          next unless rsp2.body_json("meet")
           meet_users = rsp2.body_json("meet")["users"]
           meet_users.each {|meet_user|
             meet.users << @@users.find {|v| v.id == meet_user["id"].to_i}

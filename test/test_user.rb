@@ -24,7 +24,7 @@ class TestUser
 end
 
 class UsersBuilder < TestBase
-  @@user_count = 500
+  @@user_count = 100
   def self.build_admin
     admin = User.create(:name=>"admin", :email=>"admin@kaya-labs.com",
                         :password=>"password", :password_confirmation=>"password")
