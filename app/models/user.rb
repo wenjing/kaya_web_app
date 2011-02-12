@@ -205,36 +205,50 @@ class User < ActiveRecord::Base
   end
 
   # Return most recent meets upto limit
-  # empty   : 0
+  # all     : 0
   # solo    : 1
   # private : 2
   # group   : 3
+  def top_meet_ids(limit, type=nil)
+    return raw_meet_ids_of_type(type).limit(limit).collect {|v| v.meet_id}
+  end
   def top_meets(limit, type=nil)
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type)}.slice(0..limit-1)
     else
-      return meets_of_type(type).limit(limit).to_a
+      return meets_of_type(type).limit(limit)
     end
   end
 
   # Return most recent meets from time_ago
+  def recent_meet_ids(time_ago, type=nil)
+    time_after = Time.now-time_ago
+    return raw_meet_ids_of_type(type).where("created_at >= ?", time_after)
+                                     .collect {|v| v.meet_id}
+  end
   def recent_meets(time_ago, type=nil)
     time_after = Time.now-time_ago
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type) && meet.time >= time_after}
     else
-      return meets_of_type(type).where("meets.time >= ?", time_after).to_a
+      return meets_of_type(type).where("created_at >= ?", time_after)
     end
   end
 
   # Return most recent met friends within specified meets, upto limit
-  def top_friends(within_meets, limit)
-    return meet_friends(within_meets, limit)
+  def top_friend_ids(within_meet_ids, limit)
+    return meet_friend_ids(within_meet_ids, limit, true)
+  end
+  def top_friends(within_meet_ids, limit)
+    return meet_friends(within_meet_ids, limit, false)
   end
 
   # Return most recent met friends within specified meets
-  def all_friends(within_meets, count_only=true)
-    return meet_friends(within_meets, :all, count_only)
+  def all_friend_ids(within_meet_ids)
+    return meet_friends(within_meet_ids, :all, true)
+  end
+  def all_friends(within_meet_ids)
+    return meet_friends(within_meet_ids, :all, false)
   end
 
   # Return most recent comments upto limit
@@ -254,13 +268,28 @@ class User < ActiveRecord::Base
     return Chatter.all_topics_of(recent_ids)
   end
 
-  # Return a hash of friends with array common meets as value
+  # Return a hash of friends with array of common meets as value
   def meets_friends
     friends = Hash.new
-    meets.to_a.each {|meet|
-      meet.users.each {|meet_user|
-        (friends[meet_user] ||= Array.new) << meet if meet_user != self
-      }
+#   meets.to_a.each {|meet|
+#     meet.users.each {|meet_user|
+#       (friends[meet_user] ||= Array.new) << meet if meet_user.id != id
+#     }
+#   }
+    friend_infos = []
+    within_meet_ids = meet_ids.to_a
+    within_meets = Meet.find(within_meet_ids, :select => "id,time,lat,lng")
+    while (!within_meet_ids.empty?)
+      sliced_meet_ids = within_meet_ids.slice!(0, 100) # 100 meets at a time
+      friend_infos.concat(Mpost.select([:user_id,:meet_id])
+                                .where("user_id != ? AND meet_id IN (?)", id, sliced_meet_ids))
+    end
+    friend_ids = friend_infos.collect {|v| v.user_id}.uniq
+    friend_users = User.find(friend_ids)
+    friend_users.each {|friend|
+      friend_meet_ids = friend_infos.select {|v| v.user_id == friend.id}.collect {|v| v.meet_id}.to_set
+      friend_meets = within_meets.select {|v| friend_meet_ids.include?(v.id)}
+      (friends[friend] ||= Array.new).concat(friend_meets)
     }
     return friends
   end
@@ -270,12 +299,26 @@ class User < ActiveRecord::Base
     return Chatter.related_to(self)
   end
 
+  def meet_ids_of_type(type)
+    return type == 1 ? solo_meet_ids :
+           type == 2 ? private_meet_ids :
+           type == 3 ? group_meet_ids : meet_ids
+  end
   def meets_of_type(type)
     return type == 1 ? solo_meets :
            type == 2 ? private_meets :
            type == 3 ? group_meets : meets
   end
+
   # Return all meets with this user
+  def meet_ids_with(user, type=nil)
+    if user.id == id
+      return meet_ids_of_type(type)
+    else
+      user_meet_ids = user.meet_ids_of_type(type).to_set
+      return meet_ids.select {|meet_id| user_meet_ids.include?(meet_id)}
+    end
+  end
   def meets_with(user, type=nil)
     if user.id == id
       return meets_of_type(type)
@@ -285,28 +328,52 @@ class User < ActiveRecord::Base
     end
   end
 
+  # The original meet_ids dose not work, it ignore all conditions
   def meet_ids
-    return meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(meet_id)"])
+                .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
+                .collect {|v| v.meet_id}
+    #return meets.to_a.collect {|v| v.id}.compact
   end
   def delete_meet_ids
-    return delete_meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(meet_id)"])
+                .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 1)
+                .collect {|v| v.meet_id}
+    #return delete_meets.to_a.collect {|v| v.id}.compact
   end
   def pending_meet_ids
-    return pending_meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(meet_id)"])
+                .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 2)
+                .collect {|v| v.meet_id}
+    #return pending_meets.to_a.collect {|v| v.id}.compact
   end
   def solo_meet_ids
-    return solo_meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 1)
+                .collect {|v| v.meet_id}
+    #return solo_meets.to_a.collect {|v| v.id}.compact
   end
   def private_meet_ids
-    return private_meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 2)
+                .collect {|v| v.meet_id}
+    #return private_meets.to_a.collect {|v| v.id}.compact
   end
   def group_meet_ids
-    return group_meets.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["DISTINCT(mposts.meet_id)"]).includes(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 3)
+                .collect {|v| v.meet_id}
+    #return group_meets.to_a.collect {|v| v.id}.compact
+  end
+  def true_pending_meet_ids
+    return [] if pending_meets.count == 0
+    active_meet_ids = meet_ids.to_set
+    return pending_meet_ids.select {|meet_id| !active_meet_ids.include?(meet_id)} || []
   end
   def true_pending_meets
     return [] if pending_meets.count == 0
     active_meet_ids = meet_ids.to_set
-    return pending_meets.to_a.select {|meet| !active_meet_ids.include?(id)} || []
+    return pending_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []
   end
 
   def dev
@@ -336,52 +403,32 @@ class User < ActiveRecord::Base
     # Assume meets are already loaded. And, meet.users are only used directly
     # when they are also already loaded. Otherwise use user_ids and load them
     # all together. This will force a eager load of friends within the meets.
-    def meet_friends(within_meets = nil, limit = :all, count_only=false)
-      within_meets ||= meets
-      unloaded_count = within_meets.select {|v| !v.users.loaded?}.count
-      if (within_meets.size < 50 && unloaded_count > 5)
-        # The logic behind this is that we will use one giant DB query instead
-        # of multiple smaller query. For each users unloaded meet, it will
-        # require a mpost related query even to get user_ids. Assume 5 such
-        # small queries cost more than 1 giant one.
-        with_meet_ids = within_meets.collect {|v| v.id}
-        friend_ids = Mpost.select([:id, :meet_id, :user_id])
-                          .where("user_id != ? AND meet_id IN (?)", id, with_meet_ids)
-                          .collect {|v| v.user_id}.uniq
-        friend_ids = friend_ids.slice(0..limit-1) unless limit == :all
-        return count_only ? friend_ids.size : User.find(friend_ids)
+    def meet_friends(within_meet_ids = nil, limit = :all, id_only = false)
+      # The logic behind this is that we will use one giant DB query instead
+      # of multiple smaller query. For each users unloaded meet, it will
+      # require a mpost related query even to get user_ids. Assume 5 such
+      # small queries cost more than 1 giant one.
+      within_meet_ids ||= meet_ids.to_a
+      friend_ids = []
+      while (!within_meet_ids.empty?)
+        sliced_meet_ids = within_meet_ids.slice!(0, 100) # 100 meets at a time
+        friend_ids.concat(Mpost.select(["DISTINCT(user_id)"])
+                               .where("user_id != ? AND meet_id IN (?)", id, sliced_meet_ids)
+                               .collect {|v| v.user_id}).uniq!
+        break if (limit != :all && friend_ids.size >= limit)
+      end
+      friend_ids = friend_ids.slice(0..limit-1) unless limit == :all
+      return id_only ? friend_ids : User.find(friend_ids)
+    end
 
+    def raw_meet_ids_of_type(type)
+      if type == 0 || type == nil
+        return Mpost.select(["DISTINCT(meet_id)"])
+                    .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
       else
-        user_ids = Set.new
-        users = Array.new
-        within_meets.each {|meet|
-          break if (limit != :all && users.size >= limit)
-          if meet.users.loaded?
-            meet.users.each {|user|
-              break if (limit != :all && users.size >= limit)
-              unless (user.id == id || user_ids.include?(user.id))
-                users << user
-                user_ids << user.id
-              end
-            }
-          else # use user_ids, then load them together
-            meet.user_ids.each {|user_id|
-              break if (limit != :all && users.size >= limit)
-              unless (user_id == id || user_ids.include?(user_id))
-                users << user_id
-                user_ids << user_id
-              end
-            }
-          end
-        }
-        return user_ids.size if count_only
-        # Check users, load those that are not loaded yet. 
-        # Have to keep original order though.
-        unloaded_users = users.select {|user| user.class != User}
-        loaded_users = Hash.new
-        User.find(unloaded_users).each {|user| loaded_users[user.id] = user}
-        users.collect! {|user| user.class == User ? user : loaded_users[user]}
-        return users
+        return Mpost.select(["DISTINCT(meet_id)"]).includes(:meet)
+                    .where("meet_id IS NOT NULL AND user_id = ? AND status = ? AND meet.meet_type = ?", id, 0, meet_type)
+                    .collect {|v| v.meet_id}
       end
     end
 

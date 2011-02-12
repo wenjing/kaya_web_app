@@ -188,6 +188,7 @@ class ApplicationController < ActionController::Base
         chatter.comments.to_a.each {|comment|
           if comment.user_id == user.id
             meet.chatters.delete(comment)
+            update_meets << meet
             user.chatters.delete(comment)
             chatter.comments.delete(comment)
             comment.destroy
@@ -210,17 +211,17 @@ class ApplicationController < ActionController::Base
         chatter.user = nil
         chatter.save
       end
-      update_meets.each {|meet|
-        meet.opt_lock_protected {
-          meet.update_chatters_count
-          meet.save
-        }
+    }
+    update_meets.each {|meet|
+      meet.opt_lock_protected {
+        meet.update_chatters_count
+        meet.save
       }
-      update_topics.each {|topic|
-        next if topic.destroyed?
-        topic.update_comments_count
-        topic.save
-      }
+    }
+    update_topics.each {|topic|
+      next if topic.destroyed?
+      topic.update_comments_count
+      topic.save
     }
   end
 

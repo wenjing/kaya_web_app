@@ -67,7 +67,7 @@ class SessionsController < ApplicationController
         format.json { head :unprocessable_entity }
       end
     else
-      sign_in user
+      re_sign_in user
       respond_to do |format|
         format.html { redirect_back user }
         format.json { render :json => user.to_json(UsersController::JSON_USER_DETAIL_API) }

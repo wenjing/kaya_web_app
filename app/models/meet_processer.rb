@@ -461,14 +461,14 @@ private
 
   def add_owners_to_hosted_meet(mposts, meet)
     # The meet is already created by owner, use this mpost to assign hoster_id and meet_name
-    ng_mposts = mposts
+    ng_mposts = mposts.clone
     if (meet && !mposts.empty?)
       hoster = nil
       mposts.each {|mpost|
         user = mpost.user
         hoster_id = mpost.hoster_from_host_id
         # Some sanity check, make sure this is the owner
-        if (meet.include_user?(user) && user.id == hoster_id)
+        if (meet.include_user?(user) && user.id == hoster_id.to_i)
           ng_mposts.delete(mpost)
           hoster ||= user
           meet_name = mpost.meet_name_from_host_id
@@ -496,7 +496,7 @@ private
   end
   def add_guests_to_hosted_meet(mposts, meet)
     # Even with host_id, still have to check devs to confirm they are actually linked
-    ng_mposts = mposts
+    ng_mposts = mposts.clone
     if (meet && !mposts.empty?)
       ok_mposts = Array.new
       hoster = nil
@@ -522,7 +522,7 @@ private
   end
 
   def add_owners_to_joined_meet(mposts, meet)
-    ng_mposts = mposts
+    ng_mposts = mposts.clone
     if (meet && !mposts.empty?)
       ok_mposts = Array.new
       xx_mposts = Array.new
@@ -545,7 +545,7 @@ private
   end
   def add_guests_to_joined_meet(mposts, meet)
     # The owner of joined meet must already be in the meet already.
-    ng_mposts = mposts
+    ng_mposts = mposts.clone
     if (meet && !mposts.empty?)
       ok_mposts = Array.new
       xx_mposts = Array.new

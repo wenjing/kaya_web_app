@@ -114,15 +114,15 @@ class Mpost < ActiveRecord::Base
     return host_mode.present? && host_mode == 4 && host_id.present?
   end
   def force_to_peer_mode 
-    host_mode = 0
-    host_id = nil
+    self.host_mode = 0
+    self.host_id = nil
   end
 
   def meet_from_host_id # extract meet_id from host_id
     return host_id.present? ? host_id.split(":").last : nil
   end
   def hoster_from_host_id # extract meet_id from host_id
-    return is_host_owner? || is_host_guest? ? host_id.split(":").second : nil
+    return (is_host_owner? || is_host_guest?) ? host_id.split(":").second : nil
   end
   def meet_name_from_host_id # extract meet_name from host_id
     return (is_host_owner? || is_host_guest?) ? host_id.split(":").third : nil

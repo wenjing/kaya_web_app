@@ -1,9 +1,9 @@
 <% if current_user %>
-  <%  recent_meets = current_user.recent_meets(3.months) %>
+  <%  recent_meet_ids = current_user.recent_meet_ids(3.months) %>
   <div id="user_summary_profile">
     <%= height_holder(100) %>
     <div id="user_avatar">
-      <%= link_to_user_image current_user %>
+      <%#= link_to_user_image current_user %>
     </div>
     <div id="user_summary_body">
       <ul>
@@ -11,9 +11,8 @@
         <%= link_to_user_name current_user, false %>
       </li>
       <li id="user_statistics">
-        M# <%= link_to_user_meets_text current_user, "#{recent_meets.size}" %>
-        F# <%= link_to_user_friends_text current_user,
-                            "#{current_user.all_friends(recent_meets, true)}" %>
+        M# <%= link_to_user_meets_text current_user, "#{recent_meet_ids.count}" %>
+        F# <%= link_to_user_friends_text current_user, "#{current_user.all_friends(recent_meet_ids).count}" %>
       </li>
       <li id="user_profile_action">
         <%= link_to "Edit Profile", edit_user_path(current_user) %>

@@ -170,8 +170,9 @@ class Array
     return 0.0 if size < 1
     seg_count = size - 1;
     return first if seg_count < 1
-    seg = (seg_count * rand).floor
-    return self[seg] + rand * (self[seg+1] - self[seg])
+    # Faker mixin its own rand function into array, have to use send(:func) to use the original one
+    seg = (seg_count * Object.send(:rand)).floor
+    return self[seg] + Object.send(:rand) * (self[seg+1] - self[seg])
   end
 
   # Sample random distribution. An asymetry normal distribution defined by 3 values:
@@ -190,7 +191,7 @@ class Array
 
   # Probability random selector. Randomly pick a value between 0 and 1.
   # Return the index that random value fall into.
-  # For example: [0.3].random_index => 0 if random<=0.3 otherwise 1
+  # For example: [0.3].random_prob => 0 if random<=0.3 otherwise 1
   def random_prob
     val = [0.0, 1.0].random
     res = each_with_index {|v,i| break i if val <= v}

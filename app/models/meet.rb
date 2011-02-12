@@ -104,6 +104,14 @@ class Meet < ActiveRecord::Base
         self.host_id = mpost.host_id.split.last if mpost.host_id.present?
       end
     }
+    if collision # mark all mposts as deleted
+      mposts.each {|mpost|
+        next unless mpost.active?
+        mpost.delete
+        mpost.save
+      }
+      return self # won't bother processing more information
+    end
 
     # Get non-host mode mposts, extract time and location from them if possible
     peer_mposts = mposts.to_a.select {|mpost| mpost.is_peer_mode?}
