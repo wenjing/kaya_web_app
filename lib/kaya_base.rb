@@ -321,23 +321,39 @@ module RestClient
       return self
     end
     def get_json(params={}, headers={})
-      rsp = get_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
-      self.cookies(rsp.cookies) if rsp.ok?
+      rsp = nil
+      3.times {
+        rsp = get_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
+        self.cookies(rsp.cookies) if rsp.ok?
+        break if !rsp.network_error?
+      }
       return rsp
     end
     def put_json(params={}, headers={})
-      rsp = put(params, headers_json(headers)) {|response, request, res, &block| response}
-      self.cookies(rsp.cookies) if rsp.ok?
+      rsp = nil
+      3.times {
+        rsp = put(params, headers_json(headers)) {|response, request, res, &block| response}
+        self.cookies(rsp.cookies) if rsp.ok?
+        break if !rsp.network_error?
+      }
       return rsp
     end
     def post_json(params={}, headers={})
-      rsp = post(params, headers_json(headers)) {|response, request, res, &block| response}
-      self.cookies(rsp.cookies) if rsp.ok?
+      rsp = nil
+      3.times {
+        rsp = post(params, headers_json(headers)) {|response, request, res, &block| response}
+        self.cookies(rsp.cookies) if rsp.ok?
+        break if !rsp.network_error?
+      }
       return rsp
     end
     def delete_json(params={}, headers={})
-      rsp = delete_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
-      self.cookies(rsp.cookies) if rsp.ok?
+      rsp = nil
+      3.times {
+        rsp = delete_with_payload(params, headers_json(headers)) {|response, request, res, &block| response}
+        self.cookies(rsp.cookies) if rsp.ok?
+        break if !rsp.network_error?
+      }
       return rsp
     end
     private
@@ -368,6 +384,9 @@ module RestClient
     end
     def ok?
       return code >= 200 && code < 300
+    end
+    def network_error?
+      return code == 502
     end
   end
 end
