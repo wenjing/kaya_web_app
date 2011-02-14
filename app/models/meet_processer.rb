@@ -527,10 +527,12 @@ private
       ok_mposts = Array.new
       xx_mposts = Array.new
       mposts.each {|mpost|
-        user = mpost.user
+        owner = mpost.user
+        collision = Mpost.join_owner_or_client(mpost).any? {|v| v.collision?}
         # Some sanity check, make sure it is legit and only for collision purpose
-        if meet.include_user?(user)
-          if !mpost.collision?
+        if meet.include_user?(owner)
+          #if !mpost.collision?
+          if (!collision && !mpost.collision?)
             ok_mposts << mpost 
           else
             xx_mposts << mpost 
@@ -550,11 +552,13 @@ private
       ok_mposts = Array.new
       xx_mposts = Array.new
       mposts.each {|mpost|
-        owner = Mpost.join_owner(mpost).first
+        #owner = mpost.hoster_from_host_id
+        collision = Mpost.join_owner_or_client(mpost).any? {|v| v.collision?}
         # Sanity check, join guest connect directly with ower
         # However, not sure if this is true, skip the check for now.
         #if meet.see_or_seen_by?(mpost)
-          if (!owner || !owner.collision?)
+        #if meet.incluce_user?(owner)
+          if (!collision && !mpost.collision?)
             ok_mposts << mpost
           else
             xx_mposts << mpost 
@@ -563,7 +567,8 @@ private
         #end
       }
       assign_mposts_to_meet(ok_mposts, meet) if !ok_mposts.empty?
-      # Unlike join owner, simply ignore join guest with collision
+      ## Unlike join owner, simply ignore join guest with collision
+      delete_joined_mposts_from_meet(xx_mposts, meet) if !xx_mposts.empty?
     end
     return ng_mposts
   end

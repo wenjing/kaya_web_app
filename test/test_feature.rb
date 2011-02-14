@@ -13,6 +13,14 @@ class FeaturesTest < TestBase
   @@meet_count = 60
   @@user_count = 20
   @@marker = "_features_test_"
+  def self.setting(meet_count, user_count, root_url)
+    @@meet_count = meet_count
+    @@user_count = user_count
+    TestBase::root_url = root_url
+  end
+  def self.test_locally
+    TestBase::root_url = "http://localhost:3000/"
+  end
   def self.destroy_all # all record created here carry _features_test_ marker
     super(/.*#{@@marker}.*/)
   end

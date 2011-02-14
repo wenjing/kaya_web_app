@@ -46,15 +46,21 @@ class Mpost < ActiveRecord::Base
 
   default_scope :order => 'mposts.created_at DESC'
   scope :user_meet_mposts, lambda {|user, meet|
-      where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
-            user.id, meet.id, 0)
+    where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
+          user.id, meet.id, 0)
   }
   scope :pending_user_meet_mposts, lambda {|user, meet|
-      where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
-            user.id, meet.id, 2)
+    where("mposts.user_id = ? AND mposts.meet_id = ? AND mposts.status = ?",
+          user.id, meet.id, 2)
   }
   scope :join_owner, lambda {|join_guest|
-      where("mposts.host_id = ? AND mposts.host_mode = ?", join_guest.host_id, 3)
+    where("mposts.host_id = ? AND mposts.host_mode = ?", join_guest.host_id, 3)
+  }
+  scope :join_client, lambda {|join_guest|
+    where("mposts.host_id = ? AND mposts.host_mode = ?", join_guest.host_id, 4)
+  }
+  scope :join_owner_or_client, lambda {|join_guest|
+    where("mposts.host_id = ? AND mposts.host_mode IN (?)", join_guest.host_id, [3,4])
   }
 
   serialize :devs, Hash # shall use Set, but rails serialize does not work with it
@@ -78,7 +84,7 @@ class Mpost < ActiveRecord::Base
   end
 
   def collision?
-    return !collision.nil? && collision != 0
+    return !collision.nil? && collision != 0 && collision != false
   end
 
   # The devs are fed as a comma seperated string. They are converted into a set and save
@@ -121,7 +127,7 @@ class Mpost < ActiveRecord::Base
   def meet_from_host_id # extract meet_id from host_id
     return host_id.present? ? host_id.split(":").last : nil
   end
-  def hoster_from_host_id # extract meet_id from host_id
+  def hoster_from_host_id # extract hoster's user_id from host_id
     return (is_host_owner? || is_host_guest?) ? host_id.split(":").second : nil
   end
   def meet_name_from_host_id # extract meet_name from host_id

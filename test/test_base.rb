@@ -7,6 +7,7 @@ require 'kaya_base'
 require 'faker'
 
 class TestBase
+  cattr_accessor :root_url
   #@@root_url = "http://localhost:3000/"
   @@root_url = "http://kayameet.com/"
   @@rest_options = {:open_timeout=>600, :timeout=>600}

@@ -88,8 +88,15 @@ class Meet < ActiveRecord::Base
     # Extract meeting time (average time)
     unique_users = Set.new
     notes = Hash.new
-    self.collision = false
+    self.collision = false if collision.nil?
+    if !collision
+      # Do not check collision on deleted mpost
+      self.collision = mposts.any? {|mpost| !mpost.deleted? && mpost.collision?}
+    end
     mposts.each {|mpost|
+      if (collision && !mpost.deleted?)
+        mpost.delete; mpost.save
+      end
       next unless mpost.active?
       if mpost.note.present? # Only count non-empty note
         if notes[mpost.note]
@@ -99,22 +106,19 @@ class Meet < ActiveRecord::Base
         end
       end
       unique_users << mpost.user_id
-      self.collision = true if mpost.collision?
       if host_id.blank? # only process host_id once, because they are all same
         self.host_id = mpost.host_id.split.last if mpost.host_id.present?
       end
     }
-    if collision # mark all mposts as deleted
-      mposts.each {|mpost|
-        next unless mpost.active?
-        mpost.delete
-        mpost.save
-      }
-      return self # won't bother processing more information
-    end
+    #For host and warm meets, there are still copies in memory cluster. Still need
+#   if collision
+#     #some information for them to proceed correctly.
+#     #return self # won't bother processing more information
+#   end
 
     # Get non-host mode mposts, extract time and location from them if possible
-    peer_mposts = mposts.to_a.select {|mpost| mpost.is_peer_mode?}
+    peer_mposts = mposts.select {|mpost| mpost.active? && mpost.is_peer_mode?}
+    peer_mposts = mposts.select {|mpost| mpost.is_peer_mode?} if peer_mposts.blank?
     peer_mposts = mposts.to_a if peer_mposts.blank?
     # Extract earliest time
     self.time = (peer_mposts.min_by {|h| h.time}).time unless peer_mposts.empty?
