@@ -105,6 +105,12 @@ module MeetsHelper
     end
   end
 
+  def meet_type_name(meet_type)
+    return meet_type == 1 ? " Solo" :
+           meet_type == 2 ? " Private" :
+           meet_type == 3 ? " Group" : ""
+  end
+
   def meets_user_path_of_type(user, meet_type)
     return meets_user_path(user)+params_url(:meet_type=>meet_type)
   end

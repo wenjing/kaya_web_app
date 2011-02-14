@@ -216,7 +216,7 @@ class User < ActiveRecord::Base
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type)}.slice(0..limit-1)
     else
-      return meets_of_type(type).limit(limit)
+      return meets_of_type(type).limit(limit).to_a
     end
   end
 
@@ -231,7 +231,7 @@ class User < ActiveRecord::Base
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type) && meet.time >= time_after}
     else
-      return meets_of_type(type).where("created_at >= ?", time_after)
+      return meets_of_type(type).where("created_at >= ?", time_after).to_a
     end
   end
 
@@ -326,6 +326,14 @@ class User < ActiveRecord::Base
     else
       user_meet_ids = user.meet_ids.to_set
       return meets.select {|meet| user_meet_ids.include?(meet.id) && meet.of_type?(type)}
+    end
+  end
+  def top_meets_with(user, limit, type=nil)
+    if user.id == id
+      return top_meets(limit, type)
+    else
+      user_meet_ids = user.meet_ids.to_set
+      return meets.select {|meet| user_meet_ids.include?(meet.id) && meet.of_type?(type)}.slice(0..limit-1)
     end
   end
 

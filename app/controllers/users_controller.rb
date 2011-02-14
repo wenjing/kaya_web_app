@@ -1,5 +1,5 @@
 class UsersController < ApplicationController
-  before_filter :store_return_point, :only => [:show, :pending_meets, :friends, :meets]
+  before_filter :store_return_point, :only => [:show, :pending_meets, :friends, :meets, :map]
   skip_before_filter :verify_authenticity_token
   before_filter :only => [:create, :update] do |controller|
     controller.filter_params(:user, :strip => [:email])
@@ -9,8 +9,7 @@ class UsersController < ApplicationController
   before_filter :only => [:create] do |controller|
     signed_in? || basic_authenticate
   end
-  before_filter :correct_user, :only => [:show, :edit, :update, :pending_meets, :confirm_meets,
-                                         :friends, :map]
+  before_filter :correct_user, :only => [:show, :edit, :update, :pending_meets, :confirm_meets, :friends]
   before_filter :admin_current_user,     :only => [:index]
   before_filter :admin_user_except_self, :only => [:destroy]
   
@@ -84,8 +83,9 @@ class UsersController < ApplicationController
   def meets
     @user = User.find_by_id(params[:id])
     assert_unauthorized(@user)
-    meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
-    @meets = @user.meets_with(admin_user? ? @user : current_user, meet_type)
+    @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
+    with_user = admin_user? ? @user : current_user
+    @meets = @user.meets_with(with_user, @meet_type)
     respond_to do |format|
       format.html {
         @pending_meet_count = @user.true_pending_meets.count
@@ -166,13 +166,16 @@ class UsersController < ApplicationController
 # end
 
   def map
-    assert_internal_error(@user)
+    inc = 50
+    upto = params[:uptx] ? params[:uptx].to_i : inc
+    @user = User.find_by_id(params[:id])
     assert_unauthorized(false, :except=>:html)
-    upto = params[:uptx] ? params[:uptx].to_i : 500
+    @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
+    with_user = admin_user? ? @user : current_user
+    @meets = @user.top_meets_with(with_user, upto, @meet_type)
     respond_to do |format|
       format.html {
-        meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
-        @meets = @user.top_meets(upto, meet_type)
+        @total_count = @user.meets_with(with_user, @meet_type).count
         attach_meet_infos(current_user, @meets)
         center_meet = @meets[0]
         @center_ll = center_meet.lat_lng if center_meet
@@ -180,7 +183,7 @@ class UsersController < ApplicationController
         @title = @user.name_or_email
         # Calculate next upto, keep as-is if already exceed limit
         @more_upto = upto
-        @more_upto += 500 if upto < @user.meets.count
+        @more_upto += inc if upto < @total_count
       }
       # JSON interface shall use meets instead
     end

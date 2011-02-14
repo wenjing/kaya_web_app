@@ -64,13 +64,14 @@ module UsersHelper
   end
 
   def map_user_path_upto(user, meet_type, upto)
-    return "#{map_user_path_of_type(user, meet_type)}&uptx=#{upto}"
+    return map_user_path(user)+params_url(:meet_type=>meet_type, :uptx=>upto)
   end
 
   def link_to_pending_meet_count(user)
     count = user.true_pending_meets.count
     return count > 0 ?
-            link_to_unless_current("You have #{count} meet invitations", pending_meets_user_path(user),
+            link_to_unless_current("You have #{pluralize(count, "meet invitation")}",
+                                   pending_meets_user_path(user),
                                     :title => "All pending meet invitations",
                                     :class => "link_button") : "".html_safe
   end

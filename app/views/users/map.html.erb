@@ -1,13 +1,26 @@
 <% content_for :main_content do %>
-  <h3> Your recent <%#{@upto}%> meets on map </h3>
-  <%= link_to "Show list", meets_user_path_of_type(@user, params[:meet_type]) if @meets.present? %>
+  <% if current_user?(@user) %>
+    <h3> Your recent<span class="emph"><%= meet_type_name(@meet_type) %></span> meets on map</h3>
+  <% else %>
+    <h3> Your recent<span class="emph"><%= meet_type_name(@meet_type) %></span> meets with <span id="user_name"><%= @user.name_or_email %></span> on map</h3>
+  <% end %>
+  <%= link_to "Show as list", meets_user_path_of_type(@user, params[:meet_type]) if @meets.present? %>
   <%= render :partial => 'shared/map', :locals => {:meets => @meets.select {|meet| meet.lat_lng.present?},
                                        :center_ll => @center_ll, :zoom => 13} %>
+  <div id="meet_map_meta" class="clearfix">
   <%#= link_to "Update >>>", map_user_path_upto(@user, params[:meet_type], @more_upto), :title => "Update" %>
-  <% if @more_upto < @user.meets.count %>
-    <%= link_to "More >>>", map_user_path_upto(@user, params[:meet_type], @more_upto),
-                :title => @more_upto >= @user.meets.count ?  "All meets" : "Upto #{@more_upto} meets" %>
+  <% if @meets.size < @total_count %>
+    Showing <span class="emph"><%= @meets.size %></span> of total <%= @total_count %> meets
+  <% else %>
+    Showing all <span class="emph"><%= @total_count %></span> meets
   <% end %>
+  <% if @meets.size < @total_count %>
+    <% more_count = [@total_count, @more_upto].min %>
+    <%= link_to "Show upto #{more_count} >>>", map_user_path_upto(@user, params[:meet_type], @more_upto),
+                :class => "right",
+                :title => @more_upto >= @total_count ?  "All meets" : "upto #{more_count} meets" %>
+  <% end %>
+  </div>
 <% end %>
 
 <% content_for :side_content do %>
