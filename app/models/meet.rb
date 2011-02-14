@@ -90,8 +90,8 @@ class Meet < ActiveRecord::Base
     notes = Hash.new
     self.collision = false if collision.nil?
     if !collision
-      # Do not check collision on deleted mpost
-      self.collision = mposts.any? {|mpost| !mpost.deleted? && mpost.collision?}
+      # Do not check collision on deleted mposts and non-peer mode mposts
+      self.collision = mposts.any? {|mpost| !mpost.deleted? && mpost.is_peer_mode? && mpost.collision?}
     end
     mposts.each {|mpost|
       if (collision && !mpost.deleted?)
