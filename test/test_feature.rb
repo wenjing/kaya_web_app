@@ -8,11 +8,11 @@ load 'test_mpost.rb'
 load 'test_meet.rb'
 
 class FeaturesTest < TestBase
+  @@marker = "_features_test_"
   #@@meet_count = 300
   #@@user_count = 100
   @@meet_count = 60
   @@user_count = 20
-  @@marker = "_features_test_"
   def self.setting(meet_count, user_count, root_url)
     @@meet_count = meet_count
     @@user_count = user_count
@@ -50,6 +50,7 @@ class FeaturesTest < TestBase
       peer_count = [5, 10, 50].random_dist.floor
       mpost.peers = meet.users.reject {|v| v == user}.shuffle.slice(0, peer_count)
       mpost.time = meet.time + (0..5).to_a.rand
+      mpost.post_time = mpost.time
       loc = meet.loc
       mpost.lerror = loc.lerror.ceil
       ll_error = mpost.lerror*3.5e-6
@@ -64,6 +65,7 @@ class FeaturesTest < TestBase
     @@locations = LocationsBuilder::build(nil, nil)
     @@users = UsersBuilder::build_and_signin
     @@users = @@users.shuffle.slice(0..@@user_count)
+    return true
   end
   # Setup meet data
   def self.setup
