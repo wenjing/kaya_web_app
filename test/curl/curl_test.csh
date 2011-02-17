@@ -3,6 +3,10 @@
 set url_root='http://0.0.0.0:3000'
 set http_head='Accept: application/json'
 
+echo "Mpost processing status"
+curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X GET ${url_root}/mposts/1
+curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X GET ${url_root}/mposts/2
+
 echo "Correct user"
 curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X GET ${url_root}/users/2
 curl -H "$http_head" -u bessy.moo.2@kaya-labs.com:password -X GET ${url_root}/users/3

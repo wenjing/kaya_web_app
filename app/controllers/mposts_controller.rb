@@ -14,6 +14,9 @@ class MpostsController < ApplicationController
   end
   before_filter :authorized_mpost_owner, :only => [:show]
 
+  JSON_MPOST_DETAIL_API = {:except => [:created_at, :cached_info, :user_dev, :devs, :note],
+                           :methods => [:processing_status]}
+
   def create
     assert_unauthorized(false, :except=>:json)
     saved = false
@@ -23,7 +26,7 @@ class MpostsController < ApplicationController
 
     if saved
       respond_to do |format|
-        format.json { render :json => @mpost.to_json(:except => [:updated_at, :created_at]) }
+        format.json { render :json => @mpost.to_json(JSON_MPOST_DETAIL_API) }
       end
 
       # Expedite from backup processer to give hosted post a quick response.
@@ -54,9 +57,7 @@ class MpostsController < ApplicationController
   def show
     assert_unauthorized(false, :except=>:json)
     respond_to do |format|
-      format.json {
-        render :json => @mpost.to_json(:except => [:created_at, :updated_at])
-      }
+      format.json { render :json => @mpost.to_json(JSON_MPOST_DETAIL_API) }
     end
   end
 #

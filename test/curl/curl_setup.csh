@@ -14,7 +14,7 @@
 set url_root='http://0.0.0.0:3000'
 set http_head='Accept: application/json'
 
-curl -H "$http_head" -u admin@kaya-labs.com:password -d "script=load './test/reset_all.rb'" ${url_root}/debug/run
+#curl -H "$http_head" -u admin@kaya-labs.com:password -d "script=load './test/reset_all.rb'" ${url_root}/debug/run
 
 curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Judith Williams&email=bessy.moo.1@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
 curl -H "$http_head" -u admin@kaya-labs.com:password -d "name=Kenneth Baker&email=bessy.moo.2@kaya-labs.com&password=password&password_confirmation=password" ${url_root}/users
@@ -51,3 +51,5 @@ curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010
 curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010-11-27T09:08:12-08:00&lng=-97.7428&lat=30.2669&devs=Bessy Moo 1:2&&user_dev=Bessy Moo 1:2&lerror=2" ${url_root}/mposts
 curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010-11-27T09:09:12-08:00&lng=-97.7428&lat=30.2669&devs=Bessy Moo 1:2&&user_dev=Bessy Moo 1:2&lerror=2" ${url_root}/mposts
 curl -H "$http_head" -u bessy.moo.1@kaya-labs.com:password -X POST -d "time=2010-11-27T09:10:12-08:00&lng=-97.7428&lat=30.2669&devs=Bessy Moo 1:2&&user_dev=Bessy Moo 1:2&lerror=2" ${url_root}/mposts
+
+sleep 15

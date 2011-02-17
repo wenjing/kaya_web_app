@@ -459,4 +459,8 @@ private
     return self
   end
 
+  def collision?
+    return !collision.nil? && collision != 0 && collision != false
+  end
+
 end

@@ -170,4 +170,31 @@ class Mpost < ActiveRecord::Base
     devs[other_dev] = nil
   end
 
+  # 0 : pending to be processed
+  # 1 : meet created succesfully
+  # 2 : meet cancelled by collision
+  # 3 : meet cancelled by user or admin delete action
+  # 4 : invitation pending
+  def processing_status
+    if meet.present?
+      if deleted? && meet.collsion?
+        return 2
+      elsif deleted? && !meet.collsion?
+        return 3
+      elsif pending?
+        return 4
+      else
+        return 1
+      end
+    else
+      if collision?
+        return 2
+      elsif deleted?
+        return 3
+      else
+        return 0
+      end
+    end
+  end
+
 end
