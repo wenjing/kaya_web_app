@@ -28,6 +28,8 @@ class Meet < ActiveRecord::Base
   attr_accessor :meet_mview, :hoster_mview
   attr_accessor :loaded_top_users, :loaded_top_chatters
   attr_accessor :meet_invitations
+  attr_accessor :loaded_users, :loaded_topics, :new_users, :new_topics,
+                :is_new_invitation, :is_first_encounter
 # attr_accessible :name, :description, :meet_type,
 #                 :time, :location, :street_address, :city, 
 #                 :state, :zip, :country, :lng, :lat, :lerror,
@@ -50,7 +52,7 @@ class Meet < ActiveRecord::Base
   has_many :topics, :class_name => "Chatter",
                     :conditions => ['chatters.topic_id IS NULL']
   has_many :photos, :class_name => "Chatter",
-                    :conditions => ['chatters.photo_file_size IS NOT NULL AND chatters.photo_file_size > ?', 0]
+                    :conditions => ['chatters.photo_content_type IS NOT NULL']
 # has_many :latest_chatters, :class_name => "Chatter", :limit => 3,
 #                   :conditions => ['chatters.content IS NOT NULL && chatters.content != ?', ""]
 
@@ -174,12 +176,13 @@ class Meet < ActiveRecord::Base
 
   def update_chatters_count
     self.cached_info ||= Hash.new
-    topic_ids0, chatter_ids0 = topic_ids.to_a, chatter_ids.to_a
+    topic_ids0, chatter_ids0, photo_ids0 = topic_ids.to_a, chatter_ids.to_a, photo_ids_by_created_at.to_a
     self.cached_info[:topics_count] = topic_ids0.count
     self.cached_info[:chatters_count] = chatter_ids0.count
-    self.cached_info[:photos_count] = photo_ids.count
+    self.cached_info[:photos_count] = photo_ids0.count
     self.cached_info[:top_topic_ids] = topic_ids0.slice(0..9)
     self.cached_info[:top_chatter_ids] = chatter_ids0.slice(0..9)
+    self.cached_info[:top_photo_ids] = chatter_ids0.slice(0..9)
     return self
   end
 
@@ -201,23 +204,31 @@ class Meet < ActiveRecord::Base
   def top_friend_ids(except)
     return (cached_info[:top_user_ids] || []).reject {|v| v==except.id}
   end
-  def top_users
-    return User.find(top_user_ids).compact!
+  def top_users(user_cache=nil)
+    return user_cache ? user_cache.find_user(top_user_ids).compact
+                      : User.find(top_user_ids).compact
   end
-  def top_friends(except)
-    return User.find(top_friend_ids(except)).compact!
+  def top_friends(except, user_cache=nil)
+    return user_cache ? user_cache.find_user(top_friend_ids(except)).compact
+                      : User.find(top_friend_ids(except)).compact
   end
   def top_topic_ids
     return cached_info[:top_topic_ids] || []
   end
   def top_topics
-    return Chatter.find(top_topic_ids).compact!
+    return Chatter.find(top_topic_ids).compact
   end
   def top_chatter_ids
     return cached_info[:top_chatter_ids] || []
   end
   def top_chatters
-    return Chatter.find(top_chatter_ids).compact!
+    return Chatter.find(top_chatter_ids).compact
+  end
+  def top_photo_ids
+    return cached_info[:top_photo_ids] || []
+  end
+  def top_photos
+    return Chatter.find(top_photo_ids).compact
   end
   def users_count
     return cached_info[:users_count] || 0
@@ -244,8 +255,8 @@ class Meet < ActiveRecord::Base
     # Use user_ids.size instead of users.size to prevent loading of all users within the meet.
     # Also, limit the number of users to be loaded. If it is already fully loaded, do no
     # use limit otherwise it will just result in duplicated loading.
-    meet_users = loaded_top_users ? loaded_top_users :
-                    users.loaded? ? users : User.find(top_friends_ids(except)).compact!
+    meet_users = @loaded_top_users ? @loaded_top_users :
+                    users.loaded? ? users : User.find(top_friends_ids(except)).compact
     meet_friends = meet_users.select {|user| user.id != except.id}
     friends_name = ""
     friends = Array.new
@@ -305,10 +316,19 @@ class Meet < ActiveRecord::Base
     return pending_users.to_a.select {|user| !include_user?(user)}
   end
   def topic_ids
-    return topics.to_a.collect {|v| v.id}.compact
+    return Chatter.select(["DISTINCT(id)", "updated_at"])
+                  .where("chatters.meet_id = ? AND chatters.topic_id IS NULL", id)
+                  .collect {|v| v.id}
   end
   def photo_ids
-    return photos.to_a.collect {|v| v.id}.compact
+    return Chatter.select(["DISTINCT(id)", "updated_at"])
+                  .where("chatters.meet_id = ? AND chatters.photo_content_type IS NOT NULL", id)
+                  .collect {|v| v.id}
+  end
+  def photo_ids_by_created_at
+    return Chatter.select(["DISTINCT(id)", "updated_at", "created_at"])
+                  .where("chatters.meet_id = ? AND chatters.photo_content_type IS NOT NULL", id)
+                  .sort_by {|v| v.created_at}.reverse.collect {|v| v.id}
   end
 
   def static_map_url(width=120, height=120, zoom=15, marker="mid")
@@ -342,6 +362,9 @@ class Meet < ActiveRecord::Base
     return zone
   end
 
+  def meet_invitation
+    return meet_invitations.present? ? meet_invitations.first : nil
+  end
   def meet_inviter
     return meet_invitations.present? ? meet_invitations.first.user : nil
   end
@@ -389,6 +412,42 @@ class Meet < ActiveRecord::Base
       return true if mpost.see_or_seen_by?(to)
     }
     return false
+  end
+
+  def marked_top_users
+    return [] if @loaded_top_users.blank?
+    res = []
+    @loaded_top_users.each {|user|
+      res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+    }
+    return res
+  end
+  def marked_users
+    return [] if @loaded_users.blank?
+    # Put all new users in front
+    @new_users.each {|user| user.is_new_user = true }
+    res = []
+    @loaded_users.each {|user|
+      next if !user.is_new_user
+      res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+    }
+    @loaded_users.each {|user|
+      next if user.is_new_user
+      res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+    }
+    @new_users.each {|user| user.is_new_user = false }
+    return res
+  end
+  # Meet level topics are displayed as comments
+  def marked_chatters
+    return [] if @loaded_topics.blank?
+    res = []
+    @new_topics.each {|topic| topic.is_new_chatter = true } if @new_topic.present?
+    @loaded_topics.each {|topic|
+      res << {:chatter => topic.as_json(ChattersController::JSON_CHATTER_COMMENT_API)}
+    }
+    @new_topics.each {|topic| topic.is_new_chatter = false } if @new_topic.present?
+    return res
   end
 
 private

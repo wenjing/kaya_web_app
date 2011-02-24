@@ -1,5 +1,5 @@
 class Chatter < ActiveRecord::Base
-  attr_accessor :loaded_top_comments
+  attr_accessor :loaded_top_comments, :loaded_comments, :new_comments, :is_new_chatter
   attr_accessible :content, :photo 
 
   belongs_to :meet, :inverse_of => :chatters
@@ -19,10 +19,10 @@ class Chatter < ActiveRecord::Base
   has_attached_file :photo,
     :styles => {
       #:original  => "1000x1000>",
-      :small  => "80x120>",
-      :normal => "160x200>"
+      #:small  => "80x120>",
+      #:normal => "160x200>"
     },
-    :convert_options => {:all => "-auto-orient"},
+    #:convert_options => {:all => "-auto-orient"},
     :path => "images/:id/:style.:extension",
     :storage => :s3,
     :s3_credentials => {
@@ -44,7 +44,7 @@ class Chatter < ActiveRecord::Base
                             .where("mposts.user_id = ?", user.id)
   }
   scope :all_chatters_of, lambda {|chatter_ids|
-    where("chatters.id IN (?)", topic_ids)
+    where("chatters.id IN (?)", chatter_ids)
   }
   scope :related_topic_ids, lambda {|user|
     includes(:meet=>:mposts).select("DISTINCT(chatters.id)", "chatters.update_at")
@@ -72,7 +72,7 @@ class Chatter < ActiveRecord::Base
     return cached_info ? (cached_info[:top_comment_ids] || []) : []
   end
   def top_comments
-    return Chatter.find(top_comment_ids).compact!
+    return Chatter.find(top_comment_ids).compact
   end
 
   def topic?
@@ -88,10 +88,22 @@ class Chatter < ActiveRecord::Base
     return photo? ? photo.url : ""
   end
   def chatter_photo
-    return photo? ? photo.url(:normal) : ""
+#   return photo? ? photo.url(:normal) : ""
+    return chatter_photo_orig
   end
   def chatter_photo_small
-    return photo? ? photo.url(:small) : ""
+#   return photo? ? photo.url(:small) : ""
+    return chatter_photo_orig
   end
 
+  def marked_chatters
+    return [] if @loaded_comments.blank?
+    res = []
+    @new_comments.each {|comment| comment.is_new_chatter = true } if @new_comments.present?
+    @loaded_comments.each {|comment|
+      res << {:chatter => comment.as_json(ChattersController::JSON_CHATTER_COMMENT_API)}
+    }
+    @new_comments.each {|comment| comment.is_new_chatter = false } if @new_comments.present?
+    return res
+  end
 end

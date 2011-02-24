@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
 
   # current_user must be this user
   def correct_user(id=nil)
-    @user ||= User.find_by_id(id||params[:id])
+    @user ||= find_user(id||params[:id])
     if (!@user || (!current_user?(@user) && !admin_user?))
       render_unauthorized
     end
@@ -21,7 +21,7 @@ class ApplicationController < ActionController::Base
 
   # current_user must be be a admin and not current user
   def admin_user_except_self(id=nil)
-    @user ||= User.find_by_id(id||params[:id])
+    @user ||= find_user(id||params[:id])
     if (!@user || (!admin_user? || current_user?(@user)))
       # user can not delete itself even she is an admin
       render_unauthorized
@@ -225,6 +225,90 @@ class ApplicationController < ActionController::Base
     }
   end
 
+  def find_user(user_id)
+    return nil if user_id.blank?
+    @user_cache ||= {}
+    user = @user_cache[user_id]
+    if !user
+      user = User.find(user_id)
+      @user_cache[user.id] = user if user
+    end
+    return user
+  end
+  def find_users(user_ids)
+    return [] if user_ids.blank?
+    @user_cache ||= {}
+    missing_user_ids = user_ids.select {|v| !@user_cache.include?(v)}
+    if !missing_user_ids.empty?
+      missing_users = User.find(missing_user_ids).compact
+      missing_users.each {|user| @user_cache[user.id] = user}
+    end
+    return user_ids.collect {|id| @user_cache[id]}
+  end
+
+  def find_meet(meet_id)
+    return nil if meet_id.blank?
+    @meet_cache ||= {}
+    meet = @meet_cache[meet_id]
+    if !meet
+      meet = User.find(meet_id)
+      @meet_cache[meet.id] = meet if meet
+    end
+    return meet
+  end
+  def find_meets(meet_ids)
+    return [] if meet_ids.blank?
+    @meet_cache ||= {}
+    missing_meet_ids = meet_ids.select {|v| !@meet_cache.include?(v)}
+    if !missing_meet_ids.empty?
+      missing_meets = User.find(missing_meet_ids).compact
+      missing_meets.each {|meet| @meet_cache[meet.id] = meet}
+    end
+    return meet_ids.collect {|id| @meet_cache[id]}
+  end
+
+  def find_mpost(mpost_id)
+    return nil if mpost_id.blank?
+    @mpost_cache ||= {}
+    mpost = @mpost_cache[mpost_id]
+    if !mpost
+      mpost = User.find(mpost_id)
+      @mpost_cache[mpost.id] = mpost if mpost
+    end
+    return mpost
+  end
+  def find_mposts(mpost_ids)
+    return [] if mpost_ids.blank?
+    @mpost_cache ||= {}
+    missing_mpost_ids = mpost_ids.select {|v| !@mpost_cache.include?(v)}
+    if !missing_mpost_ids.empty?
+      missing_mposts = User.find(missing_mpost_ids).compact
+      missing_mposts.each {|mpost| @mpost_cache[mpost.id] = mpost}
+    end
+    return mpost_ids.collect {|id| @mpost_cache[id]}
+  end
+
+  def find_chatter(chatter_id)
+    return nil if chatter_id.blank?
+    @chatter_cache ||= {}
+    chatter = @chatter_cache[chatter_id]
+    if !chatter
+      chatter = User.find(chatter_id)
+      @chatter_cache[chatter.id] = chatter if chatter
+    end
+    return chatter
+  end
+  def find_chatters(chatter_ids)
+    return [] if chatter_ids.blank?
+    @chatter_cache ||= {}
+    missing_chatter_ids = chatter_ids.select {|v| !@chatter_cache.include?(v)}
+    if !missing_chatter_ids.empty?
+      missing_chatters = User.find(missing_chatter_ids).compact
+      missing_chatters.each {|chatter| @chatter_cache[chatter.id] = chatter}
+    end
+    return chatter_ids.collect {|id| @chatter_cache[id]}
+  end
+
   private
 
     def render_error(file, status, options={})
@@ -256,4 +340,49 @@ class ApplicationController < ActionController::Base
       #meet.meet_invitations = user.pending_invitations.where("meets.id = ?", meet.id).to_a
     end
 
+end
+
+class ContentAPI
+  attr_accessor :type, :timestamp, :id, :body
+# include ActiveModel::Serialization
+# attr_accessor :attributes
+# def initialize(attributes)
+#   @attributes = attributes
+# end
+  def initialize(type)
+    self.type = type
+  end
+  def as_json(options={})
+    options ||= {}
+    org_flag = ActiveRecord::Base.include_root_in_json
+    ActiveRecord::Base.include_root_in_json = false
+    res = {:type=>type, :timestamp=>timestamp, :id=>id}
+    body.each_pair {|k, v|
+      if v.class == Meet && k == :encounter_summary
+        options0 = options.merge(MeetsController::JSON_MEET_LIST_API)
+      elsif v.class == Meet && k == :encounter
+        options0 = options.merge(MeetsController::JSON_MEET_MARKED_API)
+      elsif v.class == Meet && k == :cirkle
+        options0 = options.merge(MeetsController::JSON_MEET_CIRKLE_API)
+      elsif v.class == Chatter && k == :photo
+        options0 = options.merge(ChattersController::JSON_CHATTER_LIST_API)
+      elsif v.class == Chatter && k == :topic
+        options0 = options.merge(ChattersController::JSON_CHATTER_MARKED_API)
+      elsif v.class == User
+        options0 = options.merge(UsersController::JSON_USER_LIST_API)
+      elsif v.class == Meet && k == :pending_invitation
+        options0 = options.merge(MeetsController::JSON_PENDING_MEET_LIST_API)
+      elsif v.class == Meet && k == :invitation
+        options0 = options.merge(MeetsController::JSON_MEET_LIST_API)
+      elsif v.class == Mpost
+        options0 = options.merge(MpostController::JSON_MPOST_DETAIL_API)
+      end
+      res[k] = v.as_json(options0)
+    }
+    ActiveRecord::Base.include_root_in_json = org_flag
+    return res
+  end
+  def to_json(options={})
+    return as_json(options).to_json
+  end
 end

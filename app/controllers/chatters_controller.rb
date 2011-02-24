@@ -8,9 +8,21 @@ class ChattersController < ApplicationController
   before_filter :authorized_chatter_owner, :only => :destroy
   #before_filter :authroized_chatter_meet_owner, :only => :show
 
-  JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo_small],
+  JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo],
                               :include => [:comments],
-                              :except => [:created_at, :cached_info,
+                              :except => [:cached_info,
+                                          :photo_content_type, :photo_file_name,
+                                          :photo_file_size, :photo_updated_at] }
+  JSON_CHATTER_MARKED_API = { :methods => [:chatter_photo, :marked_comments],
+                              :except => [:cached_info,
+                                          :photo_content_type, :photo_file_name,
+                                          :photo_file_size, :photo_updated_at] }
+  JSON_CHATTER_COMMENT_API= { :methods => [:chatter_photo, :is_new_chatter],
+                              :except => [:cached_info,
+                                          :photo_content_type, :photo_file_name,
+                                          :photo_file_size, :photo_updated_at] }
+  JSON_CHATTER_LIST_API   = { :methods => [:chatter_photo, :comments_count],
+                              :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
 

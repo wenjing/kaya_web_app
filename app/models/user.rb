@@ -15,6 +15,7 @@
 
 class User < ActiveRecord::Base
   attr_accessor   :password
+  attr_accessor   :is_new_user
   attr_accessible :name, :email, :password, :password_confirmation, :photo
   
   has_many :mposts, :dependent => :destroy, :inverse_of => :user
@@ -270,29 +271,51 @@ class User < ActiveRecord::Base
   end
 
   # Return a hash of friends with array of common meets as value
-  def meets_friends
-    friends = Hash.new
-#   meets.to_a.each {|meet|
-#     meet.users.each {|meet_user|
-#       (friends[meet_user] ||= Array.new) << meet if meet_user.id != id
-#     }
-#   }
-    friend_infos = []
-    within_meet_ids = meet_ids.to_a
-    within_meets = Meet.find(within_meet_ids, :select => "id,time,lat,lng")
-    while (!within_meet_ids.empty?)
-      sliced_meet_ids = within_meet_ids.slice!(0, 100) # 100 meets at a time
-      friend_infos.concat(Mpost.select([:user_id,:meet_id])
-                                .where("user_id != ? AND meet_id IN (?)", id, sliced_meet_ids))
+  # If after_updated_at is specified, only includes friends in those meets that
+  # have activities after the specified time.
+  # Becarefule, loaded_meets will be updated after all
+  def get_within_meets(within_meet_ids, loaded_meets, meet_select)
+    if loaded_meets # avoid re-loading already loaded meets
+      loaded_meet_ids = loaded_meets.collect {|v| v.id}.to_set
+      missing_meet_ids = meet_ids.select {|v| !loaded_meet_ids.include?(v)}
+      missing_meets = []
+      if missing_meet_ids.present?
+        missing_meets = Meet.where("id IN (?)", missing_meet_ids)
+        missing_meets = missing_meets.select(meet_select) if meet_select.present?
+      end
+      within_meets = loaded_meets.concat(missing_meets)
+    elsif (meets.loaded? || (meet_select.blank? && meet_ids.size == within_meet_ids.size))
+      # Already fully loaded or require to be fully loaded
+      within_meet_ids = within_meet_ids.to_set
+      within_meets = meets.select {|v| within_meet_ids.include?(v.id)}
+    else
+      within_meets = Meet.where("id IN (?)", within_meet_ids)
+      within_meets = within_meets.select(meet_select) if meet_select.present?
     end
-    friend_ids = friend_infos.collect {|v| v.user_id}.uniq
-    friend_users = User.find(friend_ids)
+    return within_meets
+  end
+  def friends_meets(within_meets, loaded_meets, meet_select, within_users, user_cache=nil)
+    friends_meets0 = Hash.new
+    within_meet_ids = within_meets ? within_meets.collect {|v| v.id} : meet_ids
+    friend_infos = Mpost.select([:user_id, :meet_id, :created_at])
+                        .where("user_id != ? AND meet_id IN (?)", id, within_meet_ids)
+    if within_users
+      within_user_ids = within_users.collect {|v| v.id}
+      friend_infos = friend_infos.where("user_id IN (?)", within_user_ids)
+      friend_ids = friend_infos.collect {|v| v.user_id}.to_set
+      friend_users = within_users.select {|v| friend_ids.include?(v.id)}
+    else
+      friend_ids = friend_infos.collect {|v| v.user_id}.uniq
+      friend_users = user_cache ? user_cache.find_users(friend_ids) : User.find(friend_ids)
+    end
+    within_meet_ids = friend_infos.collect {|v| v.meet_id}.uniq
+    within_meets ||= get_within_meets(within_meet_ids, loaded_meets, meet_select)
     friend_users.each {|friend|
       friend_meet_ids = friend_infos.select {|v| v.user_id == friend.id}.collect {|v| v.meet_id}.to_set
       friend_meets = within_meets.select {|v| friend_meet_ids.include?(v.id)}
-      (friends[friend] ||= Array.new).concat(friend_meets)
+      (friends_meets0[friend] ||= Array.new).concat(friend_meets)
     }
-    return friends
+    return friends_meets0
   end
 
   # Return all chatters of meets user related to.
@@ -379,10 +402,11 @@ class User < ActiveRecord::Base
     active_meet_ids = meet_ids.to_set
     return pending_meet_ids.select {|meet_id| !active_meet_ids.include?(meet_id)} || []
   end
-  def true_pending_meets
-    return [] if pending_meets.count == 0
+  def true_pending_meets(within_meets=nil)
+    within_meets ||= pending_meets
+    return [] if within_meets.count == 0
     active_meet_ids = meet_ids.to_set
-    return pending_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []
+    return within_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []
   end
 
   def dev
@@ -412,7 +436,7 @@ class User < ActiveRecord::Base
     # Assume meets are already loaded. And, meet.users are only used directly
     # when they are also already loaded. Otherwise use user_ids and load them
     # all together. This will force a eager load of friends within the meets.
-    def meet_friends(within_meet_ids = nil, limit = :all, id_only = false)
+    def meet_friends(within_meet_ids = nil, limit = :all, id_only = false, user_cache=nil)
       # The logic behind this is that we will use one giant DB query instead
       # of multiple smaller query. For each users unloaded meet, it will
       # require a mpost related query even to get user_ids. Assume 5 such
@@ -427,7 +451,8 @@ class User < ActiveRecord::Base
         break if (limit != :all && friend_ids.size >= limit)
       end
       friend_ids = friend_ids.slice(0..limit-1) unless limit == :all
-      return id_only ? friend_ids : User.find(friend_ids)
+      return id_only ? friend_ids :
+             user_cache ? user_cache.find_users(friends_ids) : User.find(friend_ids)
     end
 
     def raw_meet_ids_of_type(type)

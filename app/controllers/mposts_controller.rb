@@ -14,7 +14,7 @@ class MpostsController < ApplicationController
   end
   before_filter :authorized_mpost_owner, :only => [:show]
 
-  JSON_MPOST_DETAIL_API = {:except => [:created_at, :cached_info, :user_dev, :devs, :note],
+  JSON_MPOST_DETAIL_API = {:except => [:created_at, :user_dev, :devs, :note, :lng, :lat, :lerror],
                            :methods => [:processing_status]}
 
   def create
