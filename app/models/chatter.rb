@@ -18,11 +18,11 @@ class Chatter < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      #:original  => "1000x1000>",
-      #:small  => "80x120>",
-      #:normal => "160x200>"
+      :original  => "1000x1000>",
+      :small  => "80x120>",
+      :normal => "160x200>"
     },
-    #:convert_options => {:all => "-auto-orient"},
+    :convert_options => {:all => "-auto-orient"},
     :path => "images/:id/:style.:extension",
     :storage => :s3,
     :s3_credentials => {
@@ -88,12 +88,12 @@ class Chatter < ActiveRecord::Base
     return photo? ? photo.url : ""
   end
   def chatter_photo
-#   return photo? ? photo.url(:normal) : ""
-    return chatter_photo_orig
+    return photo? ? photo.url(:normal) : ""
+#   return chatter_photo_orig
   end
   def chatter_photo_small
-#   return photo? ? photo.url(:small) : ""
-    return chatter_photo_orig
+    return photo? ? photo.url(:small) : ""
+#   return chatter_photo_orig
   end
 
   def marked_chatters
