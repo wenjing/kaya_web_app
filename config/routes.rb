@@ -1,6 +1,6 @@
 KayaWebApp::Application.routes.draw do
 
-  resources :users, :only => [:new, :edit, :show, :create, :update] do
+  resources :users, :only => [:new, :edit, :show, :create, :update, :index] do
     resources :mposts, :only => [:create]
     resources :invitations, :only => [:create, :new]
     member do
