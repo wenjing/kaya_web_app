@@ -450,6 +450,10 @@ class Meet < ActiveRecord::Base
     return res
   end
 
+  def collision?
+    return !collision.nil? && collision != 0 && collision != false
+  end
+
 private
  
   def extract_location(peer_mposts)
@@ -516,10 +520,6 @@ private
                      users_count == 2 ? 2 :
                      users_count >= 3 ? 3 : 0
     return self
-  end
-
-  def collision?
-    return !collision.nil? && collision != 0 && collision != false
   end
 
 end

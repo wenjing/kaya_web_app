@@ -13,7 +13,7 @@ class ChattersController < ApplicationController
                               :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
-  JSON_CHATTER_MARKED_API = { :methods => [:chatter_photo, :marked_comments],
+  JSON_CHATTER_MARKED_API = { :methods => [:chatter_photo, :marked_chatters],
                               :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }

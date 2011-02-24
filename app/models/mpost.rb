@@ -177,9 +177,9 @@ class Mpost < ActiveRecord::Base
   # 4 : invitation pending
   def processing_status
     if meet.present?
-      if deleted? && meet.collsion?
+      if deleted? && meet.collision?
         return 2
-      elsif deleted? && !meet.collsion?
+      elsif deleted? && !meet.collision?
         return 3
       elsif pending?
         return 4

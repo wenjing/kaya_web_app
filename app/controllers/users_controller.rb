@@ -198,6 +198,7 @@ class UsersController < ApplicationController
 
       # Private
       # If after_updated_at is specified, friends_meets here do not include all meets
+      private_contents = []
       friends = friends_meets.collect {|v| v[0]}
       friends_stats = get_friends_stats(friends, loaded_meets)
       friends_meets.each_pair {|friend, with_meets|
@@ -212,11 +213,14 @@ class UsersController < ApplicationController
         content.body[:last_encounter_time] = friend_stats[:last_encounter_time]
         content.body[:relation_score] = friend_stats[:relation_score]
         content.body[:activities_summary] = get_activities_summary(summary_limit, with_meets, photos)
-        contents << content
+        private_contents << content
       }
+      private_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+      contents.concat(private_contents)
 
       # Cirkle (Group)
       # Fake 10 cirkles by grouping all group meets by last digit of their ids
+      cirkle_contents = []
       cirkles_meets = get_cirkles_meets(group_meets)
       cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, loaded_meets)
       cirkles_meets.each_pair {|cirkle, cirkle_meets|
@@ -231,8 +235,10 @@ class UsersController < ApplicationController
         content.body[:last_encounter_time] = cirkle_stats[:last_encounter_time]
         content.body[:relation_score] = cirkle_stats[:relation_score]
         content.body[:activities_summary] = get_activities_summary(summary_limit, cirkle_meets, photos)
-        contents << content
+        cirkle_contents << content
       }
+      cirkle_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+      contents.concat(cirkle_contents)
     end
 
     attach_meet_infos_to_contents(contents)
@@ -281,12 +287,12 @@ class UsersController < ApplicationController
     top_contents = []
     contents = []
 
-    # All pending Invitations & New pending Invitation
+    # Collisions, only for non-flashback mode
     deleted_mposts0 = mposts0.select {|mpost| mpost.status == 1}
-    # Only for non-flashback mode
     if (!@with_user && !@cirkle && !deleted_mposts0.empty?)
       deleted_mposts0.each {|mpost|
-        content = ContentAPI.new(:mpost_collision)
+        next if mpost.processing_status != 2
+        content = ContentAPI.new(:collision)
         content.timestamp = mpost.updated_at
         content.id = mpost.id
         content.body = {:mpost => mpost}
@@ -300,7 +306,7 @@ class UsersController < ApplicationController
     invited_mposts0 = mposts0.select {|mpost| mpost.invitation_id.present?}
     invited_mposts0 = invited_mposts0.select {|mpost| (mpost.meet_id % 10) == @cirkle} if @cirkle
     # Not for user-flashback mode. Apparently, no invitation for solo and private relations.
-    if (!@with_use && invited_mposts0.first.present?)
+    if (!@with_user && invited_mposts0.first.present?)
       pending_meets0 = get_pending_meets(@user, @cirkle)
       attach_meet_invitations(@user, pending_meets0)
       # All pending Invitations
@@ -364,7 +370,9 @@ class UsersController < ApplicationController
           content = ContentAPI.new(:topic)
           content.timestamp = topic.updated_at
           content.id = topic.id
+          content.body = {}
           content.body[:topic] = topic
+          content.body[:cirkle] = cirkle
           contents << content
         } if cirkle_meet.new_topics.present?
       }

@@ -25,8 +25,7 @@ class MeetsController < ApplicationController
   JSON_MEET_LIST_API   = { :except => [:created_at, :cached_info, :description, :lock_version, :collision],
                            :methods => [:meet_name, :meet_address,
                                         :users_count, :topics_count, :chatters_count, :photos_count,
-                                        :peers_name_brief,
-                                        :top_users=>UsersController::JSON_USER_DETAIL_API] }
+                                        :peers_name_brief, :marked_top_users] }
   JSON_PENDING_MEET_LIST_API = { :except => [:created_at, :cached_info, :description, :lock_version, :collision],
                            :methods => [:meet_inviter, :meet_invitation_message, :meet_other_inviters,
                                         :meet_name, :meet_address,

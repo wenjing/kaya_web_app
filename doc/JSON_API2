@@ -1,0 +1,146 @@
+1. Solo/Private/Cirkle summary list
+  Return summary list for Cirkle view. The list also includes summary for Solo and Private (friends) events.
+  The result list could have up to 3 parts. The first part is a single item for Solo if any. The second part
+  is multiple items for Private if any. And the last part is multiple items for Cirkle. Within Private and Cirkle
+  parts, each item is sorted by relation score(*1) and by timestamp of most recent event related to the list item.
+
+  -X GET <url_root>/users/<user_id>/cirkle
+
+  Optional parameters: after_time
+
+  -X GET <url_root>/users/<user_id>/cirkle?after_time=<time>
+
+
+  *1 Except for Solo, an user's relation to Private and Cirkle is catergorized by its relation_score. The score
+     has 3 possible values: 1, 2 and 3. The 1 means the most inner cirkle and 3 is most outter cirkle.
+
+  Results
+
+   Solo part
+    type      : solo
+    timestamp : <time>
+    id        : <current user_id>
+    activities_summary : <activities summary>
+
+   Private part
+    type      : private
+    timestamp : <time>
+    id        : <friend's user_id>
+    user      : <user detail>
+    encounter_count    : <encounter count with friend>
+    last_encounter_time: <last encounter time with friend>
+    relation_score     : [<score timestamp>, <relation score>]
+    activities_summary : <activities summary>
+
+   Cirkle part
+    type      : cirkle
+    timestamp : <time>
+    id        : <cirkle_id>
+    cirkle    : <cirkle summary>
+    encounter_count    : <encounter count within cirkle>
+    last_encounter_time: <last encounter time withi cirkle>
+    relation_score     : [<score timestamp>, <relation score>]
+    activities_summary : <activities summary>
+
+   <user detail>
+    email   : <user email>
+    id      : <user id>
+    name    : <user name>
+    user_avatar : <user name>
+    is_new_user : <true if new member to cirkle>
+
+   <activities summary> array of (4) most recent encounter and photo postings
+    Encounter activity
+     type      : encounter
+     timestamp : <meet created_at time>
+     id        : <meet_id>
+     encounter_summary : <encounter summary>
+    Photo posting
+     type      : photo
+     timestamp : <chatter created_at time>
+     id        : <chatter_id>
+     photo     : <chatter summary>
+
+   <encounter summary>
+    zip, city, state, country, location, time, meet_name, meet_address
+    users_count, topics_count, photo_count
+    peers_name_brief  : <brief friends name list>
+    marked_top_users  : <top 10 users detail>
+
+   <chatter summary>
+    content        : <chatter content>
+    chatter_photo  : <photo url>
+    comments_count : <comment count>
+
+
+2. News
+  Return timeline list of recent events. Following events are included:
+  1) New collision (always on top if any)
+  2) All pending invitations (always on top if any)
+  3) New pending invitation
+  4) New or updated encounters (new cirkles)
+  5) New topic (new comments)
+
+  -X GET <url_root>/users/<user_id>/news
+
+  Optional parameters: after_time, before_time and limit
+  Optional filter: user_id, cirkle_id.
+    Use user_id to return only events related to the specified user and use cirkle_id to narrow the returned
+    events only to the specified cirkle. Use these 2 filters for flashback views. To view solo events,
+    user current user's id as user_id.
+
+  -X GET <url_root>/users/<user_id>/news?limit=<limit>&before_time=<time>&after_time=<time>
+  -X GET <url_root>/users/<user_id>/news?user_id=<user_id2>
+  -X GET <url_root>/users/<user_id>/news?cirkle_id=<cirkle_id>
+
+  Result:
+   New collision
+    type      : collision
+    timestamp : <time>
+    id        : <mpost_id>
+    mpost     : process_status
+   All pending invitations
+    type      : pending_invitations
+    timestamp : <time>
+    id        : 0
+    [pending_invitation : <invitation summary>]
+   New pending invitation
+    type      : pending_invitation
+    timestamp : <time>
+    id        : <mpost_id>
+    pending_invitation : <invitation summary>
+   New encounters (new cirkles)
+    type      : encounter
+    timestamp : <time>
+    id        : <meet_id>
+    encounter : <encounter detail>
+    cirkle    : <cirkle summary>
+   New topic (new comments)
+    type      : topic
+    timestamp : <time>
+    id        : <topic_id>
+    topic     : <topic detail>
+    cirkle    : <cirkle summary>
+
+   <invitation summary>
+     meet_inviter : <inviter user detail>
+     meet_invitation_message : <inviter's message>
+     meet_name    : name of cirkle if exists
+     users_count, topics_count, photos_count, peers_name_brief (similar to encounter summary)
+     is_new_invitation : <true if a new invitation>
+
+   <encounter summary>
+    zip, city, state, country, location, time, meet_name, meet_address
+    is_first_meet   : <true if cirkle's first meet>
+    marked_users    : <all users detail>
+    marked_chatters : <all comments detail>
+
+   <comment detail>
+    content         : <chatter content>
+    chatter_photo   : <photo url if encounter comments>
+    is_new_chatter  : <true if new comment>
+
+   <topic detail>
+    content         : <chatter content>
+    chatter_photo   : <photo url if encounter comments>
+    marked_chatters : <all comments detail>

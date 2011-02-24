@@ -375,7 +375,7 @@ class ContentAPI
       elsif v.class == Meet && k == :invitation
         options0 = options.merge(MeetsController::JSON_MEET_LIST_API)
       elsif v.class == Mpost
-        options0 = options.merge(MpostController::JSON_MPOST_DETAIL_API)
+        options0 = options.merge(MpostsController::JSON_MPOST_DETAIL_API)
       end
       res[k] = v.as_json(options0)
     }
