@@ -251,7 +251,7 @@ class ApplicationController < ActionController::Base
     @meet_cache ||= {}
     meet = @meet_cache[meet_id]
     if !meet
-      meet = User.find(meet_id)
+      meet = Meet.find(meet_id)
       @meet_cache[meet.id] = meet if meet
     end
     return meet
@@ -261,7 +261,7 @@ class ApplicationController < ActionController::Base
     @meet_cache ||= {}
     missing_meet_ids = meet_ids.select {|v| !@meet_cache.include?(v)}
     if !missing_meet_ids.empty?
-      missing_meets = User.find(missing_meet_ids).compact
+      missing_meets = Meet.find(missing_meet_ids).compact
       missing_meets.each {|meet| @meet_cache[meet.id] = meet}
     end
     return meet_ids.collect {|id| @meet_cache[id]}
@@ -272,7 +272,7 @@ class ApplicationController < ActionController::Base
     @mpost_cache ||= {}
     mpost = @mpost_cache[mpost_id]
     if !mpost
-      mpost = User.find(mpost_id)
+      mpost = Mpost.find(mpost_id)
       @mpost_cache[mpost.id] = mpost if mpost
     end
     return mpost
@@ -282,7 +282,7 @@ class ApplicationController < ActionController::Base
     @mpost_cache ||= {}
     missing_mpost_ids = mpost_ids.select {|v| !@mpost_cache.include?(v)}
     if !missing_mpost_ids.empty?
-      missing_mposts = User.find(missing_mpost_ids).compact
+      missing_mposts = Mpost.find(missing_mpost_ids).compact
       missing_mposts.each {|mpost| @mpost_cache[mpost.id] = mpost}
     end
     return mpost_ids.collect {|id| @mpost_cache[id]}
@@ -293,7 +293,7 @@ class ApplicationController < ActionController::Base
     @chatter_cache ||= {}
     chatter = @chatter_cache[chatter_id]
     if !chatter
-      chatter = User.find(chatter_id)
+      chatter = Chatter.find(chatter_id)
       @chatter_cache[chatter.id] = chatter if chatter
     end
     return chatter
@@ -303,7 +303,7 @@ class ApplicationController < ActionController::Base
     @chatter_cache ||= {}
     missing_chatter_ids = chatter_ids.select {|v| !@chatter_cache.include?(v)}
     if !missing_chatter_ids.empty?
-      missing_chatters = User.find(missing_chatter_ids).compact
+      missing_chatters = Chatter.find(missing_chatter_ids).compact
       missing_chatters.each {|chatter| @chatter_cache[chatter.id] = chatter}
     end
     return chatter_ids.collect {|id| @chatter_cache[id]}
