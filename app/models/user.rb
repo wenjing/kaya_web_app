@@ -186,10 +186,10 @@ class User < ActiveRecord::Base
   end
 
   def self.default_photo
-    return "K-50x50.jpg"
+    return "http://www.kayameet.com/images/K-50x50.jpg"
   end
   def self.default_photo_small
-    return "K-50x50.jpg"
+    return "http://www.kayameet.com/images/K-50x50.jpg"
   end
   def photo? # Overwrite the original one, this is much faster
     return photo_content_type.present?
