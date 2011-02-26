@@ -1,13 +1,13 @@
 # == Schema Information
-# Schema version: 20101109025524
+# Schema version: 20110125155037
 #
 # Table name: mpost_records
 #
-#  id         :integer         not null, primary key
+#  id         :integer         primary key
 #  mpost_id   :integer
-#  time       :datetime
-#  created_at :datetime
-#  updated_at :datetime
+#  time       :timestamp
+#  created_at :timestamp
+#  updated_at :timestamp
 #
 
 # Use database to record history to be replayed for debugging purpose

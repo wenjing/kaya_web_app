@@ -1,12 +1,10 @@
 require 'rubygems'
-require 'geokit'
-require 'meet_processer'
 
 class DebugController < ApplicationController
   skip_before_filter :verify_authenticity_token
   before_filter :authenticate
   before_filter :admin_current_user
-  before_filter :admin_debug
+  before_filter :admin_debug, :only => [:run]
 
   def run
     script = params[:script]
@@ -32,6 +30,13 @@ class DebugController < ApplicationController
     }
     respond_to do |format|
       format.json { render :json => mposts.to_json(:include =>  {:meet=>{:include=>:users}}, :except => [:devs]) }
+    end
+  end
+
+  def stats
+    stats = Stats.first || stats.new
+    respond_to do |format|
+      format.json { render :json => stats.to_json }
     end
   end
 

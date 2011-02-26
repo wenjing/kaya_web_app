@@ -10,20 +10,20 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20110125155037) do
+ActiveRecord::Schema.define(:version => 20110226204045) do
 
   create_table "chatters", :force => true do |t|
-    t.integer  "user_id"
-    t.text     "content",            :limit => 255
-    t.string   "photo_content_type"
-    t.string   "photo_file_name"
-    t.integer  "photo_file_size"
-    t.datetime "photo_updated_at"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.integer  "meet_id"
-    t.integer  "topic_id"
-    t.text     "cached_info"
+    t.integer   "user_id"
+    t.text      "content"
+    t.string    "photo_content_type"
+    t.string    "photo_file_name"
+    t.integer   "photo_file_size"
+    t.timestamp "photo_updated_at"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.integer   "meet_id"
+    t.integer   "topic_id"
+    t.text      "cached_info"
   end
 
   add_index "chatters", ["created_at"], :name => "index_chatters_on_created_at"
@@ -33,12 +33,12 @@ ActiveRecord::Schema.define(:version => 20110125155037) do
   add_index "chatters", ["user_id"], :name => "index_chatters_on_user_id"
 
   create_table "invitations", :force => true do |t|
-    t.integer  "meet_id"
-    t.integer  "user_id"
-    t.text     "invitee"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.text     "message"
+    t.integer   "meet_id"
+    t.integer   "user_id"
+    t.text      "invitee"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.text      "message"
   end
 
   add_index "invitations", ["created_at"], :name => "index_invitations_on_created_at"
@@ -46,27 +46,27 @@ ActiveRecord::Schema.define(:version => 20110125155037) do
   add_index "invitations", ["user_id"], :name => "index_invitations_on_user_id"
 
   create_table "meets", :force => true do |t|
-    t.string   "name"
-    t.text     "description"
-    t.datetime "time"
-    t.string   "location"
-    t.string   "street_address"
-    t.string   "city"
-    t.string   "state"
-    t.string   "zip"
-    t.string   "country"
-    t.string   "image_url"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.float    "lerror"
-    t.boolean  "collision"
-    t.string   "host_id"
-    t.integer  "lock_version",   :default => 0, :null => false
-    t.integer  "hoster_id"
-    t.text     "cached_info"
-    t.integer  "meet_type"
+    t.string    "name"
+    t.text      "description"
+    t.timestamp "time"
+    t.string    "location"
+    t.string    "street_address"
+    t.string    "city"
+    t.string    "state"
+    t.string    "zip"
+    t.string    "country"
+    t.string    "image_url"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.decimal   "lng"
+    t.decimal   "lat"
+    t.float     "lerror"
+    t.boolean   "collision"
+    t.string    "host_id"
+    t.integer   "lock_version",   :default => 0, :null => false
+    t.integer   "hoster_id"
+    t.text      "cached_info"
+    t.integer   "meet_type"
   end
 
   add_index "meets", ["host_id"], :name => "index_meets_on_host_id", :unique => true
@@ -76,31 +76,31 @@ ActiveRecord::Schema.define(:version => 20110125155037) do
   add_index "meets", ["updated_at"], :name => "index_meets_on_updated_at"
 
   create_table "mpost_records", :force => true do |t|
-    t.integer  "mpost_id"
-    t.datetime "time"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.integer   "mpost_id"
+    t.timestamp "time"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
   end
 
   add_index "mpost_records", ["time"], :name => "index_mpost_records_on_time"
 
   create_table "mposts", :force => true do |t|
-    t.integer  "user_id"
-    t.integer  "meet_id"
-    t.datetime "time"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.float    "lerror"
-    t.string   "user_dev"
-    t.text     "devs"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.string   "note"
-    t.integer  "host_mode"
-    t.boolean  "collision"
-    t.string   "host_id"
-    t.integer  "status",        :default => 0
-    t.integer  "invitation_id"
+    t.integer   "user_id"
+    t.integer   "meet_id"
+    t.timestamp "time"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.float     "lerror"
+    t.string    "user_dev"
+    t.text      "devs"
+    t.decimal   "lng"
+    t.decimal   "lat"
+    t.string    "note"
+    t.integer   "host_mode"
+    t.boolean   "collision"
+    t.string    "host_id"
+    t.integer   "status",        :default => 0
+    t.integer   "invitation_id"
   end
 
   add_index "mposts", ["created_at"], :name => "index_mposts_on_created_at"
@@ -111,44 +111,50 @@ ActiveRecord::Schema.define(:version => 20110125155037) do
   add_index "mposts", ["user_id"], :name => "index_mposts_on_user_id"
 
   create_table "mviews", :force => true do |t|
-    t.integer  "user_id"
-    t.integer  "meet_id"
-    t.string   "name"
-    t.string   "location"
-    t.datetime "time"
-    t.text     "description"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.integer   "user_id"
+    t.integer   "meet_id"
+    t.string    "name"
+    t.string    "location"
+    t.timestamp "time"
+    t.text      "description"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
   end
 
   add_index "mviews", ["updated_at"], :name => "index_mviews_on_updated_at"
   add_index "mviews", ["user_id", "meet_id"], :name => "index_mviews_on_user_id_and_meet_id", :unique => true
 
   create_table "relationships", :force => true do |t|
-    t.integer  "follower_id"
-    t.integer  "followed_id"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.integer   "follower_id"
+    t.integer   "followed_id"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
   end
 
   add_index "relationships", ["followed_id"], :name => "index_relationships_on_followed_id"
   add_index "relationships", ["follower_id"], :name => "index_relationships_on_follower_id"
 
-  create_table "users", :force => true do |t|
-    t.string   "name"
-    t.string   "email"
+  create_table "stats", :force => true do |t|
+    t.float    "avg_meet_lag"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.string   "encrypted_password"
-    t.string   "salt"
-    t.boolean  "admin",              :default => false
-    t.string   "photo_file_name"
-    t.string   "photo_content_type"
-    t.integer  "photo_file_size"
-    t.datetime "photo_updated_at"
-    t.integer  "lock_version",       :default => 0,     :null => false
-    t.integer  "status",             :default => 0
-    t.string   "temp_password"
+  end
+
+  create_table "users", :force => true do |t|
+    t.string    "name"
+    t.string    "email"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.string    "encrypted_password"
+    t.string    "salt"
+    t.boolean   "admin",              :default => false
+    t.string    "photo_file_name"
+    t.string    "photo_content_type"
+    t.integer   "photo_file_size"
+    t.timestamp "photo_updated_at"
+    t.integer   "lock_version",       :default => 0,     :null => false
+    t.integer   "status",             :default => 0
+    t.string    "temp_password"
   end
 
   add_index "users", ["email"], :name => "index_users_on_email", :unique => true

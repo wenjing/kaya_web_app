@@ -352,7 +352,7 @@ class UsersController < ApplicationController
         content.id = meet.id
         content.body = {}
         content.body[:encounter] = meet
-        cirkle = get_cirkle_from_meet(meet)
+        cirkle = meet.meet_type == 3 ? get_cirkle_from_meet(meet) : nil
         if cirkle
           cirkle_meet = cirkles_stats[cirkle][:first_encounter]
           meet.is_first_encounter = meet.id == cirkle_meet.id &&

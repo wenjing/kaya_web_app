@@ -1,16 +1,23 @@
 # == Schema Information
-# Schema version: 20100829021049
+# Schema version: 20110125155037
 #
 # Table name: users
 #
-#  id                 :integer         not null, primary key
+#  id                 :integer         primary key
 #  name               :string(255)
 #  email              :string(255)
-#  created_at         :datetime
-#  updated_at         :datetime
+#  created_at         :timestamp
+#  updated_at         :timestamp
 #  encrypted_password :string(255)
 #  salt               :string(255)
 #  admin              :boolean
+#  photo_file_name    :string(255)
+#  photo_content_type :string(255)
+#  photo_file_size    :integer
+#  photo_updated_at   :timestamp
+#  lock_version       :integer         default(0), not null
+#  status             :integer         default(0)
+#  temp_password      :string(255)
 #
 
 class User < ActiveRecord::Base
@@ -67,7 +74,7 @@ class User < ActiveRecord::Base
     :styles => {
       #:original => "1000x1000>",
       :small  => "30x30#",
-      :normal => "50x50#"
+      :normal => "54x54#"
     },
     :convert_options => {:all => "-auto-orient"},
     :default_url => "http://www.kayameet.com/images/K-50x50.jpg",

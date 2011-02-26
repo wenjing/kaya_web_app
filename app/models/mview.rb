@@ -1,3 +1,19 @@
+# == Schema Information
+# Schema version: 20110125155037
+#
+# Table name: mviews
+#
+#  id          :integer         primary key
+#  user_id     :integer
+#  meet_id     :integer
+#  name        :string(255)
+#  location    :string(255)
+#  time        :timestamp
+#  description :text
+#  created_at  :timestamp
+#  updated_at  :timestamp
+#
+
 class Mview < ActiveRecord::Base
   attr_accessible :name, :location, :time, :description
 

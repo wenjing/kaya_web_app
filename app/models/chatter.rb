@@ -1,3 +1,22 @@
+# == Schema Information
+# Schema version: 20110125155037
+#
+# Table name: chatters
+#
+#  id                 :integer         primary key
+#  user_id            :integer
+#  content            :text
+#  photo_content_type :string(255)
+#  photo_file_name    :string(255)
+#  photo_file_size    :integer
+#  photo_updated_at   :timestamp
+#  created_at         :timestamp
+#  updated_at         :timestamp
+#  meet_id            :integer
+#  topic_id           :integer
+#  cached_info        :text
+#
+
 class Chatter < ActiveRecord::Base
   attr_accessor :loaded_top_comments, :loaded_comments, :new_comments, :is_new_chatter
   attr_accessible :content, :photo 
@@ -19,8 +38,8 @@ class Chatter < ActiveRecord::Base
   has_attached_file :photo,
     :styles => {
       :original  => "1000x1000>",
-      :small  => "80x120>",
-      :normal => "160x200>"
+      :small  => "54x54",
+      :normal => "245x245"
     },
     :convert_options => {:all => "-auto-orient"},
     :path => "images/:id/:style.:extension",

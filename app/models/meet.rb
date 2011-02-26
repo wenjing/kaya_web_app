@@ -1,12 +1,12 @@
 # == Schema Information
-# Schema version: 20101111214254
+# Schema version: 20110125155037
 #
 # Table name: meets
 #
-#  id             :integer         not null, primary key
+#  id             :integer         primary key
 #  name           :string(255)
 #  description    :text
-#  time           :datetime
+#  time           :timestamp
 #  location       :string(255)
 #  street_address :string(255)
 #  city           :string(255)
@@ -14,17 +14,25 @@
 #  zip            :string(255)
 #  country        :string(255)
 #  image_url      :string(255)
-#  created_at     :datetime
-#  updated_at     :datetime
-#  lng            :decimal(15, 10)
-#  lat            :decimal(15, 10)
+#  created_at     :timestamp
+#  updated_at     :timestamp
+#  lng            :decimal(, )
+#  lat            :decimal(, )
 #  lerror         :float
+#  collision      :boolean
+#  host_id        :string(255)
+#  lock_version   :integer         default(0), not null
+#  hoster_id      :integer
+#  cached_info    :text
+#  meet_type      :integer
 #
 
 require 'geokit'
 require 'kaya_base'
 
 class Meet < ActiveRecord::Base
+  after_create :record_avg_meet_lag
+
   attr_accessor :meet_mview, :hoster_mview
   attr_accessor :loaded_top_users, :loaded_top_chatters
   attr_accessor :meet_invitations
@@ -339,7 +347,7 @@ class Meet < ActiveRecord::Base
     url += "&maptype=roadmap&markers=color:green|size:#{marker}|#{lat},#{lng}&sensor=false"
   end
   def static_map_url_small
-    return static_map_url(60, 60, 14, "small")
+    return static_map_url(54, 54, 14, "small")
   end
   def image_url_or_default
     return image_url || "M-small.png"
@@ -452,6 +460,19 @@ class Meet < ActiveRecord::Base
 
   def collision?
     return !collision.nil? && collision != 0 && collision != false
+  end
+
+  # Meet creation lag from the time when the first mpost was received
+  def record_avg_meet_lag
+    stats = Stats.first || Stats.new
+    stats.update_avg_meet_lag(self)
+    stats.save
+  end
+  def meet_lag
+    first_mpost = mposts.last
+    return 0.0 unless (created_at && first_mpost)
+    lag = created_at - first_mpost.created_at
+    return lag.at_least(0.0)
   end
 
 private

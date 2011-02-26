@@ -1,3 +1,17 @@
+# == Schema Information
+# Schema version: 20110125155037
+#
+# Table name: invitations
+#
+#  id         :integer         primary key
+#  meet_id    :integer
+#  user_id    :integer
+#  invitee    :text
+#  created_at :timestamp
+#  updated_at :timestamp
+#  message    :text
+#
+
 class Invitation < ActiveRecord::Base
   attr_accessible :invitee, :message
 

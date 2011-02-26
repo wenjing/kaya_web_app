@@ -1,6 +1,6 @@
 KayaWebApp::Application.routes.draw do
 
-  resources :users, :only => [:new, :edit, :show, :create, :update, :index] do
+  resources :users, :only => [:new, :edit, :show, :create, :update, :index, :destroy] do
     resources :mposts, :only => [:create]
     resources :invitations, :only => [:create, :new]
     member do
@@ -36,9 +36,10 @@ KayaWebApp::Application.routes.draw do
   match '/password_reset',  :to => 'sessions#new_reset'
   match '/signout', :to => 'sessions#destroy'
 
+  get '/debug/mposts', :to => 'debug#mposts'
+  get '/debug/stats',  :to => 'debug#stats'
   if Rails.env.development?
-    post  '/debug/run',    :to => "debug#run"
-    get   '/debug/mposts', :to => "debug#mposts"
+    post '/debug/run', :to => 'debug#run'
   end
 
   # The priority is based upon order of creation:

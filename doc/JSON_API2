@@ -64,6 +64,7 @@
    <encounter summary>
     zip, city, state, country, location, time, meet_name, meet_address
     users_count, topics_count, photo_count
+    static_map_url_small : <google static map url>
     peers_name_brief  : <brief friends name list>
     marked_top_users  : <top 10 users detail>
 
@@ -132,6 +133,7 @@
    <encounter summary>
     zip, city, state, country, location, time, meet_name, meet_address
     is_first_meet   : <true if cirkle's first meet>
+    static_map_url_small : <google static map url>
     marked_users    : <all users detail>
     marked_chatters : <all comments detail>
 

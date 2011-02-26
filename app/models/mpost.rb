@@ -1,20 +1,25 @@
 # == Schema Information
-# Schema version: 20101116062125
+# Schema version: 20110125155037
 #
 # Table name: mposts
 #
-#  id         :integer         not null, primary key
-#  user_id    :integer
-#  meet_id    :integer
-#  time       :datetime
-#  created_at :datetime
-#  updated_at :datetime
-#  lerror     :float
-#  user_dev   :string(255)
-#  devs       :text
-#  lng        :decimal(15, 10)
-#  lat        :decimal(15, 10)
-#  note       :string(255)
+#  id            :integer         primary key
+#  user_id       :integer
+#  meet_id       :integer
+#  time          :timestamp
+#  created_at    :timestamp
+#  updated_at    :timestamp
+#  lerror        :float
+#  user_dev      :string(255)
+#  devs          :text
+#  lng           :decimal(, )
+#  lat           :decimal(, )
+#  note          :string(255)
+#  host_mode     :integer
+#  collision     :boolean
+#  host_id       :string(255)
+#  status        :integer         default(0)
+#  invitation_id :integer
 #
 
 # Status, access through user<=>meet relation. Do not use directly.
