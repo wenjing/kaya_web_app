@@ -26,6 +26,9 @@
 # 0 or nil: ordinary mpost (meet, user)
 # 1       : deleted mpost
 # 2       : invitation pending mpost
+
+require 'meet_processer'
+
 class Mpost < ActiveRecord::Base
   attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note, :host_mode, :host_id, :collision
 
@@ -200,6 +203,12 @@ class Mpost < ActiveRecord::Base
         return 0
       end
     end
+  end
+
+  def perform
+    # this is what the worker will call
+    logger.debug "calling perform mpost"
+    MeetWrapper.new.process_mpost(id, created_at.getutc)
   end
 
 end
