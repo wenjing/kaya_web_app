@@ -1,6 +1,6 @@
-require 'benchmark'
 class CreateRandomCirklesFromMeets < ActiveRecord::Migration
   def self.up
+    return
     cirkle_size = 10
     cirkle_count = (Meet.count.to_f/cirkle_size).ceil
     group_size = 50
