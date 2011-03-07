@@ -112,4 +112,122 @@ module ApplicationHelper
     }.html_safe
   end
   
+  def find_user(user_id)
+    return nil if user_id.blank?
+    user_id = user_id.to_i
+    @user_cache ||= {}
+    user = @user_cache[user_id]
+    if !user
+      user = User.find_by_id(user_id)
+      @user_cache[user.id] = user if user
+    end
+    return user
+  end
+  def find_users(user_ids)
+    return [] if user_ids.blank?
+    user_ids = user_ids.collect {|v| v.to_i}
+    @user_cache ||= {}
+    missing_user_ids = user_ids.select {|v| !@user_cache.include?(v)}
+    if !missing_user_ids.empty?
+      missing_users = User.find(missing_user_ids).compact
+      missing_users.each {|user| @user_cache[user.id] = user}
+    end
+    return user_ids.collect {|id| @user_cache[id]}
+  end
+
+  def find_mpost(mpost_id)
+    return nil if mpost_id.blank?
+    mpost_id = mpost_id.to_i
+    @mpost_cache ||= {}
+    mpost = @mpost_cache[mpost_id]
+    if !mpost
+      mpost = Mpost.find_by_id(mpost_id)
+      @mpost_cache[mpost.id] = mpost if mpost
+    end
+    return mpost
+  end
+  def find_mposts(mpost_ids)
+    return [] if mpost_ids.blank?
+    mpost_ids = mpost_ids.collect {|v| v.to_i}
+    @mpost_cache ||= {}
+    missing_mpost_ids = mpost_ids.select {|v| !@mpost_cache.include?(v)}
+    if !missing_mpost_ids.empty?
+      missing_mposts = Mpost.find(missing_mpost_ids).compact
+      missing_mposts.each {|mpost| @mpost_cache[mpost.id] = mpost}
+    end
+    return mpost_ids.collect {|id| @mpost_cache[id]}
+  end
+
+  def find_meet(meet_id)
+    return nil if meet_id.blank?
+    meet_id = meet_id.to_i
+    @meet_cache ||= {}
+    meet = @meet_cache[meet_id]
+    if !meet
+      meet = Meet.find_by_id(meet_id)
+      @meet_cache[meet.id] = meet if meet
+    end
+    return meet
+  end
+  def find_meets(meet_ids)
+    return [] if meet_ids.blank?
+    meet_ids = meet_ids.collect {|v| v.to_i}
+    @meet_cache ||= {}
+    missing_meet_ids = meet_ids.select {|v| !@meet_cache.include?(v)}
+    if !missing_meet_ids.empty?
+      missing_meets = Meet.find(missing_meet_ids).compact
+      missing_meets.each {|meet| @meet_cache[meet.id] = meet}
+    end
+    return meet_ids.collect {|id| @meet_cache[id]}
+  end
+
+  def find_chatter(chatter_id)
+    return nil if chatter_id.blank?
+    chatter_id = chatter_id.to_i
+    @mpost_cache ||= {}
+    @chatter_cache ||= {}
+    chatter = @chatter_cache[chatter_id]
+    if !chatter
+      chatter = Chatter.find_by_id(chatter_id)
+      @chatter_cache[chatter.id] = chatter if chatter
+    end
+    return chatter
+  end
+  def find_chatters(chatter_ids)
+    return [] if chatter_ids.blank?
+    @chatter_cache ||= {}
+    chatter_ids = chatter_ids.collect {|v| v.to_i}
+    missing_chatter_ids = chatter_ids.select {|v| !@chatter_cache.include?(v)}
+    if !missing_chatter_ids.empty?
+      missing_chatters = Chatter.find(missing_chatter_ids).compact
+      missing_chatters.each {|chatter| @chatter_cache[chatter.id] = chatter}
+    end
+    return chatter_ids.collect {|id| @chatter_cache[id]}
+  end
+
+  def cache_users(users)
+    @user_cache ||= {}
+    users.each {|user|
+      @user_cache[user.id] ||= user
+    }
+  end
+  def cache_mposts(mposts)
+    @mpost_cache ||= {}
+    mposts.each {|mpost|
+      @mpost_cache[mpost.id] ||= mpost
+    }
+  end
+  def cache_meets(meets)
+    @meet_cache ||= {}
+    meets.each {|meet|
+      @meet_cache[meet.id] ||= meet
+    }
+  end
+  def cache_chatters(chatters)
+    @chatter_cache ||= {}
+    chatters.each {|chatter|
+      @chatter_cache[chatter.id] ||= chatter
+    }
+  end
+
 end

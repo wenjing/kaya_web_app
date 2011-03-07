@@ -18,7 +18,7 @@
 #
 
 class Chatter < ActiveRecord::Base
-  attr_accessor :loaded_top_comments, :loaded_comments, :new_comments, :is_new_chatter
+  attr_accessor :loaded_top_comments, :loaded_comments, :new_comment_ids, :is_new_chatter
   attr_accessible :content, :photo 
 
   belongs_to :meet, :inverse_of => :chatters
@@ -59,14 +59,14 @@ class Chatter < ActiveRecord::Base
 
   # Query chatters of meets where user has membership
   scope :related_chatter_ids, lambda {|user|
-    includes(:meet=>:mposts).select("DISTINCT(chatters.id)", "chatters.update_at")
+    includes(:meet=>:mposts).select("chatters.id", "chatters.update_at")
                             .where("mposts.user_id = ?", user.id)
   }
   scope :all_chatters_of, lambda {|chatter_ids|
     where("chatters.id IN (?)", chatter_ids)
   }
   scope :related_topic_ids, lambda {|user|
-    includes(:meet=>:mposts).select("DISTINCT(chatters.id)", "chatters.update_at")
+    includes(:meet=>:mposts).select("chatters.id", "chatters.update_at")
                             .where("mposts.user_id = ? AND chatters.topic_id IS NULL", user.id)
   }
   scope :all_topics_of, lambda {|topic_ids|
@@ -104,25 +104,25 @@ class Chatter < ActiveRecord::Base
     return photo_content_type.present?
   end
   def chatter_photo_orig
-    return photo? ? photo.url : ""
+    return photo? ? photo.url : nil
   end
   def chatter_photo
-    return photo? ? photo.url(:normal) : ""
+    return photo? ? photo.url(:normal) : nil
 #   return chatter_photo_orig
   end
   def chatter_photo_small
-    return photo? ? photo.url(:small) : ""
+    return photo? ? photo.url(:small) : nil
 #   return chatter_photo_orig
   end
 
   def marked_chatters
     return [] if @loaded_comments.blank?
     res = []
-    @new_comments.each {|comment| comment.is_new_chatter = true } if @new_comments.present?
     @loaded_comments.each {|comment|
-      res << {:chatter => comment.as_json(ChattersController::JSON_CHATTER_COMMENT_API)}
+      comment.is_new_chatter = @new_comment_ids.include?(comment.id)
+      res << {:chatter => comment.as_json(ChattersController::JSON_CHATTER_MARKED_COMMENT_API)}
+      comment.is_new_chatter = nil
     }
-    @new_comments.each {|comment| comment.is_new_chatter = false } if @new_comments.present?
     return res
   end
 end

@@ -11,6 +11,7 @@ class MpostsController < ApplicationController
   end
   before_filter :only => [:create] do |controller|
     controller.correct_user(params[:user_id]) if params[:user_id]
+    controller.authorized_cirkle(params[:cirkle_id], false) if params[:cirkle_id]
   end
   before_filter :authorized_mpost_owner, :only => [:show]
 

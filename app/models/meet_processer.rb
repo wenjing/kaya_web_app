@@ -418,13 +418,15 @@ private
   def delete_joined_mposts_from_meet(mposts, meet)
     host_ids = Set.new
     mposts.each { |mpost| host_ids << mpost.host_id if mpost.host_id.present? }
+    deleted_mposts = []
     meet.mposts.each {|mpost|
       if host_ids.include?(mpost.host_id)
         mpost.delete; mpost.save
+        deleted_mposts << mpost
       end
     }
     meet.opt_lock_protected {
-      meet.extract_information
+      meet.extract_information([], deleted_mposts)
       Rails.kaya_dblock {meet.save}
     }
   end
@@ -434,7 +436,7 @@ private
       Rails.kaya_dblock {meet.mposts << mpost} 
     }
     meet.opt_lock_protected {
-      meet.extract_information
+      meet.extract_information(mposts, [])
       Rails.kaya_dblock {meet.save}
     }
   end
@@ -442,7 +444,7 @@ private
   def assign_mpost_to_meet(mpost, meet)
     Rails.kaya_dblock {meet.mposts << mpost}
     meet.opt_lock_protected {
-      meet.extract_information
+      meet.extract_information([mpost], [])
       Rails.kaya_dblock {meet.save}
     }
   end
@@ -1034,9 +1036,9 @@ class MeetPool
 
   # Return hash of meet=>processed_cluster
   def meets
-    meets = Hash.new
-    processed_clusters.each {|cluster| meets[cluster.meet] = cluster}
-    return meets
+    meets0 = Hash.new
+    processed_clusters.each {|cluster| meets0[cluster.meet] = cluster}
+    return meets0
   end
 
   def create_raw_cluster(options)

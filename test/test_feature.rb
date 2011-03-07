@@ -101,6 +101,8 @@ class FeaturesTest < TestBase
           result = result["meet"]
           meet = TestMeet.new
           meet.id = result["id"].to_i
+          meet.cirkle_id = result["cirkle_id"].to_i
+          meet.meet_type = result["meet_type"].to_i
           meet.name = result["name"]
           meet.time = Time.parse(result["time"])
           meet.users = []
@@ -122,7 +124,7 @@ class FeaturesTest < TestBase
     @@users.each {|user|
       user.meets.each {|meet|
         total_cnt += 1
-        result_meet = user.result_meets.find {|v| v.name == meet.name}
+        result_meet = user.result_meets.find {|v| v.name == meet.name && v.meet_type == 6}
         if !result_meet
           neg_cnt += 1
         elsif !meet.match?(result_meet)

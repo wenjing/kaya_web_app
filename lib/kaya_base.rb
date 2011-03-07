@@ -4,6 +4,14 @@ require 'active_support/inflector'
 
 module KayaBase
 
+  # Force garbage collection
+  def force_gc
+    #puts ObjectSpace.count_objects
+    10.times {ObjectSpace.garbage_collect}
+    #puts ObjectSpace.count_objects
+    #sleep wait_time if wait_time > 0
+  end
+
   # select the first none nil member from the parameters, otherwise return nil
   def select_if_not_nil(*values)
     values.each {|value| return value if value}

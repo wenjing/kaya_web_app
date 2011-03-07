@@ -12,7 +12,7 @@
       </li>
       <li id="user_statistics">
         M# <%= link_to_user_meets_text current_user, "#{recent_meet_ids.count}" %>
-        F# <%= link_to_user_friends_text current_user, "#{current_user.all_friends(recent_meet_ids).count}" %>
+        F# <%= link_to_user_friends_text current_user, "#{current_user.all_friend_ids(recent_meet_ids).count}" %>
       </li>
       <li id="user_profile_action">
         <%= link_to "Edit Profile", edit_user_path(current_user) %>

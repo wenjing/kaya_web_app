@@ -85,8 +85,9 @@ class UsersController < ApplicationController
     @user = find_user(params[:id])
     assert_unauthorized(@user)
     @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
+    meet_types = [@meet_type, @meet_type+3] if @meet_type
     with_user = admin_user? ? @user : current_user
-    @meets = @user.meets_with(with_user, @meet_type)
+    @meets = @user.meets_with(with_user, meet_types)
     respond_to do |format|
       format.html {
         @pending_meet_count = @user.true_pending_meets.count
@@ -156,20 +157,37 @@ class UsersController < ApplicationController
   end
 
   # Cirkle list view
-  # ZZZ, hong.zhao, Faking Cirkle from Meet
   def cirkles
     self.class.benchmark("Create friends/cirkle list") do
     summary_limit = 4
     #@user = User.includes(:meets).find_by_id(params[:id])
     assert_internal_error(@user)
     cursor = params[:cursor] || params
-    after_time = cursor[:after_time]
-    meets0 = @user.meets
-    meets0 = meets.where("updated_at >= ?", after_time) if after_time
+    after_time = cursor[:after_time] ? Time.zone.parse(cursor[:after_time]) : nil
+    #before_time = cursor[:before_time] ? Time.zone.parse(cursor[:before_time]) : nil
+    #limit = cursor[:limit] ? cursor[:limit].to_i : nil
 
     contents = []
+    meets0 = @user.meets # these include both encounters and cirkles
+    meets0 = meets0.where("meets.updated_at >= ?", after_time) if after_time
+
+    self.class.benchmark("Create") do
     if !meets0.empty?
-      # First get friends list, use it to create all private relations
+      # Also load all cirkles these meets refering to, so we don't have to load
+      # them one-by-one when needed.
+      loaded_meet_ids = meets0.collect {|v| v.id}.to_set
+      cirkle_ids = meets0.collect {|v| v.cirkle_id}.uniq.compact
+      missing_cirkle_ids = cirkle_ids.select {|v| !loaded_meet_ids.include?(v)}
+      if missing_cirkle_ids.present?
+        meets0.concat(Meet.where('id IN (?)', missing_cirkle_ids))
+      end
+      #encounters0 = meets0.select {|v| v.is_encounter?}
+      #cirkles0 = meets0.select {|v| v.is_cirkle?}
+
+      # First get friends list, use it to create all private relations.
+      # Do not use private cirkles because they are created on demand no
+      # direct chatter established between them. Get friends list from all
+      # meet (cirkles and encounters).
       friends_meets = @user.friends_meets(meets0, nil, nil, nil, self)
 
       # Get all cirkles (actually meets) and extract solo meets and group meets.
@@ -177,10 +195,8 @@ class UsersController < ApplicationController
       # Instead, query all meets at once and separate them later. Do not show private meets
       # cause they are included in private relations already (friends_meets).
       # Also get all pending meets.
-      loaded_meets = meets0.clone
-      solo_meets = meets0.select {|v| v.meet_type == 1}
-      group_meets = meets0.select {|v| v.meet_type == 3}
-      #pending_meets0 = @user.true_pending_meets
+      solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
+      group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
       # top_photo_ids shall already sorted by created_at, so only get the top count list
       photo_ids = []
       meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
@@ -197,55 +213,59 @@ class UsersController < ApplicationController
       end
 
       # Private
-      # If after_updated_at is specified, friends_meets here do not include all meets
-      private_contents = []
-      friends = friends_meets.collect {|v| v[0]}
-      friends_stats = get_friends_stats(friends, loaded_meets)
-      friends_meets.each_pair {|friend, with_meets|
-        next if with_meets.empty?
-        friend_stats = friends_stats[friend]
-        content = ContentAPI.new(:private)
-        content.timestamp = with_meets.collect {|v| v.updated_at}.max
-        content.id = friend.id
-        content.body = {}
-        content.body[:user] = friend
-        content.body[:encounter_count] = friend_stats[:encounter_count]
-        content.body[:last_encounter_time] = friend_stats[:last_encounter_time]
-        content.body[:relation_score] = friend_stats[:relation_score]
-        content.body[:activities_summary] = get_activities_summary(summary_limit, with_meets, photos)
-        private_contents << content
-      }
-      private_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
-      contents.concat(private_contents)
+      # If after_updated_at is specified, friends_meets here do not include all meets.
+      if !friends_meets.empty?
+        private_contents = []
+        friends = friends_meets.collect {|v| v[0]}
+        friends_stats = get_friends_stats(friends, meets0)
+        friends_meets.each_pair {|friend, with_meets|
+          next if with_meets.empty?
+          friend_stats = friends_stats[friend]
+          content = ContentAPI.new(:private)
+          content.timestamp = with_meets.collect {|v| v.updated_at}.max
+          content.id = friend.id
+          content.body = {}
+          content.body[:user] = friend
+          content.body[:encounter_count] = friend_stats[:encounter_count]
+          content.body[:last_encounter_time] = friend_stats[:last_encounter_time]
+          content.body[:relation_score] = friend_stats[:relation_score]
+          content.body[:activities_summary] = get_activities_summary(summary_limit, with_meets, photos)
+          private_contents << content
+        }
+        private_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+        contents.concat(private_contents)
+      end
 
       # Cirkle (Group)
-      # Fake 10 cirkles by grouping all group meets by last digit of their ids
-      cirkle_contents = []
-      cirkles_meets = get_cirkles_meets(group_meets)
-      cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, loaded_meets)
-      cirkles_meets.each_pair {|cirkle, cirkle_meets|
-        next if cirkle_meets.empty?
-        cirkle_stats = cirkles_stats[cirkle]
-        content = ContentAPI.new(:cirkle)
-        content.timestamp = cirkle_meets.collect {|v| v.updated_at}.max
-        content.id = cirkle
-        content.body = {}
-        content.body[:cirkle] = cirkle_stats[:first_encounter]
-        content.body[:encounter_count] = cirkle_stats[:encounter_count]
-        content.body[:last_encounter_time] = cirkle_stats[:last_encounter_time]
-        content.body[:relation_score] = cirkle_stats[:relation_score]
-        content.body[:activities_summary] = get_activities_summary(summary_limit, cirkle_meets, photos)
-        cirkle_contents << content
-      }
-      cirkle_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
-      contents.concat(cirkle_contents)
+      if !group_meets.empty?
+        cirkle_contents = []
+        cirkles_meets = get_cirkles_meets(group_meets)
+        cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, meets0)
+        cirkles_meets.each_pair {|cirkle, cirkle_meets|
+          next if cirkle_meets.empty?
+          cirkle_stats = cirkles_stats[cirkle]
+          content = ContentAPI.new(:cirkle)
+          content.timestamp = cirkle_meets.collect {|v| v.updated_at}.max
+          content.id = cirkle.id
+          content.body = {}
+          content.body[:cirkle] = cirkle if cirkle
+          content.body[:encounter_count] = cirkle_stats[:encounter_count]
+          content.body[:last_encounter_time] = cirkle_stats[:last_encounter_time]
+          content.body[:relation_score] = cirkle_stats[:relation_score]
+          content.body[:activities_summary] = get_activities_summary(summary_limit, cirkle_meets, photos)
+          cirkle_contents << content
+        }
+        cirkle_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+        contents.concat(cirkle_contents)
+      end
     end
 
     attach_meet_infos_to_contents(contents)
+    end
     self.class.benchmark("View") do
       respond_to do |format|
         format.html { }
-        format.json { render :json => contents.to_json }
+        format.json { render :json => contents }
       end
     end
     end
@@ -253,6 +273,7 @@ class UsersController < ApplicationController
 
   def news
     self.class.benchmark("Create news") do
+
     #@user = User.includes(:meets).find_by_id(params[:id])
     assert_internal_error(@user)
     if params[:user_id].present?
@@ -260,21 +281,13 @@ class UsersController < ApplicationController
       assert_unauthorized(@with_user)
     end
     if params[:cirkle_id].present?
-      @cirkle = find_cirkle(params[:cirkle_id])
+      @cirkle = find_meet(params[:cirkle_id])
       #assert_unauthorized(@cirkle && @cirkle.is_cirkle?)
     end
     cursor = params[:cursor] || params
-    after_time = cursor[:after_time]
-    before_time = cursor[:before_time]
-    limit = cursor[:limit]
-
-    mposts0 = @user.mposts
-    mposts0 = mposts0.where("updated_at >= ?", after_time) if after_time
-    mposts0 = mposts0.where("updated_at <= ?", before_time) if before_time
-
-    meets0 = @user.meets
-    meets0 = meets.where("updated_at >= ?", after_time) if after_time
-    meets0 = meets.where("updated_at <= ?", before_time) if before_time
+    after_time = cursor[:after_time] ? Time.zone.parse(cursor[:after_time]) : nil
+    before_time = cursor[:before_time] ? Time.zone.parse(cursor[:before_time]) : nil
+    limit = cursor[:limit] ? cursor[:limit].to_i : nil
 
     # Content item types:
     #   New collision (always on top)
@@ -286,6 +299,27 @@ class UsersController < ApplicationController
     #   New Invitation and Invitation confirmation (3rd person)
     top_contents = []
     contents = []
+
+    mposts0 = @user.mposts.where('')
+    mposts0 = mposts0.where("updated_at >= ?", after_time) if after_time
+    mposts0 = mposts0.where("updated_at <= ?", before_time) if before_time
+    meets0 = @user.meets.where('')
+    meets0 = meets0.where("meets.updated_at >= ?", after_time) if after_time
+    meets0 = meets0.where("meets.updated_at <= ?", before_time) if before_time
+    meets0 = meets0.where("meets.cirkle_id = ? OR meets.id = ?", @cirkle.id, @cirkle.id) if @cirkle
+
+    self.class.benchmark("Create") do
+    if !meets0.empty?
+      # Also load all cirkles these meets refering to, so we don't have to load
+      # them one-by-one when needed.
+      loaded_meet_ids = meets0.collect {|v| v.id}.to_set
+      cirkle_ids = meets0.collect {|v| v.cirkle_id}.uniq.compact
+      missing_cirkle_ids = cirkle_ids.select {|v| !loaded_meet_ids.include?(v)}
+      if missing_cirkle_ids.present?
+        meets0.concat(Meet.where('id IN (?)', missing_cirkle_ids))
+      end
+      mposts0 = mposts0.where("meet_id IN (?)", meets0.collect {|v| v.id})
+    end
 
     # Collisions, only for non-flashback mode
     deleted_mposts0 = mposts0.select {|mpost| mpost.status == 1}
@@ -304,7 +338,6 @@ class UsersController < ApplicationController
     # If any mpost with invitation_id changed, it hints potential invitation activities.
     # Need to send updated pending_meets list to client.
     invited_mposts0 = mposts0.select {|mpost| mpost.invitation_id.present?}
-    invited_mposts0 = invited_mposts0.select {|mpost| (mpost.meet_id % 10) == @cirkle} if @cirkle
     # Not for user-flashback mode. Apparently, no invitation for solo and private relations.
     if (!@with_user && invited_mposts0.first.present?)
       pending_meets0 = get_pending_meets(@user, @cirkle)
@@ -330,51 +363,70 @@ class UsersController < ApplicationController
       }
     end
 
-    meets0 = meets0.where("meets.id % 10 = ?", @cirkle) if @cirkle
     if @with_user
       if (@with_user.id == @user.id) # only solo meets
-        meets0 = meets0.select {|meet| meet.meet_type == 1}
+        meets0 = meets0.select {|meet| meet.meet_type == 1 || meet.meet_type == 4}
       else # all meets with the user
         with_meet_ids = @with_user.meet_ids.to_set
-        meets0 = meets0.select {|meet| with_meet_ids.include?(meet.id)}
+        meets0 = meets0.select {|meet|
+          # Get common encounters and common private cirkles
+          with_meet_ids.include?(meet.id) && (meet.is_encounter? || meet.meet_type == 5)
+        }
       end
     end
-    if !meets0.empty?
-      group_meets = meets0.select {|meet| meet.meet_type == 3}
-      cirkles_meets = get_cirkles_meets(group_meets)
-      cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, meets0)
-      attach_meet_details(@user, meets0, before_time, after_time)
 
-      # New Cirkle & New Encounter
-      meets0.each {|meet|
+    if !meets0.empty?
+      encounters0 = meets0.select {|v| v.is_encounter?}
+      cirkles0 = meets0.select {|v| v.is_cirkle?}
+
+      cirkles_stats = get_cirkles_stats(cirkles0, meets0)
+      attach_meet_details(@user, meets0, cirkles0, encounters0,
+                          before_time, after_time)
+      # New Encounter
+      cirkles0 = cirkles0.index_by(&:id)
+      encounters0.each {|meet|
+        # only new encounters or encounters with new chaters
+        next unless (meet.is_new_encounter || !meet.new_topic_ids.empty?)
         content = ContentAPI.new(:encounter)
-        content.timestamp = meet.updated_at
+        latest_activity_time = meet.loaded_topics.collect {|v| v.updated_at}.max
+        latest_activity_time ||= meet.created_at
+        content.timestamp = latest_activity_time
         content.id = meet.id
         content.body = {}
         content.body[:encounter] = meet
-        cirkle = meet.meet_type == 3 ? get_cirkle_from_meet(meet) : nil
-        if cirkle
-          cirkle_meet = cirkles_stats[cirkle][:first_encounter]
-          meet.is_first_encounter = meet.id == cirkle_meet.id &&
-                                is_between_time?(meet.created_at, after_time, before_time)
-          content.body[:cirkle] = cirkle_meet
+        cirkle = cirkles0[meet.cirkle_id]
+        if (cirkle && cirkle.meet_type == 6)
+          # Only handle group cycle (solo and private cirkles are implicit
+          # which only handle their chatters)
+          content.body[:cirkle] = cirkle
         end
         contents << content
       }
 
-      # New Topic/comments
-      # Fake cirkle by using the first_encounter
-      cirkles_stats.each_pair {|cirkle, stats|
-        cirkle_meet = stats[:first_encounter]
-        cirkle_meet.new_topics.each {|topic|
+      # New Topic/comments in cirkles, encounter topics are shown in
+      # encounter's detail
+      cirkles0.each_pair {|cirkle_id, cirkle|
+        cirkle.loaded_topics.each {|topic|
+          next unless cirkle.new_topic_ids.include?(topic.id)
           content = ContentAPI.new(:topic)
           content.timestamp = topic.updated_at
           content.id = topic.id
           content.body = {}
           content.body[:topic] = topic
-          content.body[:cirkle] = cirkle
+          cirkle = cirkles0[cirkle_id]
+          # Solo/Private cirkles not implicit cikles. Do not report back to client.
+          # Instead, user user info.
+          if cirkle.meet_type == 4 # solo cirkle
+            content.body[:user] = @user
+          elsif cirkle.meet_type == 5 # private cirkle
+            friend = cirkle.loaded_users.select {|v| v.id != @user.id}.first
+            friend ||= @user # unlikely, however force to solo mode
+            content.body[:user] = friend
+          else
+            content.body[:cirkle] = cirkle
+          end
           contents << content
-        } if cirkle_meet.new_topics.present?
+        }
       }
     end
 
@@ -383,10 +435,11 @@ class UsersController < ApplicationController
     contents = contents.first(limit.to_i) if limit.present?
     contents = top_contents.concat(contents)
     attach_meet_infos_to_contents(contents)
+    end
     self.class.benchmark("View") do
       respond_to do |format|
         format.html { }
-        format.json { render :json => contents.to_json }
+        format.json { render :json => contents }
       end
     end
     end
@@ -413,11 +466,13 @@ class UsersController < ApplicationController
     @user = find_user(params[:id])
     assert_unauthorized(false, :except=>:html)
     @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
+    meet_types = [@meet_type, @meet_type+3] if @meet_type
     with_user = admin_user? ? @user : current_user
-    @meets = @user.top_meets_with(with_user, upto, @meet_type)
+    # Also get corresponding cirkles
+    @meets = @user.top_meets_with(with_user, upto, meet_types)
     respond_to do |format|
       format.html {
-        @total_count = @user.meets_with(with_user, @meet_type).count
+        @total_count = @user.meets_with(with_user, meet_types).count
         attach_meet_infos(current_user, @meets)
         center_meet = @meets[0]
         @center_ll = center_meet.lat_lng if center_meet
@@ -547,7 +602,7 @@ class UsersController < ApplicationController
     @@score_categories = [100, 50, 25, 0]
     @@score_interval_in_months = 3
     @@score_ratios_by_interval = [100, 50, 25, 10, 5, 2, 1, 0]
-    @@activity_weights = {:encounter=>1.0, :chatter=>0.2}
+    @@activity_weights = {:encounter=>1.0, :chatter=>0.2} # chatter currently not used
     def self.get_score_val(type, months_ago)
       interval_index = (months_ago/@@score_interval_in_months).floor
       interval_index = interval_index.at_most(@@score_ratios_by_interval.size-1)
@@ -572,31 +627,33 @@ class UsersController < ApplicationController
       score = UsersController.get_score_from_val(score_val)
       return [current_time, score]
     end
-    def get_stats_for_friend(friend, meets0)
-      encounter_count = meets0.size
-      last_time = meets0.present? ? meets0.first.time : nil
-      activities = meets0.collect {|v| [:encounter, v.time]}
+    def get_stats_for_friend(friend, cirkles0, encounters0)
+      encounter_count = encounters0.size
+      last_time = encounters0.present? ? encounters0.first.time : nil
+      activities = encounters0.collect {|v| [:encounter, v.time]}
+      # The cirkles0 hold all direct chatters, but right now they are not used to 
+      # calculate relation score.
       score = get_relation_score(activities)
       return {:encounter_count=>encounter_count, :last_encounter_time=>last_time,
               :relation_score=>score}
     end
     def get_friends_stats(friends, loaded_meets)
       return {} if friends.blank?
-      friends_meets = @user.friends_meets(nil, loaded_meets, [:id,:time,:lat,:lng], friends, self)
+      friends_meets = @user.friends_meets(nil, loaded_meets, [:id,:time,:meet_type,:lat,:lng], friends, self)
       friends_stats = {}
-      friends_meets.each {|v|
-        friend = v[0]
-        meets0 = v[1]
-        friends_stats[friend] = get_stats_for_friend(friend, meets0)
+      friends_meets.each_pair {|friend, meets0|
+        encounters0 = meets0.select {|v| v.is_encounter?}
+        cirkles0 = meets0.select {|v| v.is_cirkle? && v.meet_type == 5 }
+        friends_stats[friend] = get_stats_for_friend(friend, cirkles0, encounters0)
       }
       return friends_stats
     end
 
-    def get_stats_for_cirkle(cirkle, meets0)
-      encounter_count = meets0.size
-      last_time = meets0.present? ? meets0.first.time : nil
-      first_encounter = meets0.present? ? meets0.last : nil
-      activities = meets0.collect {|v| [:encounter, v.time]}
+    def get_stats_for_cirkle(cirkle, encounters0)
+      encounter_count = encounters0.size
+      last_time = encounters0.present? ? encounters0.first.time : nil
+      first_encounter = encounters0.present? ? encounters0.last : nil
+      activities = encounters0.collect {|v| [:encounter, v.time]}
       score = get_relation_score(activities)
       return {:encounter_count=>encounter_count, :last_encounter_time=>last_time,
               :first_encounter=>first_encounter, :relation_score=>score}
@@ -604,37 +661,43 @@ class UsersController < ApplicationController
     def get_cirkles_stats(cirkles, loaded_meets)
       return {} if cirkles.blank?
       # Avoid duplicated meet load
-      cirkle_ids = cirkles.collect {|v| v}.to_set
+      cirkle_ids = cirkles.collect {|v| v.id}.to_set
+      cirkles_meet_ids = Meet.select([:id,:time])
+                             .where("cirkle_id IN (?)", cirkle_ids).select {|v| v.id}.uniq
+      loaded_meets = loaded_meets.select {|v| cirkle_ids.include?(v.cirkle_id)}
       loaded_meet_ids = loaded_meets.collect {|v| v.id}.to_set
-      missing_meet_ids = @user.meet_ids.select {|v| !loaded_meet_ids.include?(v) && cirkle_ids.include?(v%10)}
+      missing_meet_ids = cirkles_meet_ids.select {|v| !loaded_meet_ids.include?(v)}
       missing_meets = []
       if missing_meet_ids.present?
-        missing_meets = Meet.select([:id,:time,:lat,:lng]).where('id IN (?) AND meet_type = ?', missing_meet_ids, 3)
+        missing_meets = Meet.select([:id,:time,:meet_type,:cirkle_id,:lat,:lng])
+                            .where('id IN (?)', missing_meet_ids)
       end
-      cirkles_meets = {}
+      cirkles_encounters = {}
       missing_meets.concat(loaded_meets).each {|meet|
-        cirkle = get_cirkle_from_meet(meet)
-        (cirkles_meets[cirkle] ||= Array.new) << meet
+        next unless meet.is_encounter?
+        cirkle = cirkles.select {|v| v && v.id == meet.cirkle_id}.first
+        (cirkles_encounters[cirkle] ||= Array.new) << meet
       }
       cirkles_stats = {}
-      cirkles_meets.each {|v|
+      cirkles_encounters.each {|v|
         cirkle = v[0]
-        meets0 = v[1]
-        cirkles_stats[cirkle] = get_stats_for_cirkle(cirkle, meets0)
+        encounters0 = v[1]
+        cirkles_stats[cirkle] = get_stats_for_cirkle(cirkle, encounters0)
       }
       return cirkles_stats
     end
 
-    def get_activities_summary(summary_limit, meets, photos)
+    def get_activities_summary(summary_limit, meets0, photos)
       activities_summary = []
-      meets.first(summary_limit).each {|meet|
+      meets0.first(summary_limit).each {|meet|
+        next unless meet.is_encounter? # only handle true encounter events
         summary = ContentAPI.new(:encounter)
         summary.timestamp = meet.created_at
         summary.id = meet.id
         summary.body = {:encounter_summary=>meet}
         activities_summary << summary
       }
-      meets.each {|meet| photos.select {|v| v.meet_id = meet.id}.each {|photo|
+      meets0.each {|meet| photos.select {|v| v.meet_id = meet.id}.each {|photo|
         summary = ContentAPI.new(:photo)
         summary.timestamp = photo.created_at
         summary.id = photo.id
@@ -670,9 +733,7 @@ class UsersController < ApplicationController
 
     def attach_meet_top_chatters(meets)
       chatter_ids = Set.new
-      meets.each {|meet|
-        chatter_ids.merge(meet.top_topic_ids)
-      }
+      meets.each {|meet| chatter_ids.merge(meet.top_topic_ids)}
       chatters = find_chatters(chatter_ids.to_a).compact
       meets.each {|meet|
         meet.loaded_top_chatters =
@@ -725,67 +786,75 @@ class UsersController < ApplicationController
       return (after_time.blank? || time >= after_time) &&
              (before_time.blank? || time <= before_time)
     end
-    def find_cirkle(cirkle_id)
-      #return find_meet(cirkle_id)
-      # Fake one by using its id
-      return cirkle_id.to_i
-    end
     def get_pending_meets(user, cirkle=nil) 
       pending_meets0 = user.pending_meets.where("meets.meet_type = ?", 3)
-      pending_meets0 = pending_meets0.where("meets.id % 10 = ?", cirkle)
+      pending_meets0 = pending_meets0.where("meets.cirkle_id = ?", cirkle)
       return @user.true_pending_meets(pending_meets0)
-    end
-    # Fake cirkles by combining all meets with same last digit of their ids
-    def get_cirkle_from_meet(meet)
-      #return nil if meet.meet_type != 3
-      return meet.id % 10
     end
     def get_cirkles_meets(meets0)
       cirkles_meets = {}
       meets0.each {|meet|
-        cirkle = get_cirkle_from_meet(meet)
-        (cirkles_meets[cirkle] ||= Array.new) << meet
+        if meet.is_encounter?
+          cirkle = meets0.select {|v| v.id == meet.cirkle_id}.first
+        else # also include cirkle itself as part of meets
+          cirkle = meet
+        end
+       (cirkles_meets[cirkle] ||= Array.new) << meet
       }
       return cirkles_meets
     end
     # Load and attach meet users and chatters
-    def attach_meet_details(user, meets0, before_time, after_time)
+    def attach_meet_details(user, meets0, cirkles0, encounters0, before_time, after_time)
       meet_ids = meets0.collect {|v| v.id}.to_set
       mposts0 = Mpost.select([:user_id,:meet_id,:created_at])
                      .where("meet_id IN (?) AND status = ?", meet_ids, 0)
-      user_ids = mposts0.collect {|v| v.user_id}.uniq
-      users0 = find_users(user_ids).index_by(&:id)
-      new_user_ids = mposts0.select {|v| is_between_time?(v.created_at, after_time, before_time)}
-                            .collect {|v| v.user_id}.to_set
+      user_ids = mposts0.collect {|v| v.user_id}.uniq.compact
+
       meets0 = meets0.index_by(&:id)
-      meets_users = {}
+      users0 = find_users(user_ids).index_by(&:id)
+      meets_mposts = {}
       mposts0.each {|mpost|
-        user = users0[mpost.user_id]
         meet = meets0[mpost.meet_id]
-        (meets_users[meet] ||= Array.new) << user
+        (meets_mposts[meet] ||= Array.new) << mpost
       }
-      meets_users.each_pair {|meet, meet_users|
-        meet.loaded_users = meet_users
-        meet.new_users = meet_users.select {|v| new_user_ids.include?(v.id)}
+      meets_mposts.each_pair {|meet, meet_mposts|
+        meet.loaded_users = meet_mposts.collect {|v| users0[v.user_id]}.uniq.compact
+        meet.is_new_encounter = meet.is_encounter? &&
+                                is_between_time?(meet.created_at, after_time, before_time)
+        new_user_ids = Set.new
+        if meet.is_new_encounter # marked new users for new encounters/new cirkles
+          if meet.is_cirkle?
+            new_user_ids = meet_mposts.select {|v| is_between_time?(v.created_at, after_time, before_time)}
+                                      .collect {|v| v.user_id}.compact.to_set
+          elsif meet.cirkle_id
+            meet_mposts.each {|meet_mpost|
+              next unless meet_mpost.user_id
+              cirkle_mposts = mposts0.select {|v| v.meet_id == meet.cirkle_id && v.user_id == meet_mpost.user_id}
+              # The user is new if its correspondent cirkle mpost is created after her encounter's mpost
+              new_user_ids << meet_mpost.user_id if (cirkle_mposts.all? {|v| meet_mpost.created_at <= v.created_at})
+            }
+          end
+        end
+        meet.new_user_ids = new_user_ids
+        meet.loaded_topics = []
+        meet.new_topic_ids = Set.new
       }
       chatters0 = Chatter.where("meet_id IN (?)", meet_ids)
-      #chatters0 = chatters0.where("updated_at >= ?", after_time) if after_time
-      #chatters0 = chatters.where("updated_at <= ?", before_time) if before_time
+      cache_chatters(chatters0)
       chatters0 = chatters0.group_by(&:meet_id)
       chatters0.each_pair {|meet_id, meet_chatters|
         meet = meets0[meet_id]
-        meet.new_topics =
         meet_topics = meet_chatters.select {|v| v.topic?}.index_by(&:id)
         meet_chatters = meet_chatters.group_by(&:topic_id)
         meet_chatters.each_pair {|topic_id, topic_chatters|
           new_chatters = topic_chatters.select {|v| is_between_time?(v.updated_at, after_time, before_time)}
           if topic_id.nil?
             meet.loaded_topics = topic_chatters
-            meet.new_topics = new_chatters
+            meet.new_topic_ids = new_chatters.collect {|v| v.id}.to_set
           else
             topic = meet_topics[topic_id] 
             topic.loaded_comments = topic_chatters
-            topic.new_comments = new_chatters
+            topic.new_comment_ids = new_chatters.collect {|v| v.id}.to_set
           end
         }
       }

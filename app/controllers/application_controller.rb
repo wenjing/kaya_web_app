@@ -38,6 +38,16 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  # current_user must be already part of this cirkle
+  def authorized_cirkle_member(id=nil, attach_mview=true)
+    @meet ||= Meet.find_by_id(id||params[:id])
+    if (!@meet || !@meet.is_cirkle? || (!@meet.include_user?(current_user) && !admin_user?))
+      render_unauthorized
+    elsif attach_mview
+      attach_meet_mview(current_user, @meet)
+    end
+  end
+
   # current_user must be part of this meet as a pending user
   def pending_meet_member(id=nil)
     @meet ||= Meet.find_by_id(id||params[:id])
@@ -225,90 +235,6 @@ class ApplicationController < ActionController::Base
     }
   end
 
-  def find_user(user_id)
-    return nil if user_id.blank?
-    @user_cache ||= {}
-    user = @user_cache[user_id]
-    if !user
-      user = User.find(user_id)
-      @user_cache[user.id] = user if user
-    end
-    return user
-  end
-  def find_users(user_ids)
-    return [] if user_ids.blank?
-    @user_cache ||= {}
-    missing_user_ids = user_ids.select {|v| !@user_cache.include?(v)}
-    if !missing_user_ids.empty?
-      missing_users = User.find(missing_user_ids).compact
-      missing_users.each {|user| @user_cache[user.id] = user}
-    end
-    return user_ids.collect {|id| @user_cache[id]}
-  end
-
-  def find_meet(meet_id)
-    return nil if meet_id.blank?
-    @meet_cache ||= {}
-    meet = @meet_cache[meet_id]
-    if !meet
-      meet = Meet.find(meet_id)
-      @meet_cache[meet.id] = meet if meet
-    end
-    return meet
-  end
-  def find_meets(meet_ids)
-    return [] if meet_ids.blank?
-    @meet_cache ||= {}
-    missing_meet_ids = meet_ids.select {|v| !@meet_cache.include?(v)}
-    if !missing_meet_ids.empty?
-      missing_meets = Meet.find(missing_meet_ids).compact
-      missing_meets.each {|meet| @meet_cache[meet.id] = meet}
-    end
-    return meet_ids.collect {|id| @meet_cache[id]}
-  end
-
-  def find_mpost(mpost_id)
-    return nil if mpost_id.blank?
-    @mpost_cache ||= {}
-    mpost = @mpost_cache[mpost_id]
-    if !mpost
-      mpost = Mpost.find(mpost_id)
-      @mpost_cache[mpost.id] = mpost if mpost
-    end
-    return mpost
-  end
-  def find_mposts(mpost_ids)
-    return [] if mpost_ids.blank?
-    @mpost_cache ||= {}
-    missing_mpost_ids = mpost_ids.select {|v| !@mpost_cache.include?(v)}
-    if !missing_mpost_ids.empty?
-      missing_mposts = Mpost.find(missing_mpost_ids).compact
-      missing_mposts.each {|mpost| @mpost_cache[mpost.id] = mpost}
-    end
-    return mpost_ids.collect {|id| @mpost_cache[id]}
-  end
-
-  def find_chatter(chatter_id)
-    return nil if chatter_id.blank?
-    @chatter_cache ||= {}
-    chatter = @chatter_cache[chatter_id]
-    if !chatter
-      chatter = Chatter.find(chatter_id)
-      @chatter_cache[chatter.id] = chatter if chatter
-    end
-    return chatter
-  end
-  def find_chatters(chatter_ids)
-    return [] if chatter_ids.blank?
-    @chatter_cache ||= {}
-    missing_chatter_ids = chatter_ids.select {|v| !@chatter_cache.include?(v)}
-    if !missing_chatter_ids.empty?
-      missing_chatters = Chatter.find(missing_chatter_ids).compact
-      missing_chatters.each {|chatter| @chatter_cache[chatter.id] = chatter}
-    end
-    return chatter_ids.collect {|id| @chatter_cache[id]}
-  end
-
   private
 
     def render_error(file, status, options={})
@@ -319,12 +245,12 @@ class ApplicationController < ActionController::Base
                 (!only   || only.include?(:html))
       is_json = (!except || !except.include?(:json)) &&
                 (!only   || only.include?(:json))
-      format = params[:format] || request.format
-      format = format.to_s
-      format = format.slice((format.rindex('/')||-1)+1..-1);
+      format0 = params[:format] || request.format
+      format0 = format0.to_s
+      format0 = format0.slice((format0.rindex('/')||-1)+1..-1);
       if raise_exception.present?
-        raise raise_exception if (is_html && format == "html")
-        raise raise_exception if (is_json && format == "json")
+        raise raise_exception if (is_html && format0 == "html")
+        raise raise_exception if (is_json && format0 == "json")
       else
         respond_to do |format|
           #format.html { render :file=>file, :status=>status; raise AssertException } if is_html
@@ -367,7 +293,7 @@ class ContentAPI
       elsif v.class == Chatter && k == :photo
         options0 = options.merge(ChattersController::JSON_CHATTER_LIST_API)
       elsif v.class == Chatter && k == :topic
-        options0 = options.merge(ChattersController::JSON_CHATTER_MARKED_API)
+        options0 = options.merge(ChattersController::JSON_CHATTER_MARKED_DETAIL_API)
       elsif v.class == User
         options0 = options.merge(UsersController::JSON_USER_LIST_API)
       elsif v.class == Meet && k == :pending_invitation

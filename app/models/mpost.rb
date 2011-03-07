@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20110125155037
+# Schema version: 20110227025014
 #
 # Table name: mposts
 #
@@ -20,33 +20,33 @@
 #  host_id       :string(255)
 #  status        :integer         default(0)
 #  invitation_id :integer
+#  cirkle_id     :integer
 #
 
-# Status, access through user<=>meet relation. Do not use directly.
+# Status
 # 0 or nil: ordinary mpost (meet, user)
 # 1       : deleted mpost
 # 2       : invitation pending mpost
 class Mpost < ActiveRecord::Base
-  attr_accessible :time, :lng, :lat, :lerror, :user_dev, :devs, :note, :host_mode, :host_id, :collision
+  CIRKLE_MARKER = '#cirkle#'
+  attr_accessible :time, :lng, :lat, :lerror, :user_dev,
+                  :devs, :note, :host_mode, :host_id, :collision, :cirkle_id
 
   belongs_to :user, :inverse_of => :mposts
   belongs_to :meet, :inverse_of => :mposts
   belongs_to :invitation
 
-  validates :time,    :presence => { :message => "date time missing or unrecognized format" }
+  validates :time, :presence => { :message => "date time missing or unrecognized format" }
   #validates :user_id, :presence => true
-  validates :lng, :presence => true,
-                  :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),
-                                     :less_than_or_equal_to    => BigDecimal(" 180.0") }
-  validates :lat, :presence => true,
-                  :numericality => { :greater_than_or_equal_to => BigDecimal("-90.0"),
-                                     :less_than_or_equal_to    => BigDecimal(" 90.0") }
-  validates :lerror, :presence => true,
-                     :numericality => { :greater_than_or_equal_to => 0.0 }
-  validates :user_dev, :presence => true,
-                       :length => { :in => 1..200 }  
-  validates :devs, :presence => true,
-                   :length => { :in => 0..40000 } # at least 200 devs  
+  validates :lng,  :numericality => { :allow_nil => true,
+                                      :greater_than_or_equal_to => BigDecimal("-180.0"),
+                                      :less_than_or_equal_to    => BigDecimal(" 180.0") }
+  validates :lat,  :numericality => { :allow_nil => true,
+                                      :greater_than_or_equal_to => BigDecimal("-90.0"),
+                                      :less_than_or_equal_to    => BigDecimal(" 90.0") }
+  validates :lerror, :numericality => { :allow_nil => true, :greater_than_or_equal_to => 0.0 }
+  validates :user_dev, :presence => true, :length => { :in => 1..200 }  
+  validates :devs, :presence => true, :length => { :in => 0..40000 } # at least 200 devs  
   #validates :host_mode, :presence => true
 
   default_scope :order => 'mposts.created_at DESC'
@@ -173,6 +173,16 @@ class Mpost < ActiveRecord::Base
   end
   def add_dev(other_dev)
     devs[other_dev] = nil
+  end
+
+  def is_cirkle_mpost?
+    return host_id == Mpost::CIRKLE_MARKER && user_dev = Mpost::CIRKLE_MARKER
+  end
+  def cirkle_ref_count
+    return host_mode
+  end
+  def cirkle_ref_count=(ref_count)
+    self.host_mode = ref_count
   end
 
   # 0 : pending to be processed

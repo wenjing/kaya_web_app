@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20110226204045) do
+ActiveRecord::Schema.define(:version => 20110304010538) do
 
   create_table "chatters", :force => true do |t|
     t.integer   "user_id"
@@ -31,6 +31,19 @@ ActiveRecord::Schema.define(:version => 20110226204045) do
   add_index "chatters", ["topic_id"], :name => "index_chatters_on_topic_id"
   add_index "chatters", ["updated_at"], :name => "index_chatters_on_updated_at"
   add_index "chatters", ["user_id"], :name => "index_chatters_on_user_id"
+
+  create_table "delayed_jobs", :force => true do |t|
+    t.integer   "priority",   :default => 0
+    t.integer   "attempts",   :default => 0
+    t.text      "handler"
+    t.text      "last_error"
+    t.timestamp "run_at"
+    t.timestamp "locked_at"
+    t.timestamp "failed_at"
+    t.text      "locked_by"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+  end
 
   create_table "invitations", :force => true do |t|
     t.integer   "meet_id"
@@ -67,8 +80,10 @@ ActiveRecord::Schema.define(:version => 20110226204045) do
     t.integer   "hoster_id"
     t.text      "cached_info"
     t.integer   "meet_type"
+    t.integer   "cirkle_id"
   end
 
+  add_index "meets", ["cirkle_id"], :name => "index_meets_on_cirkle_id"
   add_index "meets", ["host_id"], :name => "index_meets_on_host_id", :unique => true
   add_index "meets", ["hoster_id"], :name => "index_meets_on_hoster_id"
   add_index "meets", ["meet_type"], :name => "index_meets_on_meet_type"
@@ -101,6 +116,7 @@ ActiveRecord::Schema.define(:version => 20110226204045) do
     t.string    "host_id"
     t.integer   "status",        :default => 0
     t.integer   "invitation_id"
+    t.integer   "cirkle_id"
   end
 
   add_index "mposts", ["created_at"], :name => "index_mposts_on_created_at"
@@ -135,9 +151,9 @@ ActiveRecord::Schema.define(:version => 20110226204045) do
   add_index "relationships", ["follower_id"], :name => "index_relationships_on_follower_id"
 
   create_table "stats", :force => true do |t|
-    t.float    "avg_meet_lag"
-    t.datetime "created_at"
-    t.datetime "updated_at"
+    t.float     "avg_meet_lag"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
   end
 
   create_table "users", :force => true do |t|

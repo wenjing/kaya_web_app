@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20110125155037
+# Schema version: 20110227025014
 #
 # Table name: meets
 #
@@ -25,6 +25,7 @@
 #  hoster_id      :integer
 #  cached_info    :text
 #  meet_type      :integer
+#  cirkle_id      :integer
 #
 
 require 'geokit'
@@ -36,8 +37,8 @@ class Meet < ActiveRecord::Base
   attr_accessor :meet_mview, :hoster_mview
   attr_accessor :loaded_top_users, :loaded_top_chatters
   attr_accessor :meet_invitations
-  attr_accessor :loaded_users, :loaded_topics, :new_users, :new_topics,
-                :is_new_invitation, :is_first_encounter
+  attr_accessor :loaded_users, :loaded_topics, :new_user_ids, :new_topic_ids,
+                :is_new_invitation, :is_new_encounter, :is_first_encounter
 # attr_accessible :name, :description, :meet_type,
 #                 :time, :location, :street_address, :city, 
 #                 :state, :zip, :country, :lng, :lat, :lerror,
@@ -56,13 +57,17 @@ class Meet < ActiveRecord::Base
                    :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 2]
 
+  has_many :encounters, :class_name => "Meet", :foreign_key => "cirkle_id",
+                        :inverse_of => :cirkle
+  belongs_to :cirkle, :class_name => "Meet", :inverse_of => :encounters
+
   has_many :chatters, :dependent => :destroy, :inverse_of => :meet
   has_many :topics, :class_name => "Chatter",
                     :conditions => ['chatters.topic_id IS NULL']
   has_many :photos, :class_name => "Chatter",
                     :conditions => ['chatters.photo_content_type IS NOT NULL']
 # has_many :latest_chatters, :class_name => "Chatter", :limit => 3,
-#                   :conditions => ['chatters.content IS NOT NULL && chatters.content != ?', ""]
+#                   :conditions => ['chatters.content IS NOT NULL AND chatters.content != ?', ""]
 
   has_many :invitations, :dependent => :destroy, :inverse_of => :meet
   has_many :mviews, :dependent => :destroy, :inverse_of => :meet
@@ -73,10 +78,10 @@ class Meet < ActiveRecord::Base
   validates :time,  :presence => { :message => "date time missing or unrecognized format" }
   validates :lng,   :numericality => { :greater_than_or_equal_to => BigDecimal("-180.0"),
                                        :less_than_or_equal_to    => BigDecimal(" 180.0"),
-                                       :allow_nil => false }
+                                       :allow_nil => true }
   validates :lat,   :numericality => { :greater_than_or_equal_to => BigDecimal("-90.0"),
                                        :less_than_or_equal_to    => BigDecimal(" 90.0"),
-                                       :allow_nil => false }
+                                       :allow_nil => true }
 
   default_scope :order => 'meets.time DESC'
 
@@ -94,17 +99,33 @@ class Meet < ActiveRecord::Base
     return time? ? time.getutc : nil
   end
 
-  def extract_information
+  def extract_information(new_mposts = [], deleted_mposts = [])
     # Extract meeting time (average time)
+    self.class.benchmark("Extract meet information") do
+    self.collision = false if collision.nil?
+    cirkle_id0 = nil
+    if !collision
+      # Do not check collision and cirkles on deleted mposts and non-peer mode mposts
+      # Detect conflicting cirkle_ids, get proper cirkle_id if no confilcts
+      mposts.each {|mpost|
+        next if (mpost.deleted? || !mpost.is_peer_mode?)
+        if mpost.collision?
+          self.collision = true
+          break
+        elsif mpost.cirkle_id
+          if (cirkle_id0 && cirkle_id0 != mpost.cirkle_id)
+            self.collision = true
+          else
+            cirkle_id0 = mpost.cirkle_id
+          end
+        end
+      }
+    end
     unique_users = Set.new
     notes = Hash.new
-    self.collision = false if collision.nil?
-    if !collision
-      # Do not check collision on deleted mposts and non-peer mode mposts
-      self.collision = mposts.any? {|mpost| !mpost.deleted? && mpost.is_peer_mode? && mpost.collision?}
-    end
     mposts.each {|mpost|
       if (collision && !mpost.deleted?)
+        deleted_mposts << mpost
         mpost.delete; mpost.save
       end
       next unless mpost.active?
@@ -121,8 +142,8 @@ class Meet < ActiveRecord::Base
       end
     }
     #For host and warm meets, there are still copies in memory cluster. Still need
+    #some information for them to proceed correctly.
 #   if collision
-#     #some information for them to proceed correctly.
 #     #return self # won't bother processing more information
 #   end
 
@@ -134,6 +155,7 @@ class Meet < ActiveRecord::Base
     self.time = (peer_mposts.min_by {|h| h.time}).time unless peer_mposts.empty?
     self.time ||= Time.now
     self.time.utc
+
     # Extract location
     extract_location(peer_mposts)
 
@@ -162,22 +184,49 @@ class Meet < ActiveRecord::Base
     # Instead, count number of users through unique_users.
     self.cached_info ||= Hash.new
     self.cached_info[:users_count] = unique_users.count
-    self.cached_info[:top_user_ids] = unique_users.to_a.slice(0..9)
+    self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
     extract_meet_type
+
+    # Finally, extract cirkle information from it
+    if !collision?
+      if !cirkle_id0 # Case 1, no cirkle id specified in any of mposts. Create one from the meet automatically
+        if meet_type == 3 # No automatic cirkle for solo and private encounters
+          Meet.create_cirkle_from_encounters([self])
+        end
+      else # Case 2, cirkle id specified. Add the meet to cirkle
+        if (cirkle && cirkle.id != cirkle_id0)
+          # A special case, cirkle id specified, but an cirkle was already automatically created
+          # because it was initially identified as first_encounter (no cirkle specified in all mposts).
+          if (cirkle.encounters.count == 1 && cirkle.encounters.first.id = id)
+            # Removes the orginal cirkle first if this encounter is the only one in it.
+            cirkle.delete
+          end
+          self.cirkle = nil
+        end
+        cirkle0 = Meet.find_by_id(cirkle_id0)
+        cirkle0.add_encounters([self], new_mposts) if (cirkle0 && cirkle0.is_cirkle?)
+      end
+    elsif cirkle
+      # This encounter has been removed, remove from it from cirkle.
+      new_mpost_ids = new_mposts.collect {|v| v.id}.to_set
+      cirkle.delete_encounters([self], deleted_mposts.select {|v| !new_mpost_ids.include?(v.id)})
+    end
+    end
     return self
   end
 
   # The extra user is manually added. She carry no useful information.
   # Do no update any information except cached_info
-  def extract_information_from_extra_user(user)
-    # Dirty quick way. To manually add a extra user, the meet must be already there and
+  def extract_information_from_extra_user(user0, new_mposts)
+    # Dirty quick way. To manually add an extra user, the meet must be already there and
     # the user must be new to this meet.
-    if !include_user?(user)
-      self.cached_info ||= Hash.new
-      self.cached_info[:users_count] ||= 0
-      cached_info[:top_user_ids] << user.id if cached_info[:top_user_ids].size < 10
-      self.cached_info[:users_count] += 1
+    self.cached_info ||= Hash.new
+    self.cached_info[:users_count] ||= 0
+    cached_info[:top_user_ids] << user0.id if cached_info[:top_user_ids].size < 10
+    self.cached_info[:users_count] += 1
+    if is_encounter?
       extract_meet_type
+      cirkle.add_encounters([self], new_mposts) if cirkle
     end
     return self
   end
@@ -190,7 +239,7 @@ class Meet < ActiveRecord::Base
     self.cached_info[:photos_count] = photo_ids0.count
     self.cached_info[:top_topic_ids] = topic_ids0.slice(0..9)
     self.cached_info[:top_chatter_ids] = chatter_ids0.slice(0..9)
-    self.cached_info[:top_photo_ids] = chatter_ids0.slice(0..9)
+    self.cached_info[:top_photo_ids] = photo_ids0.slice(0..9)
     return self
   end
 
@@ -202,8 +251,8 @@ class Meet < ActiveRecord::Base
     return hoster_id?
   end
 
-  def of_type?(of_type)
-    return of_type.blank? || meet_type == of_type
+  def of_type?(type)
+    return type.blank? || meet_type == type || type.include?(type)
   end
 
   def top_user_ids
@@ -295,20 +344,23 @@ class Meet < ActiveRecord::Base
                              @friends_name_list_params[:max_length])[1]
   end
 
-  # User _ids is quick than using associate itself. However, there is a pontential
-  # pit fall. If it is a trough relation and some FKs are nil. It will include
-  # nil into the _ids array. The associate itself takes care of it but not _ids.
-  # Make a sanity check to skip all nil elements
-  # Just found another problem, _ids does not honer conditions statement.
-  # Have to overwrite the original one.
   def user_ids
-    return users.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["user_id", "created_at"])
+                  .where("meet_id = ? AND status = ?", id, 0)
+                  .collect {|v| v.user_id}.uniq.compact
+    #return users.to_a.collect {|v| v.id}.compact
   end
   def deleted_user_ids
-    return deleted_users.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["user_id", "created_at"])
+                  .where("meet_id = ? AND status = ?", id, 1)
+                  .collect {|v| v.user_id}.uniq.compact
+    #return deleted_users.to_a.collect {|v| v.id}.compact
   end
   def pending_user_ids
-    return pending_users.to_a.collect {|v| v.id}.compact
+    return Mpost.select(["user_id", "created_at"])
+                  .where("meet_id = ? AND status = ?", id, 2)
+                  .collect {|v| v.user_id}.uniq.compact
+    #return pending_users.to_a.collect {|v| v.id}.compact
   end
   def include_user?(user)
     return user && user_ids.include?(user.id)
@@ -324,23 +376,23 @@ class Meet < ActiveRecord::Base
     return pending_users.to_a.select {|user| !include_user?(user)}
   end
   def topic_ids
-    return Chatter.select(["DISTINCT(id)", "updated_at"])
+    return Chatter.select(["id", "updated_at"])
                   .where("chatters.meet_id = ? AND chatters.topic_id IS NULL", id)
                   .collect {|v| v.id}
   end
   def photo_ids
-    return Chatter.select(["DISTINCT(id)", "updated_at"])
+    return Chatter.select(["id", "updated_at"])
                   .where("chatters.meet_id = ? AND chatters.photo_content_type IS NOT NULL", id)
                   .collect {|v| v.id}
   end
   def photo_ids_by_created_at
-    return Chatter.select(["DISTINCT(id)", "updated_at", "created_at"])
+    return Chatter.select(["id", "updated_at", "created_at"])
                   .where("chatters.meet_id = ? AND chatters.photo_content_type IS NOT NULL", id)
                   .sort_by {|v| v.created_at}.reverse.collect {|v| v.id}
   end
 
   def static_map_url(width=120, height=120, zoom=15, marker="mid")
-    return "" unless (lat? && lng?)
+    return "" unless (lat.present? && lng.present?)
     url = "http://maps.google.com/maps/api/staticmap"
     url += "?style=lightness:30|saturation:30||gamma:0.4"
     url += "&zoom=#{zoom}&size=#{width}x#{height}"
@@ -432,29 +484,37 @@ class Meet < ActiveRecord::Base
   end
   def marked_users
     return [] if @loaded_users.blank?
-    # Put all new users in front
-    @new_users.each {|user| user.is_new_user = true }
     res = []
     @loaded_users.each {|user|
-      next if !user.is_new_user
-      res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+      # List new users first
+      if @new_user_ids.include?(user.id)
+        user.is_new_user = true
+        res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+        user.is_new_user = nil
+      end
     }
     @loaded_users.each {|user|
-      next if user.is_new_user
-      res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+      if !@new_user_ids.include?(user.id)
+        user.is_new_user = false
+        res << {:user => user.as_json(UsersController::JSON_USER_DETAIL_API)}
+        user.is_new_user = nil
+      end
     }
-    @new_users.each {|user| user.is_new_user = false }
     return res
   end
-  # Meet level topics are displayed as comments
   def marked_chatters
     return [] if @loaded_topics.blank?
     res = []
-    @new_topics.each {|topic| topic.is_new_chatter = true } if @new_topic.present?
     @loaded_topics.each {|topic|
-      res << {:chatter => topic.as_json(ChattersController::JSON_CHATTER_COMMENT_API)}
+      topic.is_new_chatter = @new_topic_ids.include?(topic.id)
+      if is_cirkle?
+        res << {:chatter => topic.as_json(ChattersController::JSON_CHATTER_MARKED_DETAIL_API)}
+      else
+        # Encounter level topics are displayed as comments
+        res << {:chatter => topic.as_json(ChattersController::JSON_CHATTER_MARKED_COMMENT_API)}
+      end
+      topic.is_new_chatter = nil
     }
-    @new_topics.each {|topic| topic.is_new_chatter = false } if @new_topic.present?
     return res
   end
 
@@ -475,6 +535,63 @@ class Meet < ActiveRecord::Base
     return lag.at_least(0.0)
   end
 
+  # Cirkle related functions
+  def is_cirkle?
+    return meet_type > 3
+  end
+  def is_encounter?
+    return !is_cirkle?
+  end
+
+  def add_encounters(encounters0, encounters_mposts0)
+    cirkle_mposts0 = nil
+    self.opt_lock_protected {
+      cirkle_mposts0 = Set.new
+      user_cirkle_mposts = mposts.group_by {|v| v.user_id}
+      unique_users = user_cirkle_mposts.keys.to_set
+      encounters_mposts0.each {|mpost|
+        cirkle_mposts = user_cirkle_mposts[mpost.user_id]
+        if cirkle_mposts.blank?
+          cirkle_mpost = Mpost.new
+          cirkle_mpost.note = mpost.note
+          cirkle_mpost.time = mpost.time
+          cirkle_mpost.lat = mpost.lat
+          cirkle_mpost.lng = mpost.lng
+          cirkle_mpost.lerror = mpost.lerror
+          cirkle_mpost.devs = Mpost::CIRKLE_MARKER
+          cirkle_mpost.user_dev = Mpost::CIRKLE_MARKER
+          cirkle_mpost.host_id = Mpost::CIRKLE_MARKER
+          cirkle_mpost.cirkle_ref_count = 0
+          cirkle_mpost.user_id = mpost.user_id
+          unique_users << mpost.user_id # Add user to the cirkle
+          cirkle_mposts = [cirkle_mpost]
+          user_cirkle_mposts[mpost.user_id] = cirkle_mposts
+        end
+        cirkle_mposts.each {|cirkle_mpost|
+          cirkle_mpost.cirkle_ref_count += 1
+          cirkle_mpost.recovery # If it is pending, confirm it; if removed, recovery back
+          cirkle_mposts0 << cirkle_mpost
+        }
+      }
+      self.cached_info[:users_count] = unique_users.size
+      self.cached_info[:top_user_ids] = unique_users.first(10)
+      save
+    }
+    encounters0.each {|encounter0|
+      next if encounter0.cirkle_id == id
+      encounter0.opt_lock_protected {
+        encounter0.cirkle = self
+        if meet_type == 6
+          # Once assigned to a group_cirkle, force all encounters' type to group_encounter
+          encounter0.meet_type = 3
+        end
+        #encounter0.save
+      }
+    }
+    cirkle_mposts0.each {|cirkle_mpost| cirkle_mpost.meet_id = id; cirkle_mpost.save}
+    return self
+  end
+
 private
  
   def extract_location(peer_mposts)
@@ -485,7 +602,7 @@ private
     [30.0, 100.0, -1.0].each {|val|
       peer_mposts.each {|mpost|
         next unless mpost.active?
-        if (mpost.lng? && mpost.lat? && mpost.lerror? &&
+        if (mpost.lng.present? && mpost.lat.present? && mpost.lerror.present? &&
             (val <= 0.0 || mpost.lerror < val))
           lngs << mpost.lng
           lats << mpost.lat
@@ -499,7 +616,7 @@ private
       self.lng = lngs.mean_sigma_with_weight(lweights)[0]
       self.lat = lats.mean_sigma_with_weight(lweights)[0]
       self.lerror = [(1.0/Math.sqrt(lweights.mean)+0.4999).round,1.0].max
-      extract_geocode if (location.blank? || !org_lng || !org_lat ||
+      extract_geocode if (location.blank? || org_lng.blank? || org_lat.blank? ||
                           sqrt((org_lng-lng)**2+(org_lat-lat)**2)/3.5e-6 > 10.0)
     else
       # self.lng, self.lat = nil, nil # keep the original
@@ -507,7 +624,7 @@ private
   end
 
   def extract_geocode(retries=1)
-    return if (!lat? || !lng?)
+    return if (!lat.present? || !lng.present?)
     geo = nil
     exception_protected(retries) {
       geo = Geokit::Geocoders::GoogleGeocoder::geocode("#{lat}, #{lng}")
@@ -540,6 +657,66 @@ private
     self.meet_type = users_count == 1 ? 1 :
                      users_count == 2 ? 2 :
                      users_count >= 3 ? 3 : 0
+    return self
+  end
+
+  def self.create_cirkle_from_encounters(encounters0)
+    return [] if encounters0.empty?
+    cirkle0 = Meet.new
+    cirkle0.meet_type = 6
+    cirkle0.cached_info ||= Hash.new
+    first_encounter = encounters0.min_by {|v| v.time}
+    # Clone meet information from first encounter
+    cirkle0.description ||= first_encounter.description
+    cirkle0.name ||= first_encounter.name
+    cirkle0.time ||= first_encounter.time
+    cirkle0.location ||= first_encounter.location
+    cirkle0.street_address ||= first_encounter.street_address
+    cirkle0.location ||= first_encounter.location
+    cirkle0.city ||= first_encounter.city
+    cirkle0.zip ||= first_encounter.zip
+    cirkle0.country ||= first_encounter.country
+    cirkle0.image_url ||= first_encounter.image_url
+    cirkle0.lat ||= first_encounter.lat
+    cirkle0.lng ||= first_encounter.lng
+    cirkle0.lerror ||= first_encounter.lerror
+    cirkle0.collision ||= false
+    encounters_mposts0 = []
+    encounters0.each {|encounter0|
+      encounters_mposts0.concat(encounter0.mposts)
+    }
+    cirkle_mposts = cirkle0.add_encounters(encounters0, encounters_mposts0)
+    return cirkle0
+  end
+  def delete_encounters(encounters0, encounters_mposts0)
+    cirkle_mposts0 = nil
+    self.opt_lock_protected {
+      cirkle_mposts0 = Set.new
+      user_cirkle_mposts = mposts.group_by {|v| v.user_id}
+      unique_users = user_cirkle_mposts.keys.to_set
+      encounters_mposts0.each {|mpost|
+        cirkle_mposts = user_cirkle_mposts[mpost.user_id]
+        cirkle_mposts.each {|cirkle_mpost|
+          cirkle_mpost.cirkle_ref_count -= 1
+          if cirkle_mpost.cirkle_ref_count <= 0
+            # All encounters with this user is deleted by collision, remove her from cirkle.
+            cirkle_mpost.delete
+            unique_users.delete(cirkle_mpost.user_id)
+            cirkle_mposts0 << cirkle_mpost
+          end
+        } if cirkle_mpost.present?
+      }
+      encounters0.each {|encounter0|
+        encounter0.opt_lock_protected {
+          encounter0.cirkle = nil
+          #encounter0.save
+        }
+      }
+      self.cached_info[:users_count] = unique_users.size
+      self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
+      save
+    }
+    cirkle_mposts0.each {|mpost| mpost.save}
     return self
   end
 

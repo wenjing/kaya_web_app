@@ -26,6 +26,12 @@ class User < ActiveRecord::Base
   attr_accessible :name, :email, :password, :password_confirmation, :photo
   
   has_many :mposts, :dependent => :destroy, :inverse_of => :user
+  has_many :cirkle_mposts, :inverse_of => :user,
+                   :conditions => ['mposts.host_id = ? AND mposts.user_dev = ?',
+                                   Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER]
+  has_many :encounter_mposts, :inverse_of => :user,
+                   :conditions => ['mposts.host_id != ? OR mposts.user_dev != ?',
+                                   Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER]
 
   has_many :meets, :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 0]
@@ -35,15 +41,31 @@ class User < ActiveRecord::Base
   has_many :pending_meets, :class_name => "Meet", :source => :meet,
                    :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 2]
-  has_many :solo_meets, :class_name => "Meet", :source => :meet,
+
+  has_many :encounters, :class_name => "Meet", :source => :meet,
+                  :through => :mposts, :uniq => true,
+                  :conditions => ['mposts.status = ? AND meets.meet_type <= ?', 0, 3]
+  has_many :solo_encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 1]
-  has_many :private_meets, :class_name => "Meet", :source => :meet,
+  has_many :private_encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 2]
-  has_many :group_meets, :class_name => "Meet", :source => :meet,
+  has_many :group_encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 3]
+  has_many :cirkles, :class_name => "Meet", :source => :meet,
+                  :through => :mposts, :uniq => true,
+                  :conditions => ['mposts.status = ? AND meets.meet_type > ?', 0, 3]
+  has_many :solo_cirkles, :class_name => "Meet", :source => :meet,
+                  :through => :mposts, :uniq => true,
+                  :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 4]
+  has_many :private_cirkles, :class_name => "Meet", :source => :meet,
+                  :through => :mposts, :uniq => true,
+                  :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 5]
+  has_many :group_cirkles, :class_name => "Meet", :source => :meet,
+                  :through => :mposts, :uniq => true,
+                  :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 6]
 
   has_many :hosted_meets, :class_name => "Meet", :foreign_key => "hoster_id",
                           :inverse_of => :hoster
@@ -218,13 +240,13 @@ class User < ActiveRecord::Base
   # private : 2
   # group   : 3
   def top_meet_ids(limit, type=nil)
-    return raw_meet_ids_of_type(type).limit(limit).collect {|v| v.meet_id}
+    return raw_meet_ids_of_type(type).limit(limit).collect {|v| v.meet_id}.uniq.compact
   end
   def top_meets(limit, type=nil)
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type)}.slice(0..limit-1)
     else
-      return meets_of_type(type).limit(limit).to_a
+      return meets_of_type(type).limit(limit)
     end
   end
 
@@ -232,14 +254,14 @@ class User < ActiveRecord::Base
   def recent_meet_ids(time_ago, type=nil)
     time_after = Time.now-time_ago
     return raw_meet_ids_of_type(type).where("created_at >= ?", time_after)
-                                     .collect {|v| v.meet_id}
+                                     .collect {|v| v.meet_id}.uniq.compact
   end
   def recent_meets(time_ago, type=nil)
     time_after = Time.now-time_ago
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type) && meet.time >= time_after}
     else
-      return meets_of_type(type).where("created_at >= ?", time_after).to_a
+      return meets_of_type(type).where("created_at >= ?", time_after)
     end
   end
 
@@ -280,7 +302,6 @@ class User < ActiveRecord::Base
   # Return a hash of friends with array of common meets as value
   # If after_updated_at is specified, only includes friends in those meets that
   # have activities after the specified time.
-  # Becarefule, loaded_meets will be updated after all
   def get_within_meets(within_meet_ids, loaded_meets, meet_select)
     if loaded_meets # avoid re-loading already loaded meets
       loaded_meet_ids = loaded_meets.collect {|v| v.id}.to_set
@@ -290,7 +311,7 @@ class User < ActiveRecord::Base
         missing_meets = Meet.where("id IN (?)", missing_meet_ids)
         missing_meets = missing_meets.select(meet_select) if meet_select.present?
       end
-      within_meets = loaded_meets.concat(missing_meets)
+      within_meets = missing_meets.concat(loaded_meets)
     elsif (meets.loaded? || (meet_select.blank? && meet_ids.size == within_meet_ids.size))
       # Already fully loaded or require to be fully loaded
       within_meet_ids = within_meet_ids.to_set
@@ -309,13 +330,13 @@ class User < ActiveRecord::Base
     if within_users
       within_user_ids = within_users.collect {|v| v.id}
       friend_infos = friend_infos.where("user_id IN (?)", within_user_ids)
-      friend_ids = friend_infos.collect {|v| v.user_id}.to_set
+      friend_ids = friend_infos.collect {|v| v.user_id}.compact.to_set
       friend_users = within_users.select {|v| friend_ids.include?(v.id)}
     else
-      friend_ids = friend_infos.collect {|v| v.user_id}.uniq
+      friend_ids = friend_infos.collect {|v| v.user_id}.uniq.compact
       friend_users = user_cache ? user_cache.find_users(friend_ids) : User.find(friend_ids)
     end
-    within_meet_ids = friend_infos.collect {|v| v.meet_id}.uniq
+    within_meet_ids = friend_infos.collect {|v| v.meet_id}.uniq.compact
     within_meets ||= get_within_meets(within_meet_ids, loaded_meets, meet_select)
     friend_users.each {|friend|
       friend_meet_ids = friend_infos.select {|v| v.user_id == friend.id}.collect {|v| v.meet_id}.to_set
@@ -331,14 +352,21 @@ class User < ActiveRecord::Base
   end
 
   def meet_ids_of_type(type)
-    return type == 1 ? solo_meet_ids :
-           type == 2 ? private_meet_ids :
-           type == 3 ? group_meet_ids : meet_ids
+    if type.blank?
+      return meet_ids
+    else
+      return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                  .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type IN (?)", id, 0, type)
+                  .collect {|v| v.meet_id}.uniq.compact
+    end
   end
   def meets_of_type(type)
-    return type == 1 ? solo_meets :
-           type == 2 ? private_meets :
-           type == 3 ? group_meets : meets
+    if type.blank?
+      return meets
+    else
+      return Meet.select("DISTINCT meets.*").joins(:mposts)
+                  .where('mposts.user_id = ? AND mposts.status = ? AND meets.meet_type IN (?)', id, 0, type)
+    end
   end
 
   # Return all meets with this user
@@ -369,40 +397,19 @@ class User < ActiveRecord::Base
 
   # The original meet_ids dose not work, it ignore all conditions
   def meet_ids
-    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
+    return Mpost.select(["meet_id", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
-                .collect {|v| v.meet_id}
-    #return meets.to_a.collect {|v| v.id}.compact
+                .collect {|v| v.meet_id}.uniq.compact
   end
-  def delete_meet_ids
-    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
+  def deleted_meet_ids
+    return Mpost.select(["meet_id", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 1)
-                .collect {|v| v.meet_id}
-    #return delete_meets.to_a.collect {|v| v.id}.compact
+                .collect {|v| v.meet_id}.uniq.compact
   end
   def pending_meet_ids
-    return Mpost.select(["DISTINCT(meet_id)", "created_at"])
+    return Mpost.select(["meet_id", "created_at"])
                 .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 2)
-                .collect {|v| v.meet_id}
-    #return pending_meets.to_a.collect {|v| v.id}.compact
-  end
-  def solo_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
-                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 1)
-                .collect {|v| v.meet_id}
-    #return solo_meets.to_a.collect {|v| v.id}.compact
-  end
-  def private_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
-                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 2)
-                .collect {|v| v.meet_id}
-    #return private_meets.to_a.collect {|v| v.id}.compact
-  end
-  def group_meet_ids
-    return Mpost.select(["DISTINCT(mposts.meet_id)", "mposts.created_at"]).includes(:meet)
-                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 3)
-                .collect {|v| v.meet_id}
-    #return group_meets.to_a.collect {|v| v.id}.compact
+                .collect {|v| v.meet_id}.uniq.compact
   end
   def true_pending_meet_ids
     return [] if pending_meets.count == 0
@@ -414,6 +421,48 @@ class User < ActiveRecord::Base
     return [] if within_meets.count == 0
     active_meet_ids = meet_ids.to_set
     return within_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []
+  end
+
+  def encounter_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type <= ?", id, 0, 3)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def cirkle_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type > ?", id, 0, 3)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def solo_encounter_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 1)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def private_encounter_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 2)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def group_encounter_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 3)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def solo_cirkle_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 4)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def private_cirkle_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 5)
+                .collect {|v| v.meet_id}.uniq.compact
+  end
+  def group_cirkle_ids
+    return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 6)
+                .collect {|v| v.meet_id}.uniq.compact
+    #return group_meets.to_a.collect {|v| v.id}.compact
   end
 
   def dev
@@ -452,9 +501,9 @@ class User < ActiveRecord::Base
       friend_ids = []
       while (!within_meet_ids.empty?)
         sliced_meet_ids = within_meet_ids.slice!(0, 100) # 100 meets at a time
-        friend_ids.concat(Mpost.select(["DISTINCT(user_id)", "created_at"])
+        friend_ids.concat(Mpost.select(["user_id", "created_at"])
                                .where("user_id != ? AND meet_id IN (?)", id, sliced_meet_ids)
-                               .collect {|v| v.user_id}).uniq!
+                               .collect {|v| v.user_id}.uniq.compact).uniq!
         break if (limit != :all && friend_ids.size >= limit)
       end
       friend_ids = friend_ids.slice(0..limit-1) unless limit == :all
@@ -464,12 +513,12 @@ class User < ActiveRecord::Base
 
     def raw_meet_ids_of_type(type)
       if type == 0 || type == nil
-        return Mpost.select(["DISTINCT(meet_id)", "created_at"])
+        return Mpost.select(["meet_id", "created_at"])
                     .where("meet_id IS NOT NULL AND user_id = ? AND status = ?", id, 0)
       else
-        return Mpost.select(["DISTINCT(meet_id)", "created_at"]).includes(:meet)
-                    .where("meet_id IS NOT NULL AND user_id = ? AND status = ? AND meet.meet_type = ?", id, 0, meet_type)
-                    .collect {|v| v.meet_id}
+        types = type.is_a?(Array) ? type : [type]
+        return Mpost.select(["meet_id", "created_at"]).joins(:meet)
+                    .where("meet_id IS NOT NULL AND user_id = ? AND status = ? AND meet.meet_type in (?)", id, 0, types)
       end
     end
 

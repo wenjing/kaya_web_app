@@ -2,7 +2,7 @@ require 'test_base'
 require 'test_mpost'
 
 class TestMeet
-  attr_accessor :id, :name, :location, :users, :loc, :time, :mposts,
+  attr_accessor :id, :cirkle_id, :meet_type, :name, :location, :users, :loc, :time, :mposts,
                 :loc_x, :loc_y, :loc_size
   def initialize
     self.users = []

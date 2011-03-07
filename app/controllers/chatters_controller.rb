@@ -8,20 +8,24 @@ class ChattersController < ApplicationController
   before_filter :authorized_chatter_owner, :only => :destroy
   #before_filter :authroized_chatter_meet_owner, :only => :show
 
-  JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo],
-                              :include => [:comments],
+  JSON_CHATTER_MARKED_DETAIL_API = { :methods => [:chatter_photo, :marked_chatters],
                               :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
-  JSON_CHATTER_MARKED_API = { :methods => [:chatter_photo, :marked_chatters],
-                              :except => [:cached_info,
-                                          :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at] }
-  JSON_CHATTER_COMMENT_API= { :methods => [:chatter_photo, :is_new_chatter],
+  JSON_CHATTER_MARKED_COMMENT_API= { :methods => [:chatter_photo, :is_new_chatter],
                               :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_LIST_API   = { :methods => [:chatter_photo, :comments_count],
+                              :except => [:cached_info,
+                                          :photo_content_type, :photo_file_name,
+                                          :photo_file_size, :photo_updated_at] }
+  JSON_CHATTER_COMMENT_API= { :methods => [:chatter_photo],
+                              :except => [:cached_info,
+                                          :photo_content_type, :photo_file_name,
+                                          :photo_file_size, :photo_updated_at] }
+  JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo],
+                              :include => [:comments],
                               :except => [:cached_info,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
@@ -55,7 +59,8 @@ class ChattersController < ApplicationController
         @meet.opt_lock_protected { @meet.update_chatters_count; @meet.save }
         respond_to do |format|
           format.html { redirect_back @meet, :flash => { :success => "Posted!" } }
-          format.json { render :json => @chatter.to_json(JSON_CHATTER_DETAIL_API) }
+          format.json { render :json => @chatter.to_json(@chatter.topic? ?
+                                                         JSON_CHATTER_DETAIL_API : JSON_CHATTER_COMMENT_API) }
         end
       else
         respond_to do |format|

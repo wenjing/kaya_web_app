@@ -22,21 +22,21 @@ class DebugController < ApplicationController
   end
 
   def mposts
-    mposts = Array.new
+    mposts0 = Array.new
     params[:mpost_ids].each {|mpost_id|
       mpost_id = mpost_id.to_i
       mpost = Mpost.find_by_id(mpost_id)
-      mposts << mpost if mpost
+      mposts0 << mpost if mpost
     }
     respond_to do |format|
-      format.json { render :json => mposts.to_json(:include =>  {:meet=>{:include=>:users}}, :except => [:devs]) }
+      format.json { render :json => mposts0.to_json(:include =>  {:meet=>{:include=>:users}}, :except => [:devs]) }
     end
   end
 
   def stats
-    stats = Stats.first || stats.new
+    stats0 = Stats.first || stats.new
     respond_to do |format|
-      format.json { render :json => stats.to_json }
+      format.json { render :json => stats0.to_json }
     end
   end
 

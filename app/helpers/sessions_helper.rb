@@ -64,7 +64,7 @@ module SessionsHelper
   # Pass username and temporary password on url. Used for pending user email confirmation.
   def temp_authenticate
     user_id, user_passcode = params[:id], params[:pcd]
-    user = User.find_by_id(user_id)
+    user = find_user(user_id)
     if (!user.nil? && user.pending? && !current_user?(user))
       user = User.authenticate(user.email, user_passcode)
       sign_in(user) if !user.nil?

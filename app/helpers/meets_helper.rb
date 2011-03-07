@@ -137,7 +137,7 @@ module MeetsHelper
         content = truncate(chatter.content, :length => 50, :separator => ' ')
         html += %Q{
           <li id="chatter_content">
-            <span id="user_name"> #{link_to_user_name chatter.user} </span>
+            <span id="user_name"> #{link_to_user_name find_user(chatter.user_id)} </span>
             <span id="chatter_statistic">
               <span id="timestamp">
                 #{chatter.comments_count>0?"commented":"posted"} #{time_ago_in_words(chatter.updated_at)} ago
