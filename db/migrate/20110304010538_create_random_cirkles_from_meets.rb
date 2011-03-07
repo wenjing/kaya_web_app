@@ -3,7 +3,7 @@ class CreateRandomCirklesFromMeets < ActiveRecord::Migration
   def self.up
     cirkle_size = 10
     cirkle_count = (Meet.count.to_f/cirkle_size).ceil
-    group_size = 1000000
+    group_size = 50
     group_count = (cirkle_count.to_f/group_size).ceil
 
     (0...group_count).each {|cirkle_group|
