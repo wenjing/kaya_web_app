@@ -35,6 +35,10 @@ GEM
       mime-types
       xml-simple
     builder (2.1.2)
+    daemons (1.1.0)
+    delayed_job (2.1.4)
+      activesupport (~> 3.0)
+      daemons
     diff-lcs (1.1.2)
     erubis (2.6.6)
       abstract (>= 1.0.0)
@@ -117,6 +121,7 @@ PLATFORMS
 DEPENDENCIES
   annotate-models (= 1.0.4)
   aws-s3
+  delayed_job
   factory_girl_rails (= 1.0)
   faker (= 0.3.1)
   geokit

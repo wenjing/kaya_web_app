@@ -2,6 +2,7 @@ require 'rubygems'
 require 'json'
 require 'geokit'
 require 'meet_processer'
+require 'delayed_job'
 
 class MpostsController < ApplicationController
   skip_before_filter :verify_authenticity_token
@@ -44,7 +45,9 @@ class MpostsController < ApplicationController
 #       Rails.kaya_dblock {meet.save}
 #     else
         # Enqueue directly wihtin same server
-        MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
+        # MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
+        # enqueue for DJ worker
+        Delayed::Job.enqueue @mpost
         # Or use the worker version
         #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
 #     end
