@@ -34,17 +34,17 @@ def random_cirkle_up
       meets = meets.sort_by {|v| v.meet_time}
       first_meet = meets.first
       first_meet.extract_information(first_meet.mposts)
-      first_meet.save
+      first_meet.save_without_timestamping
       meets.slice(1..-1).each {|meet|
         meet.mposts.each {|mpost|
           if mpost.status == 0
             mpost.cirkle_id = first_meet.cirkle_id
-            mpost.save
+            mpost.save_without_timestamping
             break
           end
         }
         meet.extract_information(meet.mposts)
-        meet.save
+        meet.save_without_timestamping
       }
       if cirkle_id%50 == 0
         puts "#{cirkle_id} #{meets.size}"
@@ -61,13 +61,13 @@ def random_cirkle_down
       meet.destroy
     elsif meet.cirkle_id
       meet.cirkle_id = nil
-      meet.save
+      meet.save_without_timestamping
     end
   }
   Mpost.all.each {|mpost|
     if mpost.cirkle_id?
       mpost.cirkle_id = nil
-      mpost.save
+      mpost.save_without_timestamping
     end
   }
 end
