@@ -322,11 +322,16 @@ class User < ActiveRecord::Base
     end
     return within_meets
   end
-  def friends_meets(within_meets, loaded_meets, meet_select, within_users, user_cache=nil)
+  # Only handle encounters. People who belong to same cirkle but have not yet met are not friends.
+  def friends_meets(within_meets, loaded_meets, meet_select, within_users, user_cache, include_cirkle)
     friends_meets0 = Hash.new
     within_meet_ids = within_meets ? within_meets.collect {|v| v.id} : meet_ids
-    friend_infos = Mpost.select([:user_id, :meet_id, :created_at])
+    friend_infos = Mpost.select([:user_id, :meet_id, :host_id, :created_at])
                         .where("user_id != ? AND meet_id IN (?)", id, within_meet_ids)
+    if !include_cirkle
+      friend_infos = friend_infos.where("host_id != ? AND user_dev != ?",
+                                        Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER)
+    end
     if within_users
       within_user_ids = within_users.collect {|v| v.id}
       friend_infos = friend_infos.where("user_id IN (?)", within_user_ids)
@@ -338,10 +343,18 @@ class User < ActiveRecord::Base
     end
     within_meet_ids = friend_infos.collect {|v| v.meet_id}.uniq.compact
     within_meets ||= get_within_meets(within_meet_ids, loaded_meets, meet_select)
-    friend_users.each {|friend|
-      friend_meet_ids = friend_infos.select {|v| v.user_id == friend.id}.collect {|v| v.meet_id}.to_set
-      friend_meets = within_meets.select {|v| friend_meet_ids.include?(v.id)}
-      (friends_meets0[friend] ||= Array.new).concat(friend_meets)
+#   friend_users.each {|friend|
+#     friend_meet_ids = friend_infos.select {|v| v.user_id == friend.id}.collect {|v| v.meet_id}.to_set
+#     friend_meets = within_meets.select {|v| friend_meet_ids.include?(v.id)}
+#     (friends_meets0[friend] ||= Array.new).concat(friend_meets)
+#   }
+    friend_users = friend_users.index_by(&:id)
+    within_meets = within_meets.index_by(&:id)
+    friend_infos = friend_infos.group_by(&:user_id)
+    friend_infos.each_pair {|user_id, infos|
+      friend = friend_users[user_id]
+      next unless friend
+      friends_meets0[friend] = infos.collect {|v| within_meets[v.meet_id]}
     }
     return friends_meets0
   end

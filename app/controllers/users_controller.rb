@@ -85,13 +85,14 @@ class UsersController < ApplicationController
     @user = find_user(params[:id])
     assert_unauthorized(@user)
     @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
-    meet_types = [@meet_type, @meet_type+3] if @meet_type
+    #meet_types = [@meet_type, @meet_type+3] if @meet_type
+    meet_types = @meet_type ? [@meet_type] : [1, 2, 3]
     with_user = admin_user? ? @user : current_user
     @meets = @user.meets_with(with_user, meet_types)
     respond_to do |format|
       format.html {
         @pending_meet_count = @user.true_pending_meets.count
-        @meets = @meets.paginate(:page => params[:page], :per_page => 25)
+        @meets = @meets.paginate(:page => params[:page], :per_page => 20)
         attach_meet_infos(current_user, @meets)
         @title = @user.name_or_email
       }
@@ -126,7 +127,7 @@ class UsersController < ApplicationController
     # meet_friends returns a hash user=>[meets]
     # After sort, it becomes array [user, [meets]]
     @friends = []
-    friends_meets = @user.friends_meets(nil, nil, [:id,:time,:lat,:lng], nil, self)
+    friends_meets = @user.friends_meets(nil, nil, [:id,:time,:lat,:lng], nil, self, false)
     if sort_by == "relation"
       @friends = friends_meets.sort {|x, y|
         tt = -(x[1].size <=> y[1].size) # compare relation first, DESC order
@@ -187,8 +188,8 @@ class UsersController < ApplicationController
       # First get friends list, use it to create all private relations.
       # Do not use private cirkles because they are created on demand no
       # direct chatter established between them. Get friends list from all
-      # meet (cirkles and encounters).
-      friends_meets = @user.friends_meets(meets0, nil, nil, nil, self)
+      # encounters (do not count cirkles, not a friend unless met directly).
+      friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
 
       # Get all cirkles (actually meets) and extract solo meets and group meets.
       # Do not try to get solo/group separately because that will require 2 DB query.
@@ -349,6 +350,7 @@ class UsersController < ApplicationController
       content.body = []
       pending_meets0.each {|pending_meet|
         pending_meet.is_new_invitation =
+            (!after_time && !before_time) ||
             is_between_time?(pending_meet.meet_invitation.created_at, after_time, before_time)
         content.body << {:pending_invitation => pending_meet}
       }
@@ -380,8 +382,7 @@ class UsersController < ApplicationController
       cirkles0 = meets0.select {|v| v.is_cirkle?}
 
       cirkles_stats = get_cirkles_stats(cirkles0, meets0)
-      attach_meet_details(@user, meets0, cirkles0, encounters0,
-                          before_time, after_time)
+      attach_meet_details(@user, meets0, cirkles0, encounters0, before_time, after_time)
       # New Encounter
       cirkles0 = cirkles0.index_by(&:id)
       encounters0.each {|meet|
@@ -402,6 +403,8 @@ class UsersController < ApplicationController
         end
         contents << content
       }
+#   xxx = Time.now
+#   puts Time.now - xxx
 
       # New Topic/comments in cirkles, encounter topics are shown in
       # encounter's detail
@@ -639,7 +642,8 @@ class UsersController < ApplicationController
     end
     def get_friends_stats(friends, loaded_meets)
       return {} if friends.blank?
-      friends_meets = @user.friends_meets(nil, loaded_meets, [:id,:time,:meet_type,:lat,:lng], friends, self)
+      friends_meets = @user.friends_meets(nil, loaded_meets, [:id,:time,:meet_type,:lat,:lng],
+                                          friends, self, true)
       friends_stats = {}
       friends_meets.each_pair {|friend, meets0|
         encounters0 = meets0.select {|v| v.is_encounter?}
@@ -820,12 +824,15 @@ class UsersController < ApplicationController
       meets_mposts.each_pair {|meet, meet_mposts|
         meet.loaded_users = meet_mposts.collect {|v| users0[v.user_id]}.uniq.compact
         meet.is_new_encounter = meet.is_encounter? &&
-                                is_between_time?(meet.created_at, after_time, before_time)
+                                ((!after_time && !before_time) ||
+                                 is_between_time?(meet.created_at, after_time, before_time))
         new_user_ids = Set.new
         if meet.is_new_encounter # marked new users for new encounters/new cirkles
           if meet.is_cirkle?
-            new_user_ids = meet_mposts.select {|v| is_between_time?(v.created_at, after_time, before_time)}
-                                      .collect {|v| v.user_id}.compact.to_set
+            new_user_ids = meet_mposts.select {|v|
+                             (!after_time && !before_time) &&
+                             is_between_time?(v.created_at, after_time, before_time)
+                           }.collect {|v| v.user_id}.compact.to_set
           elsif meet.cirkle_id
             meet_mposts.each {|meet_mpost|
               next unless meet_mpost.user_id
@@ -847,7 +854,10 @@ class UsersController < ApplicationController
         meet_topics = meet_chatters.select {|v| v.topic?}.index_by(&:id)
         meet_chatters = meet_chatters.group_by(&:topic_id)
         meet_chatters.each_pair {|topic_id, topic_chatters|
-          new_chatters = topic_chatters.select {|v| is_between_time?(v.updated_at, after_time, before_time)}
+          new_chatters = topic_chatters.select {|v|
+                           (!after_time && !before_time) &&
+                           is_between_time?(v.updated_at, after_time, before_time)
+                         }
           if topic_id.nil?
             meet.loaded_topics = topic_chatters
             meet.new_topic_ids = new_chatters.collect {|v| v.id}.to_set
