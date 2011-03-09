@@ -25,7 +25,8 @@ def random_cirkle_up
     cirkle_range = (cirkle_group*group_size...(cirkle_group+1)*group_size)
     Meet.all.each {|meet|
       next unless (meet.meet_type == 3 && !meet.cirkle_id)
-      cirkle_id = meet.id % cirkle_count
+      #cirkle_id = meet.id % cirkle_count
+      cirkle_id = meet.id
       next if !cirkle_range.include?(cirkle_id)
       (cirkles_meets[cirkle_id] ||= Array.new) << meet
     }
