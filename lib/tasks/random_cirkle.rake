@@ -15,9 +15,9 @@ namespace :db do
 end
 
 def random_cirkle_up
-  cirkle_size = 10
+  cirkle_size = 1
   cirkle_count = (Meet.count.to_f/cirkle_size).ceil
-  group_size = 50
+  group_size = 1000
   group_count = (cirkle_count.to_f/group_size).ceil
   
   (0...group_count).each {|cirkle_group|
@@ -46,7 +46,7 @@ def random_cirkle_up
         meet.extract_information(meet.mposts)
         meet.save_without_timestamping
       }
-      if cirkle_id%50 == 0
+      if cirkle_id%1000 == 0
         puts "#{cirkle_id} #{meets.size}"
         force_gc
       end
@@ -68,6 +68,8 @@ def random_cirkle_down
     if mpost.cirkle_id?
       mpost.cirkle_id = nil
       mpost.save_without_timestamping
+    elsif mpost.is_cirkle_mpost?
+      mpost.destroy
     end
   }
 end
