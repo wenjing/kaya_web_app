@@ -26,7 +26,7 @@ KayaWebApp::Application.routes.draw do
   get  :new_reset,    :controller => :sessions, :as => :new_reset_session
   post :create_reset, :controller => :sessions, :as => :reset_sessions
 
-  #root :to => "pages#home"
+  root :to => "pages#home"
 
   match '/contact', :to => 'pages#contact'
   match '/about',   :to => 'pages#about'
