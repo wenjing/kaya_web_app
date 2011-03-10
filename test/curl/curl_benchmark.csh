@@ -1,5 +1,6 @@
 #!/bin/csh -f
 #this script benchmarks mpost operations. use GET stats to verify delay.
+#curl -H 'Accept: application/json' -u admin@kaya-labs.com:password -X GET www.kayameet.com/debug/stats
 #Adam Chu. 2/20/11
 set url_root='http://www.kayameet.com'
 set http_head='Accept: application/json'
