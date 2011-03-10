@@ -86,7 +86,7 @@ class UsersController < ApplicationController
     assert_unauthorized(@user)
     @meet_type = params[:meet_type] ? params[:meet_type].to_i : nil
     #meet_types = [@meet_type, @meet_type+3] if @meet_type
-    meet_types = @meet_type ? [@meet_type] : [1, 2, 3]
+    meet_types = @meet_type ? (@meet_type > 0 ? [@meet_type] : [1, 2, 3, 4, 5, 6]) : [1, 2, 3]
     with_user = admin_user? ? @user : current_user
     @meets = @user.meets_with(with_user, meet_types)
     respond_to do |format|
@@ -403,8 +403,6 @@ class UsersController < ApplicationController
         end
         contents << content
       }
-#   xxx = Time.now
-#   puts Time.now - xxx
 
       # New Topic/comments in cirkles, encounter topics are shown in
       # encounter's detail

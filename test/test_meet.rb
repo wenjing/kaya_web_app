@@ -3,7 +3,7 @@ require 'test_mpost'
 
 class TestMeet
   attr_accessor :id, :cirkle_id, :meet_type, :name, :location, :users, :loc, :time, :mposts,
-                :loc_x, :loc_y, :loc_size
+                :loc_x, :loc_y, :loc_size, :cirkle_id, :collision
   def initialize
     self.users = []
     self.mposts = []
@@ -12,7 +12,7 @@ class TestMeet
     return to_params(:name, :location)
   end
   def match?(to)
-    return to && name == to.name &&
+    return to && name == to.name && cirkle_id == to.cirkle_id &&
            users.collect {|v| v.id}.sort == to.users.collect {|v| v.id}.sort
   end
   def trigger_range

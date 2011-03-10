@@ -546,9 +546,11 @@ class Meet < ActiveRecord::Base
   def add_encounters(encounters0, encounters_mposts0)
     cirkle_mposts0 = nil
     self.opt_lock_protected {
+      new_users = Set.new
       cirkle_mposts0 = Set.new
-      user_cirkle_mposts = mposts.group_by {|v| v.user_id}
-      unique_users = user_cirkle_mposts.keys.to_set
+      encounter_users = encounters_mposts0.collect {|v| v.id}.to_set
+      user_cirkle_mposts = Mpost.where('user_id IN (?) AND meet_id = ?', encounter_users, id)
+                                .group_by(&:user_id)
       encounters_mposts0.each {|mpost|
         cirkle_mposts = user_cirkle_mposts[mpost.user_id]
         if cirkle_mposts.blank?
@@ -563,7 +565,7 @@ class Meet < ActiveRecord::Base
           cirkle_mpost.host_id = Mpost::CIRKLE_MARKER
           cirkle_mpost.cirkle_ref_count = 0
           cirkle_mpost.user_id = mpost.user_id
-          unique_users << mpost.user_id # Add user to the cirkle
+          new_users << mpost.user_id # Add user to the cirkle
           cirkle_mposts = [cirkle_mpost]
           user_cirkle_mposts[mpost.user_id] = cirkle_mposts
         end
@@ -573,8 +575,10 @@ class Meet < ActiveRecord::Base
           cirkle_mposts0 << cirkle_mpost
         }
       }
-      self.cached_info[:users_count] = unique_users.size
-      self.cached_info[:top_user_ids] = unique_users.first(10)
+      self.cached_info[:users_count] ||= 0
+      self.cached_info[:top_user_ids] ||= []
+      self.cached_info[:users_count] += new_users.size
+      self.cached_info[:top_user_ids].concat(new_users.to_a).slice!(10..-1)
       save
     }
     encounters0.each {|encounter0|

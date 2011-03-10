@@ -314,7 +314,6 @@ private
 
   def start_tqueue
     tqueue_start(@@timer_interval, 2) {MeetWrapper.new.process_meets(Time.now.getutc)}
-    #tqueue_start(@@timer_interval, 2) {MeetWrapper.new.delayed.process_meets(Time.now.getutc)}
   end
   def restart_tqueue
     tqueue_end

@@ -4,7 +4,7 @@ require 'test_user'
 class TestMpost
   attr_accessor :id, :time, :lng, :lat, :lerror, :user, :peers, :leaks,
                 :meet, :post_time, :mname, :duration, :strength, :loc_x, :loc_y,
-                :host_id, :host_mode, :collision, :meet_users
+                :host_id, :host_mode, :cirkle_id, :collision, :meet_users
   def initialize
     self.leaks = []
     self.peers = []
@@ -16,6 +16,7 @@ class TestMpost
     params.merge!(:note=>meet.name) if meet
     params.merge!(:host_id=>host_id) if host_id
     params.merge!(:host_mode=>host_mode) if host_mode
+    params.merge!(:cirkle_id=>cirkle_id) if cirkle_id
     params.merge!(:collision=>(collision ? 1 : 0)) if collision
     return params
   end

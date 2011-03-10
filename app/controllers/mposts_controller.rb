@@ -12,7 +12,7 @@ class MpostsController < ApplicationController
   end
   before_filter :only => [:create] do |controller|
     controller.correct_user(params[:user_id]) if params[:user_id]
-    controller.authorized_cirkle(params[:cirkle_id], false) if params[:cirkle_id]
+    #controller.authorized_cirkle_member(params[:cirkle_id], false) if params[:cirkle_id]
   end
   before_filter :authorized_mpost_owner, :only => [:show]
 
@@ -44,12 +44,15 @@ class MpostsController < ApplicationController
 #       meet.extract_information
 #       Rails.kaya_dblock {meet.save}
 #     else
-        # Enqueue directly wihtin same server
-        # MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
-        # enqueue for DJ worker
-        Delayed::Job.enqueue @mpost
-        # Or use the worker version
-        #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
+        if ENV['NO_HEROKU_DJ']
+          # Enqueue directly within same server
+          MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
+        else
+          # enqueue for DJ worker
+          Delayed::Job.enqueue @mpost
+          # Or use the worker version
+          #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
+        end
 #     end
     else
       respond_to do |format|

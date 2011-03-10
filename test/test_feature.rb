@@ -12,6 +12,7 @@ class FeaturesTest < TestBase
   #@@meet_count = 300
   #@@user_count = 100
   @@meet_count = 60
+  #@@meet_count = 5
   @@user_count = 20
   def self.setting(meet_count, user_count, root_url)
     @@meet_count = meet_count
@@ -37,28 +38,39 @@ class FeaturesTest < TestBase
       meet.time = time0 - (ii*1).minutes
       meet.users = @@users.shuffle.slice(0, user_count)
       meet.users.each {|user| user.meets << meet}
+      meet.users.each {|user|
+        cirkle = user.result_meets.find {|v| v.meet_type == 6}
+        if cirkle
+          meet.cirkle_id = cirkle.id
+          meet.collision = [0,1].random < 0.02
+          break
+        end
+      }
       meets << meet
     }
     return meets
   end
   def self.create_mposts(meets)
     mposts = []
-    meets.each {|meet| meet.users.each {|user|
-      mpost = TestMpost.new
-      mpost.meet = meet
-      mpost.user = user
-      peer_count = [5, 10, 50].random_dist.floor
-      mpost.peers = meet.users.reject {|v| v == user}.shuffle.slice(0, peer_count)
-      mpost.time = meet.time + (0..5).to_a.rand
-      mpost.post_time = mpost.time
-      loc = meet.loc
-      mpost.lerror = loc.lerror.ceil
-      ll_error = mpost.lerror*3.5e-6
-      mpost.lng = loc.lng+[-ll_error,ll_error].random
-      mpost.lat = loc.lat+[-ll_error,ll_error].random
-      meet.mposts << mpost
-      mposts << mpost
-    }}
+    meets.each {|meet|
+      meet.users.each {|user|
+        mpost = TestMpost.new
+        mpost.meet = meet
+        mpost.user = user
+        peer_count = [5, 10, 50].random_dist.floor
+        mpost.peers = meet.users.reject {|v| v == user}.shuffle.slice(0, peer_count)
+        mpost.time = meet.time + (0..5).to_a.rand
+        mpost.post_time = mpost.time
+        loc = meet.loc
+        mpost.lerror = loc.lerror.ceil
+        ll_error = mpost.lerror*3.5e-6
+        mpost.lng = loc.lng+[-ll_error,ll_error].random
+        mpost.lat = loc.lat+[-ll_error,ll_error].random
+        mpost.cirkle_id = meet.cirkle_id if user.result_meets.any? {|v| v.id == meet.cirkle_id}
+        meet.mposts << mpost
+        mposts << mpost
+      }
+    }
     return mposts
   end
   def self.prepare
@@ -71,7 +83,10 @@ class FeaturesTest < TestBase
   def self.setup
     prepare
     puts "Setup ..."
+
     # Create and issue mposts
+    (1..2).to_a.each {|ii|
+    puts "PASS #{ii}"
     meets = create_meets
     mposts = create_mposts(meets)
     all_mposts = mposts.clone
@@ -92,11 +107,11 @@ class FeaturesTest < TestBase
     2.times { # Try 2 times, also as performance test
       sleep 20
       @@users.each {|user|
-        res = rc_resource("users/#{user.id}/meets?after_updated_at=#{(start_time-2.minutes).iso8601}", user)
+        res = rc_resource("users/#{user.id}/meets?after_updated_at=#{(start_time-2.minutes).iso8601}&meet_type=0", user)
         rsp = res.get_json(); should_rsp(rsp)
-        next unless rsp.body_json()
         results = rsp.body_json()
-        user.result_meets = []
+        next unless results
+        user.result_meets ||= []
         results.each {|result|
           result = result["meet"]
           meet = TestMeet.new
@@ -118,28 +133,56 @@ class FeaturesTest < TestBase
           end
         }
       }
-    }
+    }}
+
     # Check result vs original
     total_cnt, neg_cnt, pos_cnt, mis_cnt = 0, 0, 0, 0
+    cirkle_cnt, cirkle_mis = 0, 0
+    cirkles = {}
+    cirkles_meets = {}
     @@users.each {|user|
       user.meets.each {|meet|
         total_cnt += 1
-        result_meet = user.result_meets.find {|v| v.name == meet.name && v.meet_type == 6}
+        result_meet = user.result_meets.find {|v| v.name == meet.name && v.meet_type <= 3}
         if !result_meet
-          neg_cnt += 1
+          neg_cnt += 1 if !meet.collision
         elsif !meet.match?(result_meet)
           mis_cnt += 1
         end
       }
-      user.result_meets.each {|meet|
-        if !user.meets.find {|v| v.name == meet.name}
+      user.result_meets.each {|result_meet|
+        next unless result_meet.meet_type <= 3
+        meet = user.meets.find {|v| v.name == result_meet.name}
+        if !meet || meet.collision
           pos_cnt += 1
         end
       }
+      user.result_meets.each {|result_meet|
+        if result_meet.meet_type == 6
+          cirkles[result_meet.id] = result_meet
+        elsif result_meet.meet_type == 3
+          (cirkles_meets[result_meet.cirkle_id] ||= Array.new) << result_meet
+        end
+      }
+    }
+    cirkle_cnt, cirkle_mis = 0, 0
+    cirkles_meets.each_pair {|cirkle_id, meets|
+      cirkle = cirkles[cirkle_id]
+      next unless cirkle
+      meets_user_ids = Set.new
+      meets.each {|meet| meet.users.each {|user|
+        meets_user_ids << user.id
+      }}
+      cirkle_user_ids = cirkle.users.collect {|v| v.id}.to_set
+      cirkle_cnt += 1
+      cirkle_mis += 1 if cirkle_user_ids != meets_user_ids
     }
     should(true,
            "#{total_cnt} -#{neg_cnt} +#{pos_cnt} x#{mis_cnt}",
            "#{total_cnt} -#{neg_cnt} +#{pos_cnt} x#{mis_cnt}")
+    should(true,
+           "#{cirkle_cnt} x#{cirkle_mis}",
+           "#{cirkle_cnt} x#{cirkle_mis}")
 #   should(neg_cnt == 0 && pos_cnt == 0 && mis_cnt == 0,
 #          "#{total_cnt}",
 #          "#{total_cnt} -#{neg_cnt} +#{pos_cnt} x#{mis_cnt}")
