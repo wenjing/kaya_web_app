@@ -631,7 +631,7 @@ private
     return if (!lat.present? || !lng.present?)
     geo = nil
     exception_protected(retries) {
-#      geo = Geokit::Geocoders::GoogleGeocoder::geocode("#{lat}, #{lng}")
+      geo = Geokit::Geocoders::GoogleGeocoder::geocode("#{lat}, #{lng}")
     }
     if (geo && geo.success)
       self.location = geo.full_address
