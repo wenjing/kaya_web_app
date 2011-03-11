@@ -101,9 +101,9 @@ class Meet < ActiveRecord::Base
 
   def extract_information(new_mposts = [], deleted_mposts = [])
     # Extract meeting time (average time)
-    self.class.benchmark("Extract meet information") do
+    #self.class.benchmark("Extract meet information") do
     self.collision = false if collision.nil?
-    cirkle_id0 = nil
+    mpost_cirkle_id = nil
     if !collision
       # Do not check collision and cirkles on deleted mposts and non-peer mode mposts
       # Detect conflicting cirkle_ids, get proper cirkle_id if no confilcts
@@ -113,10 +113,10 @@ class Meet < ActiveRecord::Base
           self.collision = true
           break
         elsif mpost.cirkle_id
-          if (cirkle_id0 && cirkle_id0 != mpost.cirkle_id)
+          if (mpost_cirkle_id && mpost_cirkle_id != mpost.cirkle_id)
             self.collision = true
           else
-            cirkle_id0 = mpost.cirkle_id
+            mpost_cirkle_id = mpost.cirkle_id
           end
         end
       }
@@ -188,30 +188,73 @@ class Meet < ActiveRecord::Base
     extract_meet_type
 
     # Finally, extract cirkle information from it
+    #cirkle0 = cirkle_id ? Meet.find_by_id(cirkle_id) : nil
+    cirkle0 = cirkle
     if !collision?
-      if !cirkle_id0 # Case 1, no cirkle id specified in any of mposts. Create one from the meet automatically
-        if meet_type == 3 # No automatic cirkle for solo and private encounters
-          Meet.create_cirkle_from_encounters([self])
+      if !mpost_cirkle_id
+        # Case 1, no cirkle id specified in any of mposts. Create one from the meet automatically
+        if (!cirkle0 && meet_type == 3) # No automatic cirkle for solo and private encounters
+          cirkle0 = Meet.create_cirkle_from_encounters([self])
+        elsif cirkle0
+          cirkle0.add_encounters([self], new_mposts)
         end
       else # Case 2, cirkle id specified. Add the meet to cirkle
-        if (cirkle && cirkle.id != cirkle_id0)
+        if (cirkle0 && cirkle_id != mpost_cirkle_id)
           # A special case, cirkle id specified, but an cirkle was already automatically created
           # because it was initially identified as first_encounter (no cirkle specified in all mposts).
-          if (cirkle.encounters.count == 1 && cirkle.encounters.first.id = id)
+          if (crikle0.encounters.count == 1 && crikle0.encounters.first.id = id)
             # Removes the orginal cirkle first if this encounter is the only one in it.
-            cirkle.delete
+            crikle0.destroy
           end
           self.cirkle = nil
+          cirkle0 = nil
         end
-        cirkle0 = Meet.find_by_id(cirkle_id0)
-        cirkle0.add_encounters([self], new_mposts) if (cirkle0 && cirkle0.is_cirkle?)
+        if !cirkle0
+          cirkle0 = Meet.find_by_id(mpost_cirkle_id)
+          # Because no cirkle created yet, mark all mposts as new mposts
+          new_mposts = mposts
+        end
+        if (cirkle0 && cirkle0.is_cirkle?)
+          cirkle0.add_encounters([self], new_mposts)
+        end
       end
-    elsif cirkle
-      # This encounter has been removed, remove from it from cirkle.
+    elsif cirkle0
+      # This encounter has been removed, remove it from cirkle.
       new_mpost_ids = new_mposts.collect {|v| v.id}.to_set
-      cirkle.delete_encounters([self], deleted_mposts.select {|v| !new_mpost_ids.include?(v.id)})
+      cirkle0.delete_encounters([self], deleted_mposts.select {|v| !new_mpost_ids.include?(v.id)})
     end
-    end
+    #end
+    return self
+  end
+  def delete_encounters(encounters0, encounters_mposts0)
+    cirkle_mposts0 = nil
+    self.opt_lock_protected {
+      cirkle_mposts0 = Set.new
+      user_cirkle_mposts = mposts.group_by {|v| v.user_id}
+      unique_users = user_cirkle_mposts.keys.to_set
+      encounters_mposts0.each {|mpost|
+        cirkle_mposts = user_cirkle_mposts[mpost.user_id]
+        cirkle_mposts.each {|cirkle_mpost|
+          cirkle_mpost.cirkle_ref_count -= 1
+          if cirkle_mpost.cirkle_ref_count <= 0
+            # All encounters with this user is deleted by collision, remove her from cirkle.
+            cirkle_mpost.delete
+            unique_users.delete(cirkle_mpost.user_id)
+            cirkle_mposts0 << cirkle_mpost
+          end
+        } if cirkle_mposts.present?
+      }
+      encounters0.each {|encounter0|
+        #encounter0.opt_lock_protected {
+          encounter0.cirkle = nil
+          #encounter0.save
+        #}
+      }
+      self.cached_info[:users_count] = unique_users.size
+      self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
+      save
+    }
+    cirkle_mposts0.each {|mpost| mpost.save}
     return self
   end
 
@@ -226,7 +269,9 @@ class Meet < ActiveRecord::Base
     self.cached_info[:users_count] += 1
     if is_encounter?
       extract_meet_type
-      cirkle.add_encounters([self], new_mposts) if cirkle
+      #cirkle0 = cirkle_id ? Meet.find_by_id(cirkle_id) : nil
+      cirkle0 = cirkle
+      cirkle0.add_encounters([self], new_mposts) if cirkle0
     end
     return self
   end
@@ -548,9 +593,9 @@ class Meet < ActiveRecord::Base
     self.opt_lock_protected {
       new_users = Set.new
       cirkle_mposts0 = Set.new
-      encounter_users = encounters_mposts0.collect {|v| v.id}.to_set
-      user_cirkle_mposts = Mpost.where('user_id IN (?) AND meet_id = ?', encounter_users, id)
-                                .group_by(&:user_id)
+      encounter_users = encounters_mposts0.collect {|v| v.user_id}.to_set
+      user_cirkle_mposts = id ? Mpost.where('user_id IN (?) AND meet_id = ?', encounter_users, id)
+                                     .group_by(&:user_id) : {}
       encounters_mposts0.each {|mpost|
         cirkle_mposts = user_cirkle_mposts[mpost.user_id]
         if cirkle_mposts.blank?
@@ -583,14 +628,14 @@ class Meet < ActiveRecord::Base
     }
     encounters0.each {|encounter0|
       next if encounter0.cirkle_id == id
-      encounter0.opt_lock_protected {
+      #encounter0.opt_lock_protected {
         encounter0.cirkle = self
         if meet_type == 6
           # Once assigned to a group_cirkle, force all encounters' type to group_encounter
           encounter0.meet_type = 3
         end
         #encounter0.save
-      }
+      #}
     }
     cirkle_mposts0.each {|cirkle_mpost| cirkle_mpost.meet_id = id; cirkle_mpost.save}
     return self
@@ -691,37 +736,6 @@ private
     }
     cirkle_mposts = cirkle0.add_encounters(encounters0, encounters_mposts0)
     return cirkle0
-  end
-  def delete_encounters(encounters0, encounters_mposts0)
-    cirkle_mposts0 = nil
-    self.opt_lock_protected {
-      cirkle_mposts0 = Set.new
-      user_cirkle_mposts = mposts.group_by {|v| v.user_id}
-      unique_users = user_cirkle_mposts.keys.to_set
-      encounters_mposts0.each {|mpost|
-        cirkle_mposts = user_cirkle_mposts[mpost.user_id]
-        cirkle_mposts.each {|cirkle_mpost|
-          cirkle_mpost.cirkle_ref_count -= 1
-          if cirkle_mpost.cirkle_ref_count <= 0
-            # All encounters with this user is deleted by collision, remove her from cirkle.
-            cirkle_mpost.delete
-            unique_users.delete(cirkle_mpost.user_id)
-            cirkle_mposts0 << cirkle_mpost
-          end
-        } if cirkle_mpost.present?
-      }
-      encounters0.each {|encounter0|
-        encounter0.opt_lock_protected {
-          encounter0.cirkle = nil
-          #encounter0.save
-        }
-      }
-      self.cached_info[:users_count] = unique_users.size
-      self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
-      save
-    }
-    cirkle_mposts0.each {|mpost| mpost.save}
-    return self
   end
 
 end

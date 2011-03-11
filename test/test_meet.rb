@@ -12,8 +12,9 @@ class TestMeet
     return to_params(:name, :location)
   end
   def match?(to)
-    return to && name == to.name && cirkle_id == to.cirkle_id &&
-           users.collect {|v| v.id}.sort == to.users.collect {|v| v.id}.sort
+    res = to && name == to.name && (!cirkle_id || cirkle_id == to.cirkle_id) &&
+           users.collect {|v| v.id}.to_set == to.users.collect {|v| v.id}.to_set
+    return res
   end
   def trigger_range
     return *mposts.minmax_by {|mpost| mpost.time}

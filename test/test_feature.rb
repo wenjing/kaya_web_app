@@ -25,24 +25,24 @@ class FeaturesTest < TestBase
   def self.destroy_all # all record created here carry _features_test_ marker
     super(/.*#{@@marker}.*/)
   end
-  def self.create_meets
+  def self.create_meets(pass=1)
     # Use first 500 users to create 1000 meets
     meets = []
     time0 = Time.now
     (1..@@meet_count).to_a.each {|ii|
       meet = TestMeet.new
-      meet.name = "meet" + @@marker + ii.to_s;
+      meet.name = "meet" + @@marker + ii.to_s + "_" + pass.to_s;
       meet.loc = @@locations.rand
       user_count = [1, 3, 20].random_dist.floor
       meet.users = []
-      meet.time = time0 - (ii*1).minutes
+      meet.time = time0 - 1.day + ((ii+pass*@@meet_count)*1).minutes
       meet.users = @@users.shuffle.slice(0, user_count)
       meet.users.each {|user| user.meets << meet}
       meet.users.each {|user|
         cirkle = user.result_meets.find {|v| v.meet_type == 6}
         if cirkle
           meet.cirkle_id = cirkle.id
-          meet.collision = [0,1].random < 0.02
+          meet.collision = [0,1].random < 0.10 if meet.users.size >= 2
           break
         end
       }
@@ -70,6 +70,10 @@ class FeaturesTest < TestBase
         meet.mposts << mpost
         mposts << mpost
       }
+      if meet.collision
+        collision_mpost = meet.mposts.select {|v| !v.cirkle_id}.first || meet.mposts.first
+        collision_mpost.cirkle_id = meet.cirkle_id + 1
+      end
     }
     return mposts
   end
@@ -87,7 +91,7 @@ class FeaturesTest < TestBase
     # Create and issue mposts
     (1..2).to_a.each {|ii|
     puts "PASS #{ii}"
-    meets = create_meets
+    meets = create_meets(ii)
     mposts = create_mposts(meets)
     all_mposts = mposts.clone
     start_time = Time.now.utc
@@ -116,7 +120,7 @@ class FeaturesTest < TestBase
           result = result["meet"]
           meet = TestMeet.new
           meet.id = result["id"].to_i
-          meet.cirkle_id = result["cirkle_id"].to_i
+          meet.cirkle_id = result["cirkle_id"].to_i if result["cirkle_id"]
           meet.meet_type = result["meet_type"].to_i
           meet.name = result["name"]
           meet.time = Time.parse(result["time"])
@@ -128,9 +132,8 @@ class FeaturesTest < TestBase
           meet_users.each {|meet_user|
             meet.users << @@users.find {|v| v.id == meet_user["id"].to_i}
           }
-          if !user.result_meets.find {|v| v.id == meet.id}
-            user.result_meets << meet
-          end
+          user.result_meets.delete_if {|v| v.id == meet.id}
+          user.result_meets << meet
         }
       }
     }}
@@ -175,7 +178,9 @@ class FeaturesTest < TestBase
       }}
       cirkle_user_ids = cirkle.users.collect {|v| v.id}.to_set
       cirkle_cnt += 1
-      cirkle_mis += 1 if cirkle_user_ids != meets_user_ids
+      if cirkle_user_ids != meets_user_ids
+        cirkle_mis += 1
+      end
     }
     should(true,
            "#{total_cnt} -#{neg_cnt} +#{pos_cnt} x#{mis_cnt}",

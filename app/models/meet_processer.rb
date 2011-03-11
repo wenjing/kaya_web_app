@@ -326,6 +326,7 @@ private
     @time_now   = nil
     @last_meets_process_time = nil
     @meet_pool = MeetPool.new
+    @pooled_mposts = Hash.new
   end
 
   def record_mposts(mpost_ids)
@@ -449,7 +450,9 @@ private
   end
 
   def add_mpost_to_meet(mpost, meet)
-    assign_mpost_to_meet(mpost, meet)
+    # Pool all individual mpost to together so they can be added to meet at once
+    (@pooled_mposts[meet] ||= Array.new) << mpost
+    #assign_mpost_to_meet(mpost, meet)
     debug(:processer, 2, "*** add to meet %d of %s",
           meet.id, pluralize(1, "mpost"))
   end
@@ -457,7 +460,7 @@ private
   def add_mposts_to_meet(mposts, meet)
     assign_mposts_to_meet(mposts, meet)
     debug(:processer, 2, "*** add to meet %d of %s",
-          meet.id, pluralize(mpost.size, "mpost"))
+          meet.id, pluralize(mposts.size, "mpost"))
   end
 
   def add_owners_to_hosted_meet(mposts, meet)
@@ -827,6 +830,10 @@ private
       end
     }
     @meet_pool.pending_mposts.clear
+    @pooled_mposts.each_pair {|meet, mposts|
+      add_mposts_to_meet(mposts, meet)
+    }
+    @pooled_mposts.clear
 
     ng_mposts = Array.new
     host_owners.each_pair {|meet_id, mposts|
