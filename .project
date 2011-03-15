@@ -3,6 +3,7 @@
 	<name>meet</name>
 	<comment></comment>
 	<projects>
+		<project>Heroku</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

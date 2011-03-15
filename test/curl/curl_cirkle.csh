@@ -18,3 +18,8 @@ curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X GET "${url_root}/use
 curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X GET "${url_root}/users/1/news?user_id=1"
 
 curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X GET "${url_root}/users/1/news?user_id=5"
+
+curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X POST -d "content=Test topic 1 Solo" "${url_root}/chatters?user_id=1"
+curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X POST -d "content=Test topic 2 Solo" "${url_root}/chatters?user_id=1"
+curl -H "$http_head" -u bessy.moo@kaya-labs.com:password -X POST -d "content=Test topic 1 Private" "${url_root}/chatters?user_id=5"
+curl -H "$http_head" -u wenjing.chu@kaya-labs.com:password -X POST -d "content=Test topic 2 Private" "${url_root}/chatters?user_id=1"

@@ -641,6 +641,93 @@ class Meet < ActiveRecord::Base
     return self
   end
 
+  # Create group cirkle from existing encounters
+  def self.create_cirkle_from_encounters(encounters0)
+    return nil if encounters0.empty?
+    cirkle0 = Meet.new
+    cirkle0.meet_type = 6
+    cirkle0.cached_info = Hash.new
+    first_encounter = encounters0.min_by {|v| v.time}
+    # Clone meet information from first encounter
+    cirkle0.description = first_encounter.description
+    cirkle0.name = first_encounter.name
+    cirkle0.time = first_encounter.time
+    cirkle0.location = first_encounter.location
+    cirkle0.street_address = first_encounter.street_address
+    cirkle0.location = first_encounter.location
+    cirkle0.city = first_encounter.city
+    cirkle0.zip = first_encounter.zip
+    cirkle0.country = first_encounter.country
+    cirkle0.image_url = first_encounter.image_url
+    cirkle0.lat = first_encounter.lat
+    cirkle0.lng = first_encounter.lng
+    cirkle0.lerror = first_encounter.lerror
+    cirkle0.collision = false
+    encounters_mposts0 = []
+    encounters0.each {|encounter0|
+      encounters_mposts0.concat(encounter0.mposts)
+    }
+    cirkle0.add_encounters(encounters0, encounters_mposts0)
+    return cirkle0
+  end
+
+  # Get/create special implicit solo or private cirkle
+  def self.create_cirkle_between_users(users0)
+    # Because this function may be called simutanously, multiple cirkles may be created for same
+    # user pair. However, it is risky to try to delete the duplicated one. Simply double check
+    # the result and return the first one in the final list.
+    meet_type = users0.size == 1 ? 4 : 5 # Solo, or Private cirkle
+    if users0.size == 1
+      meet_type = 4
+      meet_name = "Solo cirkle of #{users0.first.name_or_email}"
+    else
+      meet_type = 5
+      meet_name = "Private cirkle between #{users0.first.name_or_email} and #{users0.second.name_or_email}"
+    end
+    cirkle0 = nil
+    2.times {
+      cirkle0 = users0.first.meets_of_type(meet_type).first
+      return cirkle0 if cirkle0
+
+      cirkle0 = Meet.new
+      cirkle0.cached_info = Hash.new
+      cirkle0.description = meet_name
+      cirkle0.name = meet_name
+      cirkle0.meet_type = meet_type
+
+      # Create a dummy encounter (ZZZ, or get one from existing ones)
+      first_encounter = Meet.new
+      first_encounter.time = Time.now.getutc
+      cirkle0.time = first_encounter.time
+      cirkle0.location = first_encounter.location
+      cirkle0.street_address = first_encounter.street_address
+      cirkle0.location = first_encounter.location
+      cirkle0.city = first_encounter.city
+      cirkle0.zip = first_encounter.zip
+      cirkle0.country = first_encounter.country
+      cirkle0.image_url = first_encounter.image_url
+      cirkle0.lat = first_encounter.lat
+      cirkle0.lng = first_encounter.lng
+      cirkle0.lerror = first_encounter.lerror
+      cirkle0.collision = false
+
+      # Create dummay mposts, so can share same code with group cirkles which are generated
+      # from encounters.
+      encounters_mposts0 = []
+      users0.each {|user0|
+        mpost = Mpost.new
+        mpost.user_id = user0.id
+        mpost.time = first_encounter.time
+        mpost.lat = first_encounter.lat
+        mpost.lng = first_encounter.lng
+        mpost.lerror = first_encounter.lerror
+        encounters_mposts0 << mpost
+      }
+      cirkle0.add_encounters([], encounters_mposts0)
+      return cirkle0
+    }
+  end
+
 private
  
   def extract_location(peer_mposts)
@@ -707,35 +794,6 @@ private
                      users_count == 2 ? 2 :
                      users_count >= 3 ? 3 : 0
     return self
-  end
-
-  def self.create_cirkle_from_encounters(encounters0)
-    return [] if encounters0.empty?
-    cirkle0 = Meet.new
-    cirkle0.meet_type = 6
-    cirkle0.cached_info ||= Hash.new
-    first_encounter = encounters0.min_by {|v| v.time}
-    # Clone meet information from first encounter
-    cirkle0.description ||= first_encounter.description
-    cirkle0.name ||= first_encounter.name
-    cirkle0.time ||= first_encounter.time
-    cirkle0.location ||= first_encounter.location
-    cirkle0.street_address ||= first_encounter.street_address
-    cirkle0.location ||= first_encounter.location
-    cirkle0.city ||= first_encounter.city
-    cirkle0.zip ||= first_encounter.zip
-    cirkle0.country ||= first_encounter.country
-    cirkle0.image_url ||= first_encounter.image_url
-    cirkle0.lat ||= first_encounter.lat
-    cirkle0.lng ||= first_encounter.lng
-    cirkle0.lerror ||= first_encounter.lerror
-    cirkle0.collision ||= false
-    encounters_mposts0 = []
-    encounters0.each {|encounter0|
-      encounters_mposts0.concat(encounter0.mposts)
-    }
-    cirkle_mposts = cirkle0.add_encounters(encounters0, encounters_mposts0)
-    return cirkle0
   end
 
 end

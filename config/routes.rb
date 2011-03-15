@@ -3,6 +3,7 @@ KayaWebApp::Application.routes.draw do
   resources :users, :only => [:new, :edit, :show, :create, :update, :index, :destroy] do
     resources :mposts, :only => [:create]
     resources :invitations, :only => [:create, :new]
+    resources :chatters,    :only => [:create]
     member do
       get :meets, :friends, :cirkles, :news, :map, :pending_meets
     end

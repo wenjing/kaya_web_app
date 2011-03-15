@@ -89,7 +89,9 @@ class ApplicationController < ActionController::Base
   # current_user must be part of chatter's meet and this chatter must be either
   # a topic or a comment to a topic. Can not add a comment to another comment.
   def authorized_chatter
-    if params[:meet_id].present?
+    if params[:user_id].present?
+      authorized_friend(params[:user_id])
+    elsif params[:meet_id].present?
       authorized_meet_member(params[:meet_id])
     else
       @topic = Chatter.find_by_id(params[:chatter_id])
@@ -101,7 +103,14 @@ class ApplicationController < ActionController::Base
     end
   end
 
-  # current_user must be own this invitation
+  # current_user must be friend of the user or the user must be current_user herself.
+  def authorized_friend(id=nil)
+    meet_types = nil # Or, [1,2,3] to constraint within direct encounters only
+    id ||= params[:user_id]
+    @user = find_user(id) if current_user.is_meet_with?(id, meet_types)
+  end
+
+  # current_user must be owner of this invitation
   def authorized_invitation_owner(id=nil)
     @invitation ||= Invitation.find_by_id(id||params[:id])
     if (!@invitation || (!current_user_id?(@invitation.user_id) && !admin_user?))

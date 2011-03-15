@@ -407,6 +407,16 @@ class User < ActiveRecord::Base
       return meets.select {|meet| user_meet_ids.include?(meet.id) && meet.of_type?(type)}.slice(0..limit-1)
     end
   end
+  def is_meet_with?(with_id, type=nil)
+    if with_id == id
+      return true
+    else
+      type ||= [1, 2, 3, 4, 5, 6]
+      return Mpost.select(["mposts.created_at"]).joins(:meet)
+                  .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type IN (?) AND meets.id IN(?)",
+                         with_id, 0, type, meet_ids_of_type(type)).first != nil
+    end
+  end
 
   # The original meet_ids dose not work, it ignore all conditions
   def meet_ids
