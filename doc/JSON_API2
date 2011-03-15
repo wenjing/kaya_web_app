@@ -146,3 +146,21 @@
     content         : <chatter content>
     chatter_photo   : <photo url if encounter comments>
     marked_chatters : <all comments detail>
+
+3. Post Solo and Private chatter
+
+  Total 4 types of chatters:
+  a) and b) Post a topic to an encounter or a cirkle.
+    -X POST "content=<content>" <url_root>/meets/<meet_id>/chatters
+    or
+    -X POST "content=<content>" "<url_root>/chatters&meet_id=<meet_id>"
+  c) Post a comment to a topic
+    -X POST "content=<content>" <url_root>/chatters/<chatter_id>/comments
+    or
+    -X POST "content=<content>" "<url_root>/chatters&chatter_id=<chatter_id>"
+  d) Post topic to an user (either self or a friend)
+    -X POST "content=<content>" <url_root>/users/<user_id>/chatters
+    or
+    -X POST "content=<content>" "<url_root>/chatters&user_id=<user_id>"
+    Use current user's <user_id> for Solo chatter (self log) and other user's <user_id> for
+    private message.
