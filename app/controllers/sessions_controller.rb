@@ -64,7 +64,7 @@ class SessionsController < ApplicationController
       @title = "Sign in"
       respond_to do |format|
         format.html { render 'new' }
-        format.json { head :unprocessable_entity }
+        format.json { head :unauthorized }
       end
     else
       re_sign_in user
