@@ -9,24 +9,29 @@ class ChattersController < ApplicationController
   #before_filter :authroized_chatter_meet_owner, :only => :show
 
   JSON_CHATTER_MARKED_DETAIL_API = { :methods => [:chatter_photo, :marked_chatters],
-                              :except => [:cached_info,
+                              :include => {:user => UsersController::JSON_USER_DETAIL_API},
+                              :except => [:cached_info, :user_id,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_MARKED_COMMENT_API= { :methods => [:chatter_photo, :is_new_chatter],
-                              :except => [:cached_info,
+                              :include => {:user => UsersController::JSON_USER_DETAIL_API},
+                              :except => [:cached_info, :user_id,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_LIST_API   = { :methods => [:chatter_photo, :comments_count],
-                              :except => [:cached_info,
+                              :include => {:user => UsersController::JSON_USER_DETAIL_API},
+                              :except => [:cached_info, :user_id,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_COMMENT_API= { :methods => [:chatter_photo],
-                              :except => [:cached_info,
+                              :include => {:user => UsersController::JSON_USER_DETAIL_API},
+                              :except => [:cached_info, :user_id,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo],
-                              :include => [:comments],
-                              :except => [:cached_info,
+                              :include => {:comments => JSON_CHATTER_COMMENT_API,
+                                           :user => UsersController::JSON_USER_DETAIL_API},
+                              :except => [:cached_info, :user_id,
                                           :photo_content_type, :photo_file_name,
                                           :photo_file_size, :photo_updated_at] }
 

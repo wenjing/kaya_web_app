@@ -699,7 +699,7 @@ class UsersController < ApplicationController
         summary.body = {:encounter_summary=>meet}
         activities_summary << summary
       }
-      meets0.each {|meet| photos.select {|v| v.meet_id = meet.id}.each {|photo|
+      meets0.each {|meet| photos.select {|v| v.meet_id == meet.id}.each {|photo|
         summary = ContentAPI.new(:photo)
         summary.timestamp = photo.created_at
         summary.id = photo.id

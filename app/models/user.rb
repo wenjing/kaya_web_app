@@ -30,7 +30,7 @@ class User < ActiveRecord::Base
                    :conditions => ['mposts.host_id = ? AND mposts.user_dev = ?',
                                    Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER]
   has_many :encounter_mposts, :inverse_of => :user,
-                   :conditions => ['mposts.host_id != ? OR mposts.user_dev != ?',
+                   :conditions => ['NOT (mposts.host_id = ? AND mposts.user_dev = ?)',
                                    Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER]
 
   has_many :meets, :through => :mposts, :uniq => true,
@@ -329,7 +329,7 @@ class User < ActiveRecord::Base
     friend_infos = Mpost.select([:user_id, :meet_id, :host_id, :created_at])
                         .where("user_id != ? AND meet_id IN (?)", id, within_meet_ids)
     if !include_cirkle
-      friend_infos = friend_infos.where("host_id != ? AND user_dev != ?",
+      friend_infos = friend_infos.where("NOT (host_id = ? AND user_dev = ?)",
                                         Mpost::CIRKLE_MARKER, Mpost::CIRKLE_MARKER)
     end
     if within_users
@@ -354,7 +354,7 @@ class User < ActiveRecord::Base
     friend_infos.each_pair {|user_id, infos|
       friend = friend_users[user_id]
       next unless friend
-      friends_meets0[friend] = infos.collect {|v| within_meets[v.meet_id]}
+      friends_meets0[friend] = infos.collect {|v| within_meets[v.meet_id]}.uniq
     }
     return friends_meets0
   end
