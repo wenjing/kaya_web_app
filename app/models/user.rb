@@ -210,6 +210,10 @@ class User < ActiveRecord::Base
 #   relationships.find_by_followed_id(followed).destroy
 # end
 
+  def name_or_anonymous
+    return name || "anonymous"
+  end
+
   def name_or_email
     return name || email
   end

@@ -17,7 +17,7 @@ class UsersController < ApplicationController
   JSON_USER_DETAIL_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
                                        :salt, :encrypted_password, :temp_password,
                                        :photo_content_type, :photo_file_name,
-                                       :photo_file_size, :photo_updated_at],
+                                       :photo_file_size, :photo_updated_at, :email],
                            :methods => [:user_avatar, :is_new_user] }
   JSON_USER_LIST_API = JSON_USER_DETAIL_API
 
@@ -168,7 +168,9 @@ class UsersController < ApplicationController
     #before_time = cursor[:before_time] ? Time.zone.parse(cursor[:before_time]) : nil
     #limit = cursor[:limit] ? cursor[:limit].to_i : nil
 
+    current_time = Time.now.getutc
     contents = []
+    api_contents = []
     meets0 = @user.meets # these include both encounters and cirkles
     meets0 = meets0.where("meets.updated_at >= ?", after_time) if after_time
 
@@ -209,6 +211,8 @@ class UsersController < ApplicationController
         content.timestamp = solo_meets.collect {|v| v.updated_at}.max
         content.id = @user.id
         content.body = {}
+        content.body[:user] = @user
+        content.body[:relation_score] = [current_time, 1]
         content.body[:activities_summary] = get_activities_summary(summary_limit, solo_meets, photos)
         contents << content
       end
@@ -233,7 +237,7 @@ class UsersController < ApplicationController
           content.body[:activities_summary] = get_activities_summary(summary_limit, with_meets, photos)
           private_contents << content
         }
-        private_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+        private_contents.sort_by! {|v| [v.body[:relation_score], (current_time-v.timestamp)]}
         contents.concat(private_contents)
       end
 
@@ -256,17 +260,51 @@ class UsersController < ApplicationController
           content.body[:activities_summary] = get_activities_summary(summary_limit, cirkle_meets, photos)
           cirkle_contents << content
         }
-        cirkle_contents.sort_by {|v| [v.body[:relation_score], (Time.now.getutc-v.timestamp)]}
+        cirkle_contents.sort_by! {|v| [v.body[:relation_score], (current_time-v.timestamp)]}
         contents.concat(cirkle_contents)
       end
     end
 
     attach_meet_infos_to_contents(contents)
+    # Simplify API contents
+    contents.each {|content|
+      api_content = ContentAPI.new(content.type)
+      api_content.id = content.id
+      api_content.timestamp = content.timestamp
+      api_content.body = {}
+      if (content.type == :solo || content.type == :private)
+        user0 = content.body[:user]
+        api_content.body[:name] = user0.name_or_anonymous
+        api_content.body[:user] = user0
+      else
+        cirkle0 = content.body[:cirkle]
+        api_content.body[:name] = cirkle0.meet_name
+        api_content.body[:name] = cirkle0.peers_name_brief if api_content.body[:name].empty?
+        api_content.body[:user] = cirkle0.loaded_top_users.first
+      end
+      api_content.body[:relation_score] = content.body[:relation_score][1]
+      activities = []
+      content.body[:activities_summary].each {|activity_summary|
+        activity = {}
+        if activity_summary.type == :photo
+          photo0 = activity_summary.body[:photo]
+          activity = {:type=>:photo, :url=>photo0.chatter_photo}
+        else
+          encounter0 = activity_summary.body[:encounter_summary]
+          activity = {:type=>:encounter, :lng=>encounter0.lng, :lat=>encounter0.lat}
+        end
+        activities << activity
+      }
+      api_content.body[:activities] = activities
+      api_contents << api_content
+    }
+    api_contents.sort_by! {|v| [(current_time-v.timestamp), v.body[:name]]}
+
     end
     self.class.benchmark("View") do
       respond_to do |format|
         format.html { }
-        format.json { render :json => contents }
+        format.json { render :json => api_contents }
       end
     end
     end
@@ -683,7 +721,7 @@ class UsersController < ApplicationController
       cirkles_stats = {}
       cirkles_encounters.each {|v|
         cirkle = v[0]
-        encounters0 = v[1]
+        encounters0 = v[1].select {|x| x.is_encounter?}
         cirkles_stats[cirkle] = get_stats_for_cirkle(cirkle, encounters0)
       }
       return cirkles_stats
