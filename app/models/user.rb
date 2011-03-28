@@ -21,8 +21,8 @@
 #
 
 class User < ActiveRecord::Base
-  attr_accessor   :password
-  attr_accessor   :is_new_user
+  attr_accessor :password
+  attr_writer   :is_new_user
   attr_accessible :name, :email, :password, :password_confirmation, :photo
   
   has_many :mposts, :dependent => :destroy, :inverse_of => :user
@@ -499,6 +499,10 @@ class User < ActiveRecord::Base
   def encrypt_password
     self.salt ||= make_salt
     self.encrypted_password = encrypt(password)
+  end
+
+  def is_new_user
+    return @is_new_user.present?
   end
 
   private

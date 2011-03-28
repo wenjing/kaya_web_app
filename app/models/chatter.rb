@@ -18,7 +18,8 @@
 #
 
 class Chatter < ActiveRecord::Base
-  attr_accessor :loaded_top_comments, :loaded_comments, :new_comment_ids, :is_new_chatter
+  attr_accessor :loaded_top_comments, :loaded_comments, :new_comment_ids, :loaded_user
+  attr_writer   :is_new_chatter
   attr_accessible :content, :photo 
 
   belongs_to :meet, :inverse_of => :chatters
@@ -115,6 +116,10 @@ class Chatter < ActiveRecord::Base
 #   return chatter_photo_orig
   end
 
+  def marked_user
+    return @loaded_user.as_json(UsersController::JSON_USER_DETAIL_API)
+  end
+
   def marked_chatters
     return [] if @loaded_comments.blank?
     res = []
@@ -124,5 +129,9 @@ class Chatter < ActiveRecord::Base
       comment.is_new_chatter = nil
     }
     return res
+  end
+
+  def is_new_chatter
+    return @is_new_chatter.present?
   end
 end

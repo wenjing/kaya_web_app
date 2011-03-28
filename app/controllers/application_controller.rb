@@ -307,6 +307,8 @@ class ContentAPI
         options0 = options.merge(UsersController::JSON_USER_LIST_API)
       elsif v.class == Meet && k == :pending_invitation
         options0 = options.merge(MeetsController::JSON_PENDING_MEET_LIST_API)
+      elsif v.class == Array && k == :pending_invitations
+        options0 = options.merge(MeetsController::JSON_PENDING_MEET_LIST_API)
       elsif v.class == Meet && k == :invitation
         options0 = options.merge(MeetsController::JSON_MEET_LIST_API)
       elsif v.class == Mpost

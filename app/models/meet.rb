@@ -176,7 +176,7 @@ class Meet < ActiveRecord::Base
                               #zone_time.iso8601,
                               has_hoster? ? " hosted by #{hoster.name_or_email}" : "",
                               the_address.present? ? " at #{the_address}" : "",
-                              pluralize(unique_users.count, "attandent"))
+                              pluralize(unique_users.count, "member"))
 
     # Cache frequently used information into cached_info. Prevent excessive DB queries.
     # The cached information includes: user count, top 10 user ids.
@@ -304,7 +304,7 @@ class Meet < ActiveRecord::Base
     return cached_info[:top_user_ids] || []
   end
   def top_friend_ids(except)
-    return (cached_info[:top_user_ids] || []).reject {|v| v==except.id}
+    return (cached_info[:top_user_ids] || []).reject {|v| (except && v==except.id)}
   end
   def top_users(user_cache=nil)
     return user_cache ? user_cache.find_user(top_user_ids).compact
@@ -359,10 +359,10 @@ class Meet < ActiveRecord::Base
     # use limit otherwise it will just result in duplicated loading.
     meet_users = @loaded_top_users ? @loaded_top_users :
                     users.loaded? ? users : User.find(top_friends_ids(except)).compact
-    meet_friends = meet_users.select {|user| user.id != except.id}
+    meet_friends = meet_users.select {|user| (!except || user.id != except.id)}
     friends_name = ""
     friends = Array.new
-    more = friends_count
+    more = except ? friends_count : users_count
     meet_friends.each {|user|
       user_name = user.name_or_email
       if friends_name.empty?
@@ -370,7 +370,9 @@ class Meet < ActiveRecord::Base
         friends << user
         more -= 1
       elsif (friends_name.size + delimiter.size + user_name.size) > max_length
-        friends_name += " and #{more} more friends" if more > 0
+        if more > 0
+          friends_name += " and #{more} more #{pluralize(more, except ? 'friend' : 'member')}"
+        end
         break
       else
         friends_name += delimiter + user_name
@@ -387,6 +389,11 @@ class Meet < ActiveRecord::Base
     return friends_name_list(@friends_name_list_params[:except],
                              @friends_name_list_params[:delimiter],
                              @friends_name_list_params[:max_length])[1]
+  end
+  def marked_name
+    res = meet_name
+    res = peers_name_brief if res.empty?
+    return res
   end
 
   def user_ids

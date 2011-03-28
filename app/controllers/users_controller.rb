@@ -336,6 +336,7 @@ class UsersController < ApplicationController
     #   New Encounter
     #   New Topic/comments
     #   New Invitation and Invitation confirmation (3rd person)
+    current_time = Time.now.getutc
     top_contents = []
     contents = []
 
@@ -386,12 +387,14 @@ class UsersController < ApplicationController
       content.timestamp = Time.now.utc
       content.id = 0
       content.body = []
+      pending_invitations = []
       pending_meets0.each {|pending_meet|
         pending_meet.is_new_invitation =
             (!after_time && !before_time) ||
             is_between_time?(pending_meet.meet_invitation.created_at, after_time, before_time)
-        content.body << {:pending_invitation => pending_meet}
+        pending_invitations << pending_meet
       }
+      content.body = {:pending_invitations => pending_invitations}
       top_contents << content
       # New pending Invitation
       pending_meets0.select {|v| v.is_new_invitation}.each {|pending_meet|
@@ -470,7 +473,7 @@ class UsersController < ApplicationController
     end
 
     # Keep the always-on-top contents on top.
-    contents = contents.sort_by {|v| v.timestamp}.reverse
+    contents = contents.sort_by {|v| (current_time-v.timestamp)}
     contents = contents.first(limit.to_i) if limit.present?
     contents = top_contents.concat(contents)
     attach_meet_infos_to_contents(contents)
@@ -818,7 +821,8 @@ class UsersController < ApplicationController
       content_meets = content_meets.to_a
       attach_meet_infos(@user, content_meets)
       content_meets.each {|meet|
-        meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
+        #meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
+        meet.friends_name_list_params = {:except=>nil,:delimiter=>", ",:max_length=>40}
       }
     end
 
@@ -846,12 +850,13 @@ class UsersController < ApplicationController
     # Load and attach meet users and chatters
     def attach_meet_details(user, meets0, cirkles0, encounters0, before_time, after_time)
       meet_ids = meets0.collect {|v| v.id}.to_set
+      meets0 = meets0.index_by(&:id)
       mposts0 = Mpost.select([:user_id,:meet_id,:created_at])
                      .where("meet_id IN (?) AND status = ?", meet_ids, 0)
-      user_ids = mposts0.collect {|v| v.user_id}.uniq.compact
-
-      meets0 = meets0.index_by(&:id)
+      chatters0 = Chatter.where("meet_id IN (?)", meet_ids)
+      user_ids = mposts0.collect {|v| v.user_id}.concat(chatters0 .collect {|v| v.user_id}).uniq.compact
       users0 = find_users(user_ids).index_by(&:id)
+
       meets_mposts = {}
       mposts0.each {|mpost|
         meet = meets0[mpost.meet_id]
@@ -882,11 +887,11 @@ class UsersController < ApplicationController
         meet.loaded_topics = []
         meet.new_topic_ids = Set.new
       }
-      chatters0 = Chatter.where("meet_id IN (?)", meet_ids)
       cache_chatters(chatters0)
       chatters0 = chatters0.group_by(&:meet_id)
       chatters0.each_pair {|meet_id, meet_chatters|
         meet = meets0[meet_id]
+        meet_chatters.each {|chatter| chatter.loaded_user = users0[chatter.user_id]}
         meet_topics = meet_chatters.select {|v| v.topic?}.index_by(&:id)
         meet_chatters = meet_chatters.group_by(&:topic_id)
         meet_chatters.each_pair {|topic_id, topic_chatters|
