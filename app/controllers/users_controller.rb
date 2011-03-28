@@ -281,6 +281,7 @@ class UsersController < ApplicationController
         api_content.body[:name] = cirkle0.meet_name
         api_content.body[:name] = cirkle0.peers_name_brief if api_content.body[:name].empty?
         api_content.body[:user] = cirkle0.loaded_top_users.first
+        api_content.body[:users_count] = cirkle0.users_count
       end
       api_content.body[:relation_score] = content.body[:relation_score][1]
       activities = []
