@@ -124,6 +124,7 @@ module ApplicationHelper
     return user
   end
   def find_users(user_ids)
+    user_ids.compact!
     return [] if user_ids.blank?
     user_ids = user_ids.collect {|v| v.to_i}
     @user_cache ||= {}
@@ -147,6 +148,7 @@ module ApplicationHelper
     return mpost
   end
   def find_mposts(mpost_ids)
+    mpost_ids.compact!
     return [] if mpost_ids.blank?
     mpost_ids = mpost_ids.collect {|v| v.to_i}
     @mpost_cache ||= {}
@@ -170,6 +172,7 @@ module ApplicationHelper
     return meet
   end
   def find_meets(meet_ids)
+    meet_ids.compact!
     return [] if meet_ids.blank?
     meet_ids = meet_ids.collect {|v| v.to_i}
     @meet_cache ||= {}
@@ -194,6 +197,7 @@ module ApplicationHelper
     return chatter
   end
   def find_chatters(chatter_ids)
+    chatter_ids.compact!
     return [] if chatter_ids.blank?
     @chatter_cache ||= {}
     chatter_ids = chatter_ids.collect {|v| v.to_i}

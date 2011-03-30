@@ -187,23 +187,26 @@ class UsersController < ApplicationController
       #encounters0 = meets0.select {|v| v.is_encounter?}
       #cirkles0 = meets0.select {|v| v.is_cirkle?}
 
-      # First get friends list, use it to create all private relations.
-      # Do not use private cirkles because they are created on demand no
-      # direct chatter established between them. Get friends list from all
-      # encounters (do not count cirkles, not a friend unless met directly).
-      friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
-
       # Get all cirkles (actually meets) and extract solo meets and group meets.
       # Do not try to get solo/group separately because that will require 2 DB query.
       # Instead, query all meets at once and separate them later. Do not show private meets
       # cause they are included in private relations already (friends_meets).
       # Also get all pending meets.
       solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
+      private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
       group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
       # top_photo_ids shall already sorted by created_at, so only get the top count list
       photo_ids = []
       meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
       photos = find_chatters(photo_ids)
+
+      # First get friends list, use it to create all private relations.
+      # Do not use private cirkles because they are created on demand no
+      # direct chatter established between them. Get friends list from all
+      # encounters (do not count cirkles, not a friend unless met directly).
+      #friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
+      # Nail down priviate contents to only private groups, no more contents from cirkles.
+      friends_meets = @user.friends_meets(private_meets, nil, nil, nil, self, false)
 
       # Solo
       if !solo_meets.empty?
@@ -278,8 +281,7 @@ class UsersController < ApplicationController
         api_content.body[:user] = user0
       else
         cirkle0 = content.body[:cirkle]
-        api_content.body[:name] = cirkle0.meet_name
-        api_content.body[:name] = cirkle0.peers_name_brief if api_content.body[:name].empty?
+        api_content.body[:name] = cirkle0.marked_name
         api_content.body[:user] = cirkle0.loaded_top_users.first
         api_content.body[:users_count] = cirkle0.users_count
       end
@@ -289,10 +291,15 @@ class UsersController < ApplicationController
         activity = {}
         if activity_summary.type == :photo
           photo0 = activity_summary.body[:photo]
-          activity = {:type=>:photo, :url=>photo0.chatter_photo}
+          activity = {:type=>:photo, :content=>photo0.content,
+                      :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo}
+          activity[:user] = photo0.loaded_user if photo0.loaded_user.present?
         else
           encounter0 = activity_summary.body[:encounter_summary]
-          activity = {:type=>:encounter, :lng=>encounter0.lng, :lat=>encounter0.lat}
+          name0 = encounter0.marked_name
+          activity = {:type=>:encounter, :name=>name0,
+                      :timestamp=>activity_summary.timestamp,
+                      :lng=>encounter0.lng, :lat=>encounter0.lat}
         end
         activities << activity
       }
@@ -779,6 +786,10 @@ class UsersController < ApplicationController
       chatter_ids = Set.new
       meets.each {|meet| chatter_ids.merge(meet.top_topic_ids)}
       chatters = find_chatters(chatter_ids.to_a).compact
+      user_ids = Set.new
+      chatters.each {|chatter| user_ids << chatter.user_id}
+      users = find_users(user_ids.to_a).compact
+      chatters.each {|chatter| chatter.loaded_user = find_user(chatter.user_id)}
       meets.each {|meet|
         meet.loaded_top_chatters =
           meet.top_topic_ids.collect {|id| chatters.drop_while {|ch| ch.id != id}.first}.compact
@@ -815,6 +826,17 @@ class UsersController < ApplicationController
         content.each_pair {|k, v| get_meets_from_content(v, content_meets)}
       end
     end
+    def get_chatters_from_content(content, content_chatters)
+      if content.class == ContentAPI
+        get_chatters_from_content(content.body, content_chatters)
+      elsif content.class == Chatter
+        content_chatters << content
+      elsif content.class == Array
+        content.each {|v| get_chatters_from_content(v, content_chatters)}
+      elsif content.class == Hash
+        content.each_pair {|k, v| get_chatters_from_content(v, content_chatters)}
+      end
+    end
     def attach_meet_infos_to_contents(contents)
       return if contents.empty?
       content_meets = Set.new
@@ -825,6 +847,12 @@ class UsersController < ApplicationController
         #meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
         meet.friends_name_list_params = {:except=>nil,:delimiter=>", ",:max_length=>40}
       }
+      content_chatters = Set.new
+      get_chatters_from_content(contents, content_chatters)
+      user_ids = Set.new
+      content_chatters.each {|chatter| user_ids << chatter.user_id}
+      users = find_users(user_ids.to_a).compact
+      content_chatters.each {|chatter| chatter.loaded_user = find_user(chatter.user_id)}
     end
 
     def is_between_time?(time, after_time, before_time)
