@@ -267,8 +267,13 @@ class UsersController < ApplicationController
         contents.concat(cirkle_contents)
       end
     end
-
+ 
+    # Filter by timestamp
+    contents = contents.select {|content|
+      is_between_time?(content.timestamp, after_time, nil)
+    }
     attach_meet_infos_to_contents(contents)
+
     # Simplify API contents
     contents.each {|content|
       api_content = ContentAPI.new(content.type)
@@ -329,7 +334,7 @@ class UsersController < ApplicationController
     end
     if params[:cirkle_id].present?
       @cirkle = find_meet(params[:cirkle_id])
-      #assert_unauthorized(@cirkle && @cirkle.is_cirkle?)
+      assert_unauthorized(@cirkle && @cirkle.is_cirkle?)
     end
     cursor = params[:cursor] || params
     after_time = cursor[:after_time] ? Time.zone.parse(cursor[:after_time]) : nil
@@ -392,7 +397,10 @@ class UsersController < ApplicationController
       attach_meet_invitations(@user, pending_meets0)
       # All pending Invitations
       content = ContentAPI.new(:pending_invitations)
-      content.timestamp = Time.now.utc
+      #content.timestamp = Time.now.utc
+      # To garantee the invitations are always displayed first and it has
+      # only once placeholder, fix the timestamp to a far future time.
+      content.timestamp = Time.zone.parse("2035-01-01 00:00:00 UTC")
       content.id = 0
       content.body = []
       pending_invitations = []
@@ -421,7 +429,9 @@ class UsersController < ApplicationController
         with_meet_ids = @with_user.meet_ids.to_set
         meets0 = meets0.select {|meet|
           # Get common encounters and common private cirkles
-          with_meet_ids.include?(meet.id) && (meet.is_encounter? || meet.meet_type == 5)
+          # with_meet_ids.include?(meet.id) && (meet.is_encounter? || meet.meet_type == 5)
+          # Similar to cirkles API, only include private meets
+          with_meet_ids.include?(meet.id) && (meet.meet_type == 2 || meet.meet_type == 5)
         }
       end
     end
@@ -482,10 +492,16 @@ class UsersController < ApplicationController
 
     # Keep the always-on-top contents on top.
     contents = contents.sort_by {|v| (current_time-v.timestamp)}
+    # Filter by timestamp
+    contents = contents.select {|content|
+      is_between_time?(content.timestamp, after_time, before_time)
+    }
     contents = contents.first(limit.to_i) if limit.present?
-    contents = top_contents.concat(contents)
+    # XXX, Currently, do not return top contents
+    #contents = top_contents.concat(contents)
     attach_meet_infos_to_contents(contents)
     end
+
     self.class.benchmark("View") do
       respond_to do |format|
         format.html { }
