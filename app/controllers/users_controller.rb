@@ -172,44 +172,39 @@ class UsersController < ApplicationController
     contents = []
     api_contents = []
     meets0 = @user.meets # these include both encounters and cirkles
-    meets0 = meets0.where("meets.updated_at >= ?", after_time) if after_time
+    filtered_meets = !after_time.present? ? meets0 : meets0.where("meets.updated_at >= ?", after_time);
 
     self.class.benchmark("Create") do
-    if !meets0.empty?
+    if !filtered_meets.empty?
       # Also load all cirkles these meets refering to, so we don't have to load
       # them one-by-one when needed.
-      loaded_meet_ids = meets0.collect {|v| v.id}.to_set
-      cirkle_ids = meets0.collect {|v| v.cirkle_id}.uniq.compact
-      missing_cirkle_ids = cirkle_ids.select {|v| !loaded_meet_ids.include?(v)}
-      if missing_cirkle_ids.present?
-        meets0.concat(Meet.where('id IN (?)', missing_cirkle_ids))
-      end
+      #loaded_meet_ids = meets0.collect {|v| v.id}.to_set
+      #cirkle_ids = meets0.collect {|v| v.cirkle_id}.uniq.compact
+      #missing_cirkle_ids = cirkle_ids.select {|v| !loaded_meet_ids.include?(v)}
+      #if missing_cirkle_ids.present?
+      #  missing_meets = Meet.where('id IN (?)', missing_cirkle_ids)
+      #end
       #encounters0 = meets0.select {|v| v.is_encounter?}
       #cirkles0 = meets0.select {|v| v.is_cirkle?}
+
+      # top_photo_ids shall already sorted by created_at, so only get the top count list
+      photo_ids = []
+      meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
+      photos = find_chatters(photo_ids)
 
       # Get all cirkles (actually meets) and extract solo meets and group meets.
       # Do not try to get solo/group separately because that will require 2 DB query.
       # Instead, query all meets at once and separate them later. Do not show private meets
       # cause they are included in private relations already (friends_meets).
       # Also get all pending meets.
-      solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
-      private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
-      group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
-      # top_photo_ids shall already sorted by created_at, so only get the top count list
-      photo_ids = []
-      meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
-      photos = find_chatters(photo_ids)
-
-      # First get friends list, use it to create all private relations.
-      # Do not use private cirkles because they are created on demand no
-      # direct chatter established between them. Get friends list from all
-      # encounters (do not count cirkles, not a friend unless met directly).
-      #friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
-      # Nail down priviate contents to only private groups, no more contents from cirkles.
-      friends_meets = @user.friends_meets(private_meets, nil, nil, nil, self, false)
+      filtered_solo_meets = filtered_meets.select {|v| v.meet_type == 1 || v.meet_type == 4}
+      filtered_private_meets = filtered_meets.select {|v| v.meet_type == 2 || v.meet_type == 5}
+      filtered_group_meets = filtered_meets.select {|v| v.meet_type == 3 || v.meet_type == 6}
 
       # Solo
-      if !solo_meets.empty?
+      if !filtered_solo_meets.empty?
+        # Still need all solo meets, not only the filtered ones
+        solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
         content = ContentAPI.new(:solo)
         content.timestamp = solo_meets.collect {|v| v.updated_at}.max
         content.id = @user.id
@@ -222,7 +217,15 @@ class UsersController < ApplicationController
 
       # Private
       # If after_updated_at is specified, friends_meets here do not include all meets.
-      if !friends_meets.empty?
+      if !filtered_private_meets.empty?
+        private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
+        # Do not use private cirkles because they are created on demand when
+        # direct chatter established between them. Get friends list from all
+        # encounters (do not count cirkles, not a friend unless met directly).
+        #friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
+        # Nail down priviate contents to only private groups, no more contents from cirkles.
+        friends_meets = @user.friends_meets(private_meets, nil, nil, nil, self, false)
+
         private_contents = []
         friends = friends_meets.collect {|v| v[0]}
         friends_stats = get_friends_stats(friends, meets0)
@@ -245,7 +248,8 @@ class UsersController < ApplicationController
       end
 
       # Cirkle (Group)
-      if !group_meets.empty?
+      if !filtered_group_meets.empty?
+        group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
         cirkle_contents = []
         cirkles_meets = get_cirkles_meets(group_meets)
         cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, meets0)

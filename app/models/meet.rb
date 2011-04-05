@@ -562,6 +562,7 @@ class Meet < ActiveRecord::Base
   def marked_chatters
     return [] if @loaded_topics.blank?
     res = []
+    #@loaded_topics.reverse_each {|topic|
     @loaded_topics.each {|topic|
       topic.is_new_chatter = @new_topic_ids.include?(topic.id)
       if is_cirkle?

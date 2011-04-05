@@ -125,6 +125,7 @@ class Chatter < ActiveRecord::Base
   def marked_chatters
     return [] if @loaded_comments.blank?
     res = []
+    #@loaded_comments.reverse_each {|comment|
     @loaded_comments.each {|comment|
       comment.is_new_chatter = @new_comment_ids.include?(comment.id)
       res << {:chatter => comment.as_json(ChattersController::JSON_CHATTER_MARKED_COMMENT_API)}
