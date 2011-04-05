@@ -445,7 +445,7 @@ class UsersController < ApplicationController
       # New Encounter
       cirkles0 = cirkles0.index_by(&:id)
       encounters0.each {|meet|
-        # only new encounters or encounters with new chaters
+        # only new encounters or encounters with new chatters
         next unless (meet.is_new_encounter || !meet.new_topic_ids.empty?)
         content = ContentAPI.new(:encounter)
         latest_activity_time = meet.loaded_topics.collect {|v| v.updated_at}.max
@@ -941,7 +941,6 @@ class UsersController < ApplicationController
         meet_chatters = meet_chatters.group_by(&:topic_id)
         meet_chatters.each_pair {|topic_id, topic_chatters|
           new_chatters = topic_chatters.select {|v|
-                           (!after_time && !before_time) &&
                            is_between_time?(v.updated_at, after_time, before_time)
                          }
           if topic_id.nil?

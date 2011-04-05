@@ -1,12 +1,12 @@
 # == Schema Information
-# Schema version: 20110227025014
+# Schema version: 20110405033701
 #
 # Table name: meets
 #
-#  id             :integer         primary key
+#  id             :integer         not null, primary key
 #  name           :string(255)
 #  description    :text
-#  time           :timestamp
+#  time           :datetime
 #  location       :string(255)
 #  street_address :string(255)
 #  city           :string(255)
@@ -14,8 +14,8 @@
 #  zip            :string(255)
 #  country        :string(255)
 #  image_url      :string(255)
-#  created_at     :timestamp
-#  updated_at     :timestamp
+#  created_at     :datetime
+#  updated_at     :datetime
 #  lng            :decimal(, )
 #  lat            :decimal(, )
 #  lerror         :float
@@ -26,6 +26,7 @@
 #  cached_info    :text
 #  meet_type      :integer
 #  cirkle_id      :integer
+#  toggle_flag    :boolean
 #
 
 require 'geokit'
@@ -185,6 +186,7 @@ class Meet < ActiveRecord::Base
     self.cached_info ||= Hash.new
     self.cached_info[:users_count] = unique_users.count
     self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
+    force_timestamping
     extract_meet_type
 
     # Finally, extract cirkle information from it
@@ -252,6 +254,7 @@ class Meet < ActiveRecord::Base
       }
       self.cached_info[:users_count] = unique_users.size
       self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
+      force_timestamping
       save
     }
     cirkle_mposts0.each {|mpost| mpost.save}
@@ -267,6 +270,7 @@ class Meet < ActiveRecord::Base
     self.cached_info[:users_count] ||= 0
     cached_info[:top_user_ids] << user0.id if cached_info[:top_user_ids].size < 10
     self.cached_info[:users_count] += 1
+    force_timestamping
     if is_encounter?
       extract_meet_type
       #cirkle0 = cirkle_id ? Meet.find_by_id(cirkle_id) : nil
@@ -285,6 +289,7 @@ class Meet < ActiveRecord::Base
     self.cached_info[:top_topic_ids] = topic_ids0.slice(0..9)
     self.cached_info[:top_chatter_ids] = chatter_ids0.slice(0..9)
     self.cached_info[:top_photo_ids] = photo_ids0.slice(0..9)
+    force_timestamping
     return self
   end
 
@@ -631,6 +636,7 @@ class Meet < ActiveRecord::Base
       self.cached_info[:top_user_ids] ||= []
       self.cached_info[:users_count] += new_users.size
       self.cached_info[:top_user_ids].concat(new_users.to_a).slice!(10..-1)
+      force_timestamping if new_user.present?
       save
     }
     encounters0.each {|encounter0|
@@ -733,6 +739,16 @@ class Meet < ActiveRecord::Base
       cirkle0.add_encounters([], encounters_mposts0)
       return cirkle0
     }
+  end
+
+  # Change of contents in cached_info may not trigger timestamp update, force to update
+  # by toggling cached_info_flag.
+  def force_timestamping
+    if toggle_flag.nil?
+      self.toggle_flag = false
+    else
+      self.toggle_flag = !toggle_flag
+    end
   end
 
 private

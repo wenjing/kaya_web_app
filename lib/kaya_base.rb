@@ -643,5 +643,10 @@ module ActiveRecord
         remove_method :record_timestamps
       end
     end  
+    # Force update timestamp, some serialize field may not trigger update
+    def save_force_timestamping
+      self.updated_at = Time.now.utc
+      save
+    end  
   end
 end

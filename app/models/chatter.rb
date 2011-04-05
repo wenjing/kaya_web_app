@@ -1,20 +1,21 @@
 # == Schema Information
-# Schema version: 20110125155037
+# Schema version: 20110405033701
 #
 # Table name: chatters
 #
-#  id                 :integer         primary key
+#  id                 :integer         not null, primary key
 #  user_id            :integer
 #  content            :text
 #  photo_content_type :string(255)
 #  photo_file_name    :string(255)
 #  photo_file_size    :integer
-#  photo_updated_at   :timestamp
-#  created_at         :timestamp
-#  updated_at         :timestamp
+#  photo_updated_at   :datetime
+#  created_at         :datetime
+#  updated_at         :datetime
 #  meet_id            :integer
 #  topic_id           :integer
 #  cached_info        :text
+#  toggle_flag        :boolean
 #
 
 class Chatter < ActiveRecord::Base
@@ -84,6 +85,7 @@ class Chatter < ActiveRecord::Base
     comment_ids0 = comment_ids.to_a
     self.cached_info[:comments_count] = comment_ids0.count
     self.cached_info[:top_comment_ids] = comment_ids0.slice(0..9)
+    force_timestamping
   end
   def comments_count
     return cached_info ? (cached_info[:comments_count] || 0) : 0
@@ -134,4 +136,15 @@ class Chatter < ActiveRecord::Base
   def is_new_chatter
     return @is_new_chatter.present?
   end
+
+  # Change of contents in cached_info may not trigger timestamp update, force to update
+  # by toggling cached_info_flag.
+  def force_timestamping
+    if toggle_flag.nil?
+      self.toggle_flag = false
+    else
+      self.toggle_flag = !toggle_flag
+    end
+  end
+
 end

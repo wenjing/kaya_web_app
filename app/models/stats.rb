@@ -1,12 +1,12 @@
 # == Schema Information
-# Schema version: 20110226204045
+# Schema version: 20110405033701
 #
 # Table name: stats
 #
-#  id           :integer         not null, primary key
+#  id           :integer         primary key
 #  avg_meet_lag :float
-#  created_at   :datetime
-#  updated_at   :datetime
+#  created_at   :timestamp
+#  updated_at   :timestamp
 #
 
 class Stats < ActiveRecord::Base

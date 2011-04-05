@@ -11,24 +11,24 @@ class MeetsController < ApplicationController
   before_filter :authorized_meet_member, :only => [:map, :show, :edit, :update, :destroy]
   before_filter :pending_meet_member, :only => [:confirm, :decline]
 
-  JSON_MEET_DETAIL_API = { :except => [:created_at, :cached_info, :lock_version, :collision, 
+  JSON_MEET_DETAIL_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                        :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_name, :meet_address],
                            :include => {:users => UsersController::JSON_USER_DETAIL_API,
                                         :topics => ChattersController::JSON_CHATTER_DETAIL_API} }
-  JSON_MEET_MARKED_API = { :except => [:created_at, :cached_info, :lock_version, :collision,
+  JSON_MEET_MARKED_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                        :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:marked_name, :meet_address,
                                         :marked_users, :marked_chatters] }
   JSON_MEET_CIRKLE_API = { :only => [:id, :time, :mage_url, :updated_at],
                            :methods => [:marked_name, :marked_top_users,
                                         :users_count, :topics_count, :chatters_count, :photos_count] }
-  JSON_MEET_LIST_API   = { :except => [:created_at, :cached_info, :lock_version, :collision,
+  JSON_MEET_LIST_API   = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                        :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_name, :meet_address,
                                         :users_count, :topics_count, :chatters_count, :photos_count,
                                         :peers_name_brief, :marked_top_users] }
-  JSON_PENDING_MEET_LIST_API = { :except => [:created_at, :cached_info, :lock_version, :collision,
+  JSON_PENDING_MEET_LIST_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                              :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_inviter, :meet_invitation_message, :meet_other_inviters,
                                         :meet_name, :meet_address,
