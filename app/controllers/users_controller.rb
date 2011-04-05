@@ -302,7 +302,10 @@ class UsersController < ApplicationController
           photo0 = activity_summary.body[:photo]
           activity = {:type=>:photo, :content=>photo0.content,
                       :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo}
-          activity[:user] = photo0.loaded_user if photo0.loaded_user.present?
+          if photo0.loaded_user.present?
+            activity[:user] = photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API)["user"]
+            puts photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API).inspect
+          end
         else
           encounter0 = activity_summary.body[:encounter_summary]
           name0 = encounter0.marked_name
