@@ -13,18 +13,18 @@
 ActiveRecord::Schema.define(:version => 20110405033701) do
 
   create_table "chatters", :force => true do |t|
-    t.integer  "user_id"
-    t.text     "content"
-    t.string   "photo_content_type"
-    t.string   "photo_file_name"
-    t.integer  "photo_file_size"
-    t.datetime "photo_updated_at"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.integer  "meet_id"
-    t.integer  "topic_id"
-    t.text     "cached_info"
-    t.boolean  "toggle_flag",        :default => false
+    t.integer   "user_id"
+    t.text      "content"
+    t.string    "photo_content_type"
+    t.string    "photo_file_name"
+    t.integer   "photo_file_size"
+    t.timestamp "photo_updated_at"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.integer   "meet_id"
+    t.integer   "topic_id"
+    t.text      "cached_info"
+    t.boolean   "toggle_flag",        :default => false
   end
 
   add_index "chatters", ["created_at"], :name => "index_chatters_on_created_at"
@@ -60,29 +60,29 @@ ActiveRecord::Schema.define(:version => 20110405033701) do
   add_index "invitations", ["user_id"], :name => "index_invitations_on_user_id"
 
   create_table "meets", :force => true do |t|
-    t.string   "name"
-    t.text     "description"
-    t.datetime "time"
-    t.string   "location"
-    t.string   "street_address"
-    t.string   "city"
-    t.string   "state"
-    t.string   "zip"
-    t.string   "country"
-    t.string   "image_url"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-    t.decimal  "lng"
-    t.decimal  "lat"
-    t.float    "lerror"
-    t.boolean  "collision"
-    t.string   "host_id"
-    t.integer  "lock_version",   :default => 0,     :null => false
-    t.integer  "hoster_id"
-    t.text     "cached_info"
-    t.integer  "meet_type"
-    t.integer  "cirkle_id"
-    t.boolean  "toggle_flag",    :default => false
+    t.string    "name"
+    t.text      "description"
+    t.timestamp "time"
+    t.string    "location"
+    t.string    "street_address"
+    t.string    "city"
+    t.string    "state"
+    t.string    "zip"
+    t.string    "country"
+    t.string    "image_url"
+    t.timestamp "created_at"
+    t.timestamp "updated_at"
+    t.decimal   "lng"
+    t.decimal   "lat"
+    t.float     "lerror"
+    t.boolean   "collision"
+    t.string    "host_id"
+    t.integer   "lock_version",   :default => 0,     :null => false
+    t.integer   "hoster_id"
+    t.text      "cached_info"
+    t.integer   "meet_type"
+    t.integer   "cirkle_id"
+    t.boolean   "toggle_flag",    :default => false
   end
 
   add_index "meets", ["cirkle_id"], :name => "index_meets_on_cirkle_id"
@@ -151,9 +151,6 @@ ActiveRecord::Schema.define(:version => 20110405033701) do
 
   add_index "relationships", ["followed_id"], :name => "index_relationships_on_followed_id"
   add_index "relationships", ["follower_id"], :name => "index_relationships_on_follower_id"
-
-# Could not dump table "sqlite_stat1" because of following StandardError
-#   Unknown type '' for column 'tbl'
 
   create_table "stats", :force => true do |t|
     t.float     "avg_meet_lag"
