@@ -265,7 +265,7 @@ class User < ActiveRecord::Base
     if meets.loaded?
       return meets.to_a.select {|meet| meet.of_type?(type) && meet.time >= time_after}
     else
-      return meets_of_type(type).where("created_at >= ?", time_after)
+      return meets_of_type(type).where("meets.created_at >= ?", time_after)
     end
   end
 

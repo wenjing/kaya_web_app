@@ -637,7 +637,7 @@ class Meet < ActiveRecord::Base
       self.cached_info[:top_user_ids] ||= []
       self.cached_info[:users_count] += new_users.size
       self.cached_info[:top_user_ids].concat(new_users.to_a).slice!(10..-1)
-      force_timestamping if new_user.present?
+      force_timestamping if new_users.present?
       save
     }
     encounters0.each {|encounter0|
@@ -690,7 +690,7 @@ class Meet < ActiveRecord::Base
     # Because this function may be called simutanously, multiple cirkles may be created for same
     # user pair. However, it is risky to try to delete the duplicated one. Simply double check
     # the result and return the first one in the final list.
-    meet_type = users0.size == 1 ? 4 : 5 # Solo, or Private cirkle
+    meet_type = 0
     if users0.size == 1
       meet_type = 4
       meet_name = "Solo cirkle of #{users0.first.name_or_email}"
@@ -700,7 +700,8 @@ class Meet < ActiveRecord::Base
     end
     cirkle0 = nil
     2.times {
-      cirkle0 = users0.first.meets_of_type(meet_type).first
+      cirkle0_ids = users0.first.meet_ids_of_type(meet_type).compact.uniq
+      cirkle0 = users0.last.meets_of_type(meet_type).where("meets.id IN (?)", cirkle0_ids).first
       return cirkle0 if cirkle0
 
       cirkle0 = Meet.new
