@@ -17,7 +17,7 @@ class UsersController < ApplicationController
   JSON_USER_DETAIL_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
                                        :salt, :encrypted_password, :temp_password,
                                        :photo_content_type, :photo_file_name,
-                                       :photo_file_size, :photo_updated_at, :email],
+                                       :photo_file_size, :photo_updated_at],
                            :methods => [:user_avatar, :is_new_user] }
   JSON_USER_LIST_API = JSON_USER_DETAIL_API
 
@@ -304,7 +304,6 @@ class UsersController < ApplicationController
                       :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo}
           if photo0.loaded_user.present?
             activity[:user] = photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API)["user"]
-            puts photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API).inspect
           end
         else
           encounter0 = activity_summary.body[:encounter_summary]

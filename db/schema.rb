@@ -152,6 +152,9 @@ ActiveRecord::Schema.define(:version => 20110405033701) do
   add_index "relationships", ["followed_id"], :name => "index_relationships_on_followed_id"
   add_index "relationships", ["follower_id"], :name => "index_relationships_on_follower_id"
 
+# Could not dump table "sqlite_stat1" because of following StandardError
+#   Unknown type '' for column 'tbl'
+
   create_table "stats", :force => true do |t|
     t.float     "avg_meet_lag"
     t.timestamp "created_at"
