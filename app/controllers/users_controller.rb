@@ -224,7 +224,7 @@ class UsersController < ApplicationController
         # encounters (do not count cirkles, not a friend unless met directly).
         #friends_meets = @user.friends_meets(meets0, nil, nil, nil, self, false)
         # Nail down priviate contents to only private groups, no more contents from cirkles.
-        friends_meets = @user.friends_meets(private_meets, nil, nil, nil, self, false)
+        friends_meets = @user.friends_meets(private_meets, nil, nil, nil, self, true)
 
         private_contents = []
         friends = friends_meets.collect {|v| v[0]}
@@ -581,6 +581,7 @@ class UsersController < ApplicationController
   
   def create
     confirm_signup = !admin_user?
+    confirm_signup = false # to make it simple, currently no confirmation required
     @filtered_params = {:email => @filtered_params[:email]} if confirm_signup
     @user = User.new(@filtered_params)
     pending_user = User.find_by_email(@user.email.strip.downcase)
