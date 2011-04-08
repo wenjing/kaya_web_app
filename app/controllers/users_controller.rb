@@ -9,13 +9,18 @@ class UsersController < ApplicationController
   before_filter :only => [:create] do |controller|
     signed_in? || basic_authenticate
   end
-  before_filter :correct_user, :only => [:show, :edit, :update, :pending_meets, :confirm_meets,
+  before_filter :correct_user, :only => [:edit, :update, :pending_meets, :confirm_meets,
                                          :friends, :cirkles, :news]
   before_filter :admin_current_user,     :only => [:index]
   before_filter :admin_user_except_self, :only => [:destroy]
   
   JSON_USER_DETAIL_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
                                        :salt, :encrypted_password, :temp_password,
+                                       :photo_content_type, :photo_file_name,
+                                       :photo_file_size, :photo_updated_at],
+                           :methods => [:user_avatar, :is_new_user] }
+  JSON_USER_UNAUTH_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
+                                       :salt, :encrypted_password, :temp_password, :email,
                                        :photo_content_type, :photo_file_name,
                                        :photo_file_size, :photo_updated_at],
                            :methods => [:user_avatar, :is_new_user] }
@@ -36,6 +41,7 @@ class UsersController < ApplicationController
   def show
     # Do not use costly eager load to get all meets/chatters/friends. We only need
     # to get a top listed few.
+    @user = find_user(params[:id])
     assert_internal_error(@user)
     respond_to do |format|
       format.html {
@@ -48,7 +54,11 @@ class UsersController < ApplicationController
         redirect_to meets_user_path(@user)
       }
       format.json { # Only return user profile
-        render :json => @user.to_json(JSON_USER_DETAIL_API)
+        if (!current_user?(@user) && !admin_user?)
+          render :json => @user.to_json(JSON_USER_UNAUTH_API)
+        else
+          render :json => @user.to_json(JSON_USER_DETAIL_API)
+        end
       }
     end
   end
@@ -634,6 +644,12 @@ class UsersController < ApplicationController
     @user.opt_lock_protected {
       @user.status = 0
       @user.temp_password = nil # temp password is only one time use
+      @filtered_params.delete("id") # interfere with update_attributes
+      # If passwords are empty, do not update encrypt_password.
+      if (@filtered_params["password"].blank? && @filtered_params["password_confirmation"].blank?)
+        @filtered_params["password"] = User::NULL_PASSWORD;
+        @filtered_params["password_confirmation"] = User::NULL_PASSWORD;
+      end
       saved = @user.update_attributes(@filtered_params)
     }
     if saved

@@ -125,11 +125,13 @@ class User < ActiveRecord::Base
     record.email = record.email.strip.downcase if record.email.present?
   }
   before_save {|record|
-    password ||= temp_password
-    record.encrypt_password
+    self.password ||= temp_password
+    record.encrypt_password if password != User::NULL_PASSWORD
   }
 
   default_scope :order => 'users.email ASC'
+
+  NULL_PASSWORD = "###<kaya-labs null password>###"
 
   class << self
     def authenticate(email, submitted_password)
