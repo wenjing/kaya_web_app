@@ -192,7 +192,7 @@ class UsersController < ApplicationController
       has_update = meets0.where("meets.updated_at >= ?", after_time).first.present?
     end
     if !has_update
-      has_update = @user.mposts.where("mviews.updated_at >= ?", after_time).first.present?
+      has_update = @user.mposts.where("mposts.updated_at >= ?", after_time).first.present?
     end
     if !has_update
       has_update = @user.mviews.where("mviews.updated_at >= ?", after_time).first.present?
