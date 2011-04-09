@@ -41,6 +41,9 @@ class User < ActiveRecord::Base
   has_many :pending_meets, :class_name => "Meet", :source => :meet,
                    :through => :mposts, :uniq => true,
                    :conditions => ['mposts.status = ?', 2]
+  has_many :all_meets, :class_name => "Meet", :source => :meet,
+                   :through => :mposts, :uniq => true,
+                   :conditions => ['mposts.status IN (?)', [0, 1, 2]]
 
   has_many :encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
@@ -447,6 +450,17 @@ class User < ActiveRecord::Base
   end
   def true_pending_meets(within_meets=nil)
     within_meets ||= pending_meets
+    return [] if within_meets.count == 0
+    active_meet_ids = meet_ids.to_set
+    return within_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []
+  end
+  def true_deleted_meet_ids
+    return [] if deleted_meets.count == 0
+    active_meet_ids = meet_ids.to_set
+    return deleted_meet_ids.select {|meet_id| !active_meet_ids.include?(meet_id)} || []
+  end
+  def true_deleted_meets(within_meets=nil)
+    within_meets ||= deleted_meets
     return [] if within_meets.count == 0
     active_meet_ids = meet_ids.to_set
     return within_meets.to_a.select {|meet| !active_meet_ids.include?(meet.id)} || []

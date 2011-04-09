@@ -33,6 +33,8 @@ require 'geokit'
 require 'kaya_base'
 
 class Meet < ActiveRecord::Base
+  attr_writer  :is_pending, :is_deleted
+
   after_create :record_avg_meet_lag
 
   attr_accessor :meet_mview, :hoster_mview
@@ -637,7 +639,7 @@ class Meet < ActiveRecord::Base
       self.cached_info[:top_user_ids] ||= []
       self.cached_info[:users_count] += new_users.size
       self.cached_info[:top_user_ids].concat(new_users.to_a).slice!(10..-1)
-      force_timestamping if new_users.present?
+      force_timestamping #if new_users.present?
       save
     }
     encounters0.each {|encounter0|
@@ -670,6 +672,7 @@ class Meet < ActiveRecord::Base
     cirkle0.street_address = first_encounter.street_address
     cirkle0.location = first_encounter.location
     cirkle0.city = first_encounter.city
+    cirkle0.state = first_encounter.state
     cirkle0.zip = first_encounter.zip
     cirkle0.country = first_encounter.country
     cirkle0.image_url = first_encounter.image_url
@@ -751,6 +754,13 @@ class Meet < ActiveRecord::Base
     else
       self.toggle_flag = !toggle_flag
     end
+  end
+
+  def is_pending
+    return @is_pending.present?
+  end
+  def is_deleted
+    return @is_deleted.present?
   end
 
 private

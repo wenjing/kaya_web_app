@@ -14,8 +14,11 @@ class MeetsController < ApplicationController
   JSON_MEET_DETAIL_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                        :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_name, :meet_address],
-                           :include => {:users => UsersController::JSON_USER_DETAIL_API,
+                           :include => {:users => UsersController::JSON_USER_BRIEF_API,
                                         :topics => ChattersController::JSON_CHATTER_DETAIL_API} }
+  JSON_MEET_BRIEF_API  = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
+                                      :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
+                           :methods => [:meet_name, :meet_address] }
   JSON_MEET_MARKED_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
                                        :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:marked_name, :meet_address,
@@ -66,7 +69,7 @@ class MeetsController < ApplicationController
       @meet.meet_mview = @mview
       respond_to do |format|
         format.html { redirect_back @meet, :flash => { :success => "Meet profile updated!" } }
-        format.json { render :json => @meet.to_json(JSON_MEET_DETAIL_API); }
+        format.json { render :json => @meet.to_json(JSON_MEET_BRIEF_API); }
       end
     else
       @title = "Edit meet profile"
@@ -165,7 +168,7 @@ class MeetsController < ApplicationController
         }
         format.json {
           if accept
-            render :json => @meet.to_json(JSON_MEET_DETAIL_API)
+            render :json => @meet.to_json(JSON_MEET_BRIEF_API)
           else
             head :ok
           end

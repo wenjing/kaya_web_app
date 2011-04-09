@@ -19,12 +19,12 @@ class UsersController < ApplicationController
                                        :photo_content_type, :photo_file_name,
                                        :photo_file_size, :photo_updated_at],
                            :methods => [:user_avatar, :is_new_user] }
-  JSON_USER_UNAUTH_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
-                                       :salt, :encrypted_password, :temp_password, :email,
+  JSON_USER_BRIEF_API = { :except => [:created_at, :admin, :lock_version, :status, :updated_at,
+                                       :salt, :encrypted_password, :temp_password, #:email,
                                        :photo_content_type, :photo_file_name,
                                        :photo_file_size, :photo_updated_at],
                            :methods => [:user_avatar, :is_new_user] }
-  JSON_USER_LIST_API = JSON_USER_DETAIL_API
+  JSON_USER_LIST_API = JSON_USER_BRIEF_API
 
   def index
     assert_unauthorized(false, :except=>:html)
@@ -55,7 +55,7 @@ class UsersController < ApplicationController
       }
       format.json { # Only return user profile
         if (!current_user?(@user) && !admin_user?)
-          render :json => @user.to_json(JSON_USER_UNAUTH_API)
+          render :json => @user.to_json(JSON_USER_BRIEF_API)
         else
           render :json => @user.to_json(JSON_USER_DETAIL_API)
         end
@@ -181,11 +181,24 @@ class UsersController < ApplicationController
     current_time = Time.now.getutc
     contents = []
     api_contents = []
-    meets0 = @user.meets # these include both encounters and cirkles
-    filtered_meets = !after_time.present? ? meets0 : meets0.where("meets.updated_at >= ?", after_time);
+    meets0 = @user.all_meets # these include both encounters and cirkles
 
     self.class.benchmark("Create") do
-    if !filtered_meets.empty?
+    has_update = !after_time.present?
+    if !has_update
+      has_update = @user.updated_at >= after_time
+    end
+    if !has_update
+      has_update = meets0.where("meets.updated_at >= ?", after_time).first.present?
+    end
+    if !has_update
+      has_update = @user.mposts.where("mviews.updated_at >= ?", after_time).first.present?
+    end
+    if !has_update
+      has_update = @user.mviews.where("mviews.updated_at >= ?", after_time).first.present?
+    end
+
+    if has_update
       # Also load all cirkles these meets refering to, so we don't have to load
       # them one-by-one when needed.
       #loaded_meet_ids = meets0.collect {|v| v.id}.to_set
@@ -197,24 +210,31 @@ class UsersController < ApplicationController
       #encounters0 = meets0.select {|v| v.is_encounter?}
       #cirkles0 = meets0.select {|v| v.is_cirkle?}
 
+      meets0 = meets0.to_a
+
+      # Mark pending and deleted flag in meet
+      @user.true_pending_meets().each {|v| v.is_pending = true}
+      @user.true_deleted_meets().each {|v| v.is_deleted = true}
+
+      # Get all none-participant meets, but under same cirkles
+      cirkle_ids = meets0.select {|v| v.is_cirkle?}.collect {|v| v.id}
+      meet_ids = meets0.collect {|v| v.id}
+      other_meets = Meet.where("meets.cirkle_id IN (?)", cirkle_ids)
+                        .where("meets.id NOT IN (?)", meet_ids)
+      meets0.concat(other_meets)
+
       # top_photo_ids shall already sorted by created_at, so only get the top count list
       photo_ids = []
       meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
       photos = find_chatters(photo_ids)
 
-      # Get all cirkles (actually meets) and extract solo meets and group meets.
-      # Do not try to get solo/group separately because that will require 2 DB query.
-      # Instead, query all meets at once and separate them later. Do not show private meets
-      # cause they are included in private relations already (friends_meets).
-      # Also get all pending meets.
-      filtered_solo_meets = filtered_meets.select {|v| v.meet_type == 1 || v.meet_type == 4}
-      filtered_private_meets = filtered_meets.select {|v| v.meet_type == 2 || v.meet_type == 5}
-      filtered_group_meets = filtered_meets.select {|v| v.meet_type == 3 || v.meet_type == 6}
+      solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
+      private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
+      group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
 
       # Solo
-      if !filtered_solo_meets.empty?
+      if !solo_meets.empty?
         # Still need all solo meets, not only the filtered ones
-        solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
         content = ContentAPI.new(:solo)
         content.timestamp = solo_meets.collect {|v| v.updated_at}.max
         content.id = @user.id
@@ -227,8 +247,7 @@ class UsersController < ApplicationController
 
       # Private
       # If after_updated_at is specified, friends_meets here do not include all meets.
-      if !filtered_private_meets.empty?
-        private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
+      if !private_meets.empty?
         # Do not use private cirkles because they are created on demand when
         # direct chatter established between them. Get friends list from all
         # encounters (do not count cirkles, not a friend unless met directly).
@@ -258,8 +277,7 @@ class UsersController < ApplicationController
       end
 
       # Cirkle (Group)
-      if !filtered_group_meets.empty?
-        group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
+      if !group_meets.empty?
         cirkle_contents = []
         cirkles_meets = get_cirkles_meets(group_meets)
         cirkles_stats = get_cirkles_stats(cirkles_meets.collect {|v| v[0]}, meets0)
@@ -283,10 +301,10 @@ class UsersController < ApplicationController
     end
  
     # Filter by timestamp
-    contents = contents.select {|content|
-      is_between_time?(content.timestamp, after_time, nil)
-    }
-    attach_meet_infos_to_contents(contents)
+#   contents = contents.select {|content|
+#     is_between_time?(content.timestamp, after_time, nil)
+#   }
+    attach_meet_infos_to_contents(contents) # attach pending information
 
     # Simplify API contents
     contents.each {|content|
@@ -303,6 +321,15 @@ class UsersController < ApplicationController
         api_content.body[:name] = cirkle0.marked_name
         api_content.body[:user] = cirkle0.loaded_top_users.first
         api_content.body[:users_count] = cirkle0.users_count
+        meet_invitation = cirkle0.is_pending ? cirkle0.meet_invitation : nil
+        if meet_invitation
+          api_content.body[:is_pending] = true
+          api_content.body[:inviter] = meet_invitation.user.as_json(UsersController::JSON_USER_LIST_API)["user"]
+          api_content.body[:invite_message] = meet_invitation.message
+        end
+        if cirkle0.is_deleted
+          api_content.body[:is_deleted] = true
+        end
       end
       api_content.body[:relation_score] = content.body[:relation_score][1]
       activities = []
@@ -311,7 +338,7 @@ class UsersController < ApplicationController
         if activity_summary.type == :photo
           photo0 = activity_summary.body[:photo]
           activity = {:type=>:photo, :content=>photo0.content,
-                      :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo_small}
+                      :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo}
           if photo0.loaded_user.present?
             activity[:user] = photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API)["user"]
           end
@@ -378,6 +405,7 @@ class UsersController < ApplicationController
     meets0 = meets0.where("meets.cirkle_id = ? OR meets.id = ?", @cirkle.id, @cirkle.id) if @cirkle
 
     self.class.benchmark("Create") do
+    meets0 = meets0.to_a
     if !meets0.empty?
       # Also load all cirkles these meets refering to, so we don't have to load
       # them one-by-one when needed.
@@ -388,6 +416,15 @@ class UsersController < ApplicationController
         meets0.concat(Meet.where('id IN (?)', missing_cirkle_ids))
       end
       mposts0 = mposts0.where("meet_id IN (?)", meets0.collect {|v| v.id})
+
+      # Get all none-participant meets, but under same cirkles
+      cirkle_ids = meets0.select {|v| v.is_cirkle?}.collect {|v| v.id}
+      meet_ids = meets0.collect {|v| v.id}
+      other_meets = Meet.where("meets.cirkle_id IN (?)", cirkle_ids)
+                        .where("meets.id NOT IN (?)", meet_ids)
+      other_meets = other_meets.where("meets.updated_at >= ?", after_time) if after_time
+      other_meets = other_meets.where("meets.updated_at <= ?", before_time) if before_time
+      meets0.concat(other_meets)
     end
 
     # Collisions, only for non-flashback mode
@@ -403,6 +440,7 @@ class UsersController < ApplicationController
       }
     end
 
+    if false # moved to cirkles
     # All pending Invitations & New pending Invitation
     # If any mpost with invitation_id changed, it hints potential invitation activities.
     # Need to send updated pending_meets list to client.
@@ -436,6 +474,7 @@ class UsersController < ApplicationController
         content.body = {:pending_invitation => pending_meet}
         contents << content
       }
+    end
     end
 
     if @with_user
@@ -797,11 +836,11 @@ class UsersController < ApplicationController
       return activities_summary.sort_by {|v| v.timestamp}.reverse.first(summary_limit)
     end
 
-    def attach_meet_infos(user, meets, invitation=false)
+    def attach_meet_infos(user, meets, has_pending=false)
       attach_meet_mviews(user, meets)
       attach_meet_top_users(meets)
       attach_meet_top_chatters(meets)
-      attach_meet_invitations(user, meets) if (invitation)
+      attach_meet_invitations(user, meets) if (has_pending)
     end
 
     def attach_meet_mviews(user, meets)
@@ -840,7 +879,6 @@ class UsersController < ApplicationController
       meets.each {|meet|
         # invitations are sorted by created_at time. Hope it still keep the timed
         # order after the select procedure, so the first is the latest one,
-        # so the first is the latest one.
         meet.meet_invitations = pending_invitations.select {|invitation|
           invitation.meet_id == meet.id
         }
@@ -876,12 +914,13 @@ class UsersController < ApplicationController
         content.each_pair {|k, v| get_chatters_from_content(v, content_chatters)}
       end
     end
-    def attach_meet_infos_to_contents(contents)
+    def attach_meet_infos_to_contents(contents, has_pending=false)
       return if contents.empty?
       content_meets = Set.new
       get_meets_from_content(contents, content_meets)
       content_meets = content_meets.to_a
-      attach_meet_infos(@user, content_meets)
+      has_pending = content_meets.any? {|v| v.is_pending}
+      attach_meet_infos(@user, content_meets, has_pending)
       content_meets.each {|meet|
         #meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
         meet.friends_name_list_params = {:except=>nil,:delimiter=>", ",:max_length=>40}
@@ -900,7 +939,7 @@ class UsersController < ApplicationController
     end
     def get_pending_meets(user, cirkle=nil) 
       pending_meets0 = user.pending_meets.where("meets.meet_type = ?", 3)
-      pending_meets0 = pending_meets0.where("meets.cirkle_id = ?", cirkle)
+      pending_meets0 = pending_meets0.where("meets.cirkle_id = ?", cirkle.id) if cirkle
       return @user.true_pending_meets(pending_meets0)
     end
     def get_cirkles_meets(meets0)
