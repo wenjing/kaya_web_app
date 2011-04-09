@@ -311,7 +311,7 @@ class UsersController < ApplicationController
         if activity_summary.type == :photo
           photo0 = activity_summary.body[:photo]
           activity = {:type=>:photo, :content=>photo0.content,
-                      :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo}
+                      :timestamp=>activity_summary.timestamp, :url=>photo0.chatter_photo_small}
           if photo0.loaded_user.present?
             activity[:user] = photo0.loaded_user.as_json(UsersController::JSON_USER_LIST_API)["user"]
           end
