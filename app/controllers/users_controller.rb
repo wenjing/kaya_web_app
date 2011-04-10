@@ -261,6 +261,7 @@ class UsersController < ApplicationController
         friends_meets.each_pair {|friend, with_meets|
           next if with_meets.empty?
           friend_stats = friends_stats[friend]
+          next unless friend_stats
           content = ContentAPI.new(:private)
           content.timestamp = with_meets.collect {|v| v.updated_at}.max
           content.id = friend.id
