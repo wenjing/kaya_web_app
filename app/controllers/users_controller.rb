@@ -658,9 +658,11 @@ class UsersController < ApplicationController
       end
     }
     if saved
-      #sign_in @user
+      puts !admin_user?
       if confirm_signup
         InvitationMailer.signup_confirmation(root_url, pending_user_url(@user), @user).deliver
+      elsif !admin_user? 
+        sign_in(@user)
       end
       respond_to do |format|
         format.html { redirect_to root_path, :flash => { :success => "Check your email for confirmation!" } }

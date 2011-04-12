@@ -12,7 +12,7 @@ class MeetsController < ApplicationController
   before_filter :pending_meet_member, :only => [:confirm, :decline]
 
   JSON_MEET_DETAIL_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                       :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
+                                        :name, :description, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_name, :meet_address],
                            :include => {:users => UsersController::JSON_USER_BRIEF_API,
                                         :topics => ChattersController::JSON_CHATTER_DETAIL_API} }

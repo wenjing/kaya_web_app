@@ -1,9 +1,9 @@
 module SessionsHelper
   
-  def sign_in(user)
+  def sign_in(user, create_session=true)
     if !current_user?(user)
       sign_out
-      cookies.permanent.signed[:remember_token] = [user.id, user.salt]
+      cookies.permanent.signed[:remember_token] = [user.id, user.salt] if create_session
       self.current_user = user
     end
   end
