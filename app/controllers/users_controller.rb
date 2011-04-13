@@ -495,9 +495,26 @@ class UsersController < ApplicationController
     if !meets0.empty?
       encounters0 = meets0.select {|v| v.is_encounter?}
       cirkles0 = meets0.select {|v| v.is_cirkle?}
-
       cirkles_stats = get_cirkles_stats(cirkles0, meets0)
       attach_meet_details(@user, meets0, cirkles0, encounters0, before_time, after_time)
+
+      # Cirkle members
+      if @with_user || @cirkle
+        content = ContentAPI.new(:users)
+        content.timestamp = Time.zone.parse("2035-01-01 00:00:00 UTC")
+        content.id = 0
+        content.body = {}
+        users = []
+        if @with_user
+          users << @user
+          users << @with_user if @with_user.id != @user.id
+        else
+          users = cirkles0.find {|v| v.id == @cirkle.id}.loaded_users
+        end
+        content.body[:users] = users.as_json(UsersController::JSON_USER_DETAIL_API)
+        contents << content
+      end
+
       # New Encounter
       cirkles0 = cirkles0.index_by(&:id)
       encounters0.each {|meet|

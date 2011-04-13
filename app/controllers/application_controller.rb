@@ -295,6 +295,8 @@ class ContentAPI
     body.each_pair {|k, v|
       if v.class == Meet && k == :encounter_summary
         options0 = options.merge(MeetsController::JSON_MEET_LIST_API)
+      #elsif v.class == Array && k == :users
+      #  options0 = options.merge(UsersController::JSON_USER_BRIEF_API)
       elsif v.class == Meet && k == :encounter
         options0 = options.merge(MeetsController::JSON_MEET_MARKED_API)
       elsif v.class == Meet && k == :cirkle
