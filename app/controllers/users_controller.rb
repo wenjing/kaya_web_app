@@ -213,8 +213,12 @@ class UsersController < ApplicationController
       meets0 = meets0.to_a
 
       # Mark pending and deleted flag in meet
-      @user.true_pending_meets().each {|v| v.is_pending = true}
-      @user.true_deleted_meets().each {|v| v.is_deleted = true}
+      pending_meet_ids = @user.true_pending_meet_ids.to_set
+      deleted_meet_ids = @user.true_deleted_meet_ids.to_set
+      meets0.each {|v|
+        v.is_pending = true if pending_meet_ids.include?(v.id)
+        v.is_deleted = true if deleted_meet_ids.include?(v.id)
+      }
 
       # Get all none-participant meets, but under same cirkles
       cirkle_ids = meets0.select {|v| v.is_cirkle?}.collect {|v| v.id}
@@ -305,7 +309,7 @@ class UsersController < ApplicationController
 #   contents = contents.select {|content|
 #     is_between_time?(content.timestamp, after_time, nil)
 #   }
-    attach_meet_infos_to_contents(contents) # attach pending information
+    attach_meet_infos_to_contents(contents, meets0.any? {|v| v.is_pending})
 
     # Simplify API contents
     contents.each {|content|
