@@ -378,7 +378,7 @@ class Meet < ActiveRecord::Base
         more -= 1
       elsif (friends_name.size + delimiter.size + user_name.size) > max_length
         if more > 0
-          friends_name += " and #{more} more #{pluralize(more, except ? 'friend' : 'member')}"
+          friends_name += " and #{pluralize(more, except ? 'more friend' : 'more member')}"
         end
         break
       else
