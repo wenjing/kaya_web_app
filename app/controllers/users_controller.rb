@@ -115,7 +115,7 @@ class UsersController < ApplicationController
         @meets.each {|meet|
           meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
         }
-        render :json => @meets.to_json(MeetsController::JSON_MEET_LIST_API)
+        render :json => @meets.to_json(MeetsController::JSON_MEET_LIST_APIX)
       }
     end
   end
