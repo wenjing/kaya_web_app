@@ -32,8 +32,11 @@ require 'meet_processer'
 
 class Mpost < ActiveRecord::Base
   CIRKLE_MARKER = '#cirkle#'
+  DEV_TIME_TOLERANCE = 3.0 # time diff tolerance when 2 BT saw each other
+
   attr_accessible :time, :lng, :lat, :lerror, :user_dev,
                   :devs, :note, :host_mode, :host_id, :collision, :cirkle_id
+
 
   belongs_to :user, :inverse_of => :mposts
   belongs_to :meet, :inverse_of => :mposts
@@ -148,12 +151,22 @@ class Mpost < ActiveRecord::Base
   def trigger_time
     return !time? ? created_at.getutc : [time.getutc, created_at.getutc].min
   end
-  # Return true if its devs include other's user_dev 
+
+  # Extract base part by removing time: name:id:phrase:time
+  def base_dev
+    items = user_dev.split(":")
+    if items.size == 4 # this is the format what we expected
+      return items.slice(0..-2).join(":")
+    else
+      return user_dev
+    end
+  end
+  # Return true if its devs include other's user_dev. No time consideration.
   def see_dev?(other_dev)
-    return other_dev ? (user_dev == other_dev || devs.include?(other_dev)) : false
+    return other_dev ? (base_dev == other_dev || devs.include?(other_dev)) : false
   end
   def see?(other)
-    return other ? (user_dev == other.user_dev || devs.include?(other.user_dev)) : false
+    return other ? (base_dev == other.base_dev || devs.include?(other.base_dev)) : false
   end
   def seen_by?(other)
     return other ? other.see?(self) : false
@@ -161,21 +174,25 @@ class Mpost < ActiveRecord::Base
   def see_or_seen_by?(other)
     return other ? (see?(other) || seen_by?(other)) : false
   end
-  def see_each_other?(other)
-    return other ? (see?(other) && seen_by?(other)) : false
-  end
   def see_common?(other) # see a common dev?
     if other
       devs.each {|dev| return true if other.devs.include?(dev)}
     end
     return false
   end
-  # Merge other_devs into this devs
-  def add_devs(other_devs)
-    devs.merge!(other_devs)
-  end
-  def add_dev(other_dev)
-    devs[other_dev] = nil
+  # This is not simply A see B and B see A. A and B must see each other at same time.
+  # Once special case, return true if A and B has exact same user_dev
+  def see_each_other?(other)
+    # If from same user and exact same session (user_dev has session builtin), return true
+    # Do not use base_dev at here, that is for a more loosely check.
+    return true if user_dev == other.user_dev
+
+    # OK, at least they have to see each other, without time consideration
+    return false if !see?(other) || !seen_by?(other)
+    time_from_other = other.devs[base_dev]
+    other_time = devs[other.base_dev]
+    return (time_from_other == other_time) ||
+           (time_from_other - other_time).abs <= DEV_TIME_TOLERANCE
   end
 
   def is_cirkle_mpost?

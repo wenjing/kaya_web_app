@@ -12,34 +12,35 @@ class MeetsController < ApplicationController
   before_filter :pending_meet_member, :only => [:confirm, :decline]
 
   JSON_MEET_DETAIL_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                        :name, :description, :host_id, :meet_type, :hoster_id],
-                           :methods => [:meet_name, :meet_address],
+                                       :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
+                           :methods => [:meet_name, :meet_address, :meet_image],
                            :include => {:users => UsersController::JSON_USER_BRIEF_API,
                                         :topics => ChattersController::JSON_CHATTER_DETAIL_API} }
   JSON_MEET_BRIEF_API  = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                      :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
-                           :methods => [:meet_name, :meet_address] }
-  JSON_MEET_MARKED_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                       :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
-                           :methods => [:marked_name, :meet_address,
+                                       :cirkle_id, :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
+                           :methods => [:meet_name, :meet_address, :meet_image] }
+
+  JSON_MEET_ENCOUNTER_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
+                                       :cirkle_id, :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
+                           :methods => [:marked_name, :marked_image,
                                         :marked_users, :marked_chatters] }
   JSON_MEET_CIRKLE_API = { :only => [:id, :time, :mage_url, :updated_at],
-                           :methods => [:marked_name, :marked_top_users,
+                           :methods => [:marked_name, :marked_image, :marked_top_users,
                                         :users_count, :topics_count, :chatters_count, :photos_count] }
   JSON_MEET_LIST_API   = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                       :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
-                           :methods => [:meet_name, :meet_address,
+                                       :cirkle_id, :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
+                           :methods => [:meet_name, :marked_image,
                                         :users_count, :topics_count, :chatters_count, :photos_count,
                                         :peers_name_brief, :marked_top_users] }
   JSON_MEET_LIST_APIX  = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                       :name, :description, :host_id, :meet_type, :hoster_id],
-                           :methods => [:meet_name, :meet_address,
+                                       :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
+                           :methods => [:meet_name, :marked_image,
                                         :users_count, :topics_count, :chatters_count, :photos_count,
                                         :peers_name_brief, :marked_top_users] }
   JSON_PENDING_MEET_LIST_API = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,
-                                             :cirkle_id, :name, :description, :host_id, :meet_type, :hoster_id],
+                                             :cirkle_id, :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
                            :methods => [:meet_inviter, :meet_invitation_message, :meet_other_inviters,
-                                        :meet_name, :meet_address,
+                                        :meet_name, :marked_image,
                                         :users_count, :topics_count, :chatters_count, :photos_count,
                                         :peers_name_brief, :is_new_invitation] }
 

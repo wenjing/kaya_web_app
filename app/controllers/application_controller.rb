@@ -298,7 +298,7 @@ class ContentAPI
       #elsif v.class == Array && k == :users
       #  options0 = options.merge(UsersController::JSON_USER_BRIEF_API)
       elsif v.class == Meet && k == :encounter
-        options0 = options.merge(MeetsController::JSON_MEET_MARKED_API)
+        options0 = options.merge(MeetsController::JSON_MEET_ENCOUNTER_API)
       elsif v.class == Meet && k == :cirkle
         options0 = options.merge(MeetsController::JSON_MEET_CIRKLE_API)
       elsif v.class == Chatter && k == :photo

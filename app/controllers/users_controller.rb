@@ -232,9 +232,13 @@ class UsersController < ApplicationController
       meets0.each {|meet| photo_ids.concat(meet.top_photo_ids.first(summary_limit)) }
       photos = find_chatters(photo_ids)
 
-      solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
-      private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
-      group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
+      #solo_meets = meets0.select {|v| v.meet_type == 1 || v.meet_type == 4}
+      #private_meets = meets0.select {|v| v.meet_type == 2 || v.meet_type == 5}
+      #group_meets = meets0.select {|v| v.meet_type == 3 || v.meet_type == 6}
+      # Everything is now group cirkle.
+      solo_meets = []
+      private_meets = []
+      group_meets = meets0.select {|v| v.meet_type != 0}
 
       # Solo
       if !solo_meets.empty?
@@ -324,8 +328,8 @@ class UsersController < ApplicationController
       else
         cirkle0 = content.body[:cirkle]
         api_content.body[:name] = cirkle0.marked_name
-        api_content.body[:user] = cirkle0.loaded_top_users.first
-        api_content.body[:users_count] = cirkle0.users_count
+        #api_content.body[:user] = cirkle0.loaded_top_users.first
+        api_content.body[:image] = cirkle0.marked_image
         meet_invitation = cirkle0.is_pending ? cirkle0.meet_invitation : nil
         if meet_invitation
           api_content.body[:is_pending] = true
@@ -679,7 +683,6 @@ class UsersController < ApplicationController
       end
     }
     if saved
-      puts !admin_user?
       if confirm_signup
         InvitationMailer.signup_confirmation(root_url, pending_user_url(@user), @user).deliver
       elsif !admin_user? 
@@ -974,7 +977,7 @@ class UsersController < ApplicationController
         else # also include cirkle itself as part of meets
           cirkle = meet
         end
-       (cirkles_meets[cirkle] ||= Array.new) << meet
+       (cirkles_meets[cirkle] ||= Array.new) << meet if cirkle
       }
       return cirkles_meets
     end

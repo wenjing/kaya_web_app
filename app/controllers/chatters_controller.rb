@@ -50,7 +50,8 @@ class ChattersController < ApplicationController
         format.json { head :ok }
       end
     elsif @chatter.save
-      @meet = Meet.create_cirkle_between_users(current_user.id==@user.id ? [current_user] : [current_user, @user]) if @user
+      @meet = Meet.get_cirkle_for_users(current_user.id==@user.id ?
+                                          [current_user] : [current_user, @user]) if @user
       @meet.chatters << @chatter
       @meet.photos << @chatter if @chatter.photo?
       if @topic # a comment to this topic

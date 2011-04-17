@@ -97,9 +97,8 @@ class User < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      #:original => "1000x1000>",
-      :small  => "30x30#",
-      :normal => "54x54#"
+      :original => "245x245",
+      :normal => "54x54"
     },
     :convert_options => {:all => "-auto-orient"},
     :default_url => "http://www.kayameet.com/images/K-50x50.jpg",
@@ -114,7 +113,7 @@ class User < ActiveRecord::Base
   email_regex = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
   
   validates :name,  :presence => true,
-                    :length   => { :maximum => 50 }, :unless => :exclusive_procedure?
+                    :length   => { :within => 5..50 }, :unless => :exclusive_procedure?
   validates :email, :presence   => true,
                     :format     => { :with => email_regex }, :uniqueness  => true
   validates :password, :presence => true, :confirmation => true,
@@ -239,8 +238,7 @@ class User < ActiveRecord::Base
     return photo? ? photo.url(:normal) : User.default_photo
   end
   def user_avatar_small
-    #"http://www.gravatar.com/avatar/" + Digest::MD5.hexdigest(self.email.strip.downcase) + "?size=50"
-    return photo? ? photo.url(:small) : User.default_photo_small
+    return user_avatar
   end
 
   # Return most recent meets upto limit
@@ -508,8 +506,8 @@ class User < ActiveRecord::Base
     #return group_meets.to_a.collect {|v| v.id}.compact
   end
 
-  def dev
-    return "#{name_or_email}:#{id ? id : 0}"
+  def dev # ZZZ, name:id:phrase:time
+    return "#{name_or_email}:#{id ? id : 0}:INTERNAL:#{Time.now.utc.to_i}"
   end
 
   def encrypt_password

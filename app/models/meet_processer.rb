@@ -15,8 +15,7 @@ require 'kaya_tqueue'
 #   see?(another_mposts)
 #   seen_by?(another_mposts)
 #   see_or_seen_by?(another_mposts)
-#   add_devs(devs)
-#   add_dev(dev)
+#   see_each_other?(another_mposts)
 #
 # Required functions in Meet:
 #   mposts
@@ -119,6 +118,9 @@ class MeetProcesser
   @@timer_interval      = 1.0  # timer internal
   @@meet_duration_tight = 5.0  # fully counted if 2 mposts are trigger within time period
   @@meet_duration_loose = 10.0 # discounted within time period, different meets if exceed
+  # ZZZ, maximum duration as 1 hr
+  #@@meet_duration_tight = 3600.0
+  #@@meet_duration_loose = 3500.0
   # Process a raw cluster if its earliest mpost exceed limit AND has not receive new mpost
   # for a while and it is complete (all peer devs are included in self devs)
   @@hot_time_idle        = 2.0
@@ -692,7 +694,7 @@ private
 #   candidates = Hash.new
 #   meets.each {|meet|
 #     meet.mposts.each {|meet_mpost|
-#       if (meet_mpost.see_or_be_seen?(mpost) || meet_mpost.see_common?(mpost))
+#       if (meet_mpost.see_or_seen_by?(mpost) || meet_mpost.see_common?(mpost))
 #         candidates[meet] = (meet.time-mpost.time).abs
 #       end
 #     }
@@ -916,12 +918,12 @@ class MeetMasterMpost
   end
 
   def <<(mpost)
-    user_devs << mpost.user_dev
+    user_devs << mpost.base_dev
     mpost.devs.each_key {|dev| device_devs << dev}
   end
 
   def see_or_seen_by?(mpost)
-    return true if device_devs.include?(mpost.user_dev) # see?
+    return true if device_devs.include?(mpost.base_dev) # see?
     for dev in device_devs
       return true if mpost.see_dev?(dev) # seen_by?
     end
@@ -1176,7 +1178,7 @@ class MeetRelation
       node_coeff = 0.0
       meet.mposts.each {|meet_mpost| 
         #next unless meet_mpost.active?
-        if mpost.see_or_seen_by?(meet_mpost)
+        if mpost.see_or_seen_by?(meet_mpost) # ZZZ, see_each_other?
           coeff = coeff_calculator.call(mpost, meet_mpost)
           graph_mpost << [meet_mpost, coeff]
           node_coeff += coeff
@@ -1203,7 +1205,7 @@ class MeetRelation
       for to_index in ((from_index+1)...mposts.size)
         to_mpost = mposts[to_index]
         to = (graph[to_mpost] ||= Array.new)
-        if from_mpost.see_or_seen_by?(to_mpost)
+        if from_mpost.see_or_seen_by?(to_mpost) # ZZZ, see_each_other?
           coeff = coeff_calculator.call(from_mpost, to_mpost)
           from << [to_mpost, coeff]
           to << [from_mpost, coeff]

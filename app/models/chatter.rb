@@ -1,17 +1,17 @@
 # == Schema Information
-# Schema version: 20110405033701
+# Schema version: 20110417030424
 #
 # Table name: chatters
 #
-#  id                 :integer         not null, primary key
+#  id                 :integer         primary key
 #  user_id            :integer
 #  content            :text
 #  photo_content_type :string(255)
 #  photo_file_name    :string(255)
 #  photo_file_size    :integer
-#  photo_updated_at   :datetime
-#  created_at         :datetime
-#  updated_at         :datetime
+#  photo_updated_at   :timestamp
+#  created_at         :timestamp
+#  updated_at         :timestamp
 #  meet_id            :integer
 #  topic_id           :integer
 #  cached_info        :text
@@ -39,9 +39,7 @@ class Chatter < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      :original  => "1000x1000>",
-      :small  => "54x54",
-      :normal => "245x245"
+      :original  => "245x245"
     },
     :convert_options => {:all => "-auto-orient"},
     :path => "images/:id/:style.:extension",
@@ -106,16 +104,15 @@ class Chatter < ActiveRecord::Base
   def photo? # Overwrite the original one, this is much faster
     return photo_content_type.present?
   end
+  # One photo size fits all
   def chatter_photo_orig
     return photo? ? photo.url : nil
   end
   def chatter_photo
-    return photo? ? photo.url(:normal) : nil
-#   return chatter_photo_orig
+    return chatter_photo_orig
   end
   def chatter_photo_small
-    return photo? ? photo.url(:small) : nil
-#   return chatter_photo_orig
+    return chatter_photo_orig
   end
 
   def marked_user
