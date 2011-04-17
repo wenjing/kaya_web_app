@@ -113,7 +113,7 @@ class Meet < ActiveRecord::Base
     return time? ? time.getutc : nil
   end
 
-  def extract_information(new_mposts = [], deleted_mposts = [])
+  def extract_information(new_mposts = [], deleted_mposts = [], is_extract_location=true)
     # Extract meeting time (average time)
     #self.class.benchmark("Extract meet information") do
     self.collision = false if collision.nil?
@@ -171,7 +171,7 @@ class Meet < ActiveRecord::Base
     self.time.utc
 
     # Extract location
-    extract_location(peer_mposts)
+    extract_location(peer_mposts) if is_extract_location
 
     # Create a default name and description
     zone_time = time.in_time_zone(time_zone) # convert to meet local time
