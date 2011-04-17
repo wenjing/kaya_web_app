@@ -152,7 +152,7 @@ class Meet < ActiveRecord::Base
       end
       unique_users << mpost.user_id
       if host_id.blank? # only process host_id once, because they are all same
-        self.host_id = mpost.host_id.split.last if mpost.host_id.present?
+        self.host_id = mpost.host_id.split.last if (mpost.host_id.present? && !mpost.is_cirkle_mpost?)
       end
     }
     #For host and warm meets, there are still copies in memory cluster. Still need
@@ -208,7 +208,7 @@ class Meet < ActiveRecord::Base
       if !mpost_cirkle_id
         # Case 1, no cirkle id specified in any of mposts. Find or create one from the
         # meet automatically
-        cirkle0 = Meet.get_cirkle_for_encounter(self)
+        cirkle0 = Meet.get_cirkle_for_encounter(self, unique_users.to_a)
       else # Case 2, cirkle id specified. Add the meet to cirkle
         if (cirkle0 && cirkle_id != mpost_cirkle_id)
           # A special case, cirkle id specified, but an cirkle was already automatically created
@@ -728,7 +728,7 @@ class Meet < ActiveRecord::Base
   end
 
   # Create cirkle from existing encounters
-  def self.get_cirkle_for_encounter(encounter0)
+  def self.get_cirkle_for_encounter(encounter0, user_ids0)
     return nil unless encounter0.present? && encounter0.meet_type != 0
     
     if encounter0.cirkle # already assigned to a cirkle, update the cirkle
@@ -737,7 +737,8 @@ class Meet < ActiveRecord::Base
     elsif (encounter0.meet_type == 1 || encounter0.meet_type == 2)
       # For solo and private encounters, collect all encounters under same
       # cirkle with same members.
-      return Meet.get_cirkle_for_users(encounter0.users, encounter0)
+      users0 = User.find(user_ids0)
+      return Meet.get_cirkle_for_users(users0, encounter0)
 
     else
       # Group encounters (member count > 2) are more complicated. Do not automatically
