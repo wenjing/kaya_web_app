@@ -39,9 +39,9 @@ class Chatter < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      :original  => "245x245"
+      :original  => "245x245#"
     },
-    :convert_options => {:all => "-auto-orient"},
+    #:convert_options => {:all => "-auto-orient"},
     :path => "images/:id/:style.:extension",
     :storage => :s3,
     :s3_credentials => {

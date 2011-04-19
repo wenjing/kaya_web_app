@@ -97,12 +97,12 @@ class User < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      :original => "245x245",
-      :normal => "54x54"
+      :original => "245x245#",
+      :normal => "54x54#"
     },
-    :convert_options => {:all => "-auto-orient"},
+    #:convert_options => {:all => "-auto-orient"},
     :default_url => "http://www.kayameet.com/images/K-50x50.jpg",
-    :path => ":attachment/:id/:style.:extension",
+    :path => "photos/:id/:style.:extension",
     :storage => :s3,
     :s3_credentials => {
       :access_key_id  => ENV['S3_KEY'],

@@ -44,15 +44,13 @@ require 'geokit'
 require 'kaya_base'
 
 class Meet < ActiveRecord::Base
-  attr_writer  :is_pending, :is_deleted
-
-  after_create :record_avg_meet_lag
-
+  attr_writer   :is_pending, :is_deleted
   attr_accessor :meet_mview, :hoster_mview
   attr_accessor :loaded_top_users, :loaded_top_chatters
   attr_accessor :meet_invitations
   attr_accessor :loaded_users, :loaded_topics, :new_user_ids, :new_topic_ids,
                 :is_new_invitation, :is_new_encounter, :is_first_encounter
+
 # attr_accessible :name, :description, :meet_type,
 #                 :time, :location, :street_address, :city, 
 #                 :state, :zip, :country, :lng, :lat, :lerror,
@@ -98,6 +96,8 @@ class Meet < ActiveRecord::Base
                                        :allow_nil => true }
 
   default_scope :order => 'meets.time DESC'
+
+  after_create :record_avg_meet_lag
 
   serialize :cached_info
 
@@ -393,12 +393,31 @@ class Meet < ActiveRecord::Base
   end
   def marked_name
     res = meet_name
-    res = peers_name_brief if res.blank?
+    if res.blank?
+      except0 = @friends_name_list_params ? @friends_name_list_params[:except] : nil
+      delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ","
+      res = peers_name_brief
+      if except0
+        if users_count <= 1 # Solo or empty (???), set as Me
+          #res = "Me"
+          res = except0.name_or_email
+        elsif users_count == 2 # Private, set as friend's name
+          res = peers_name_brief
+        elsif users_count > 2 # Group, set as Me, ...
+          res = "Me" + delimiter0 + peers_name_brief
+        end
+      end
+    end
     return res
   end
   def marked_image
     res = meet_image
-    res = @loaded_top_users.first.user_avatar if res.blank?
+    if res.blank? # get first friend photo
+      except0 = @friends_name_list_params ? @friends_name_list_params[:except] : nil
+      friend0 = @loaded_top_users.find {|v| !except0 || v.id != except0.id}
+      friend0 ||= @loaded_top_users.first
+      res = friend0.user_avatar
+    end
     return res
   end
 

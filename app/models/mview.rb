@@ -35,11 +35,11 @@ class Mview < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      :original  => "245x245",
-      :normal  => "54x54"
+      :original  => "245x245#",
+      :normal  => "54x54#"
     },
     #:convert_options => {:all => "-auto-orient"},
-    :path => ":attachment/:id/:style.:extension",
+    :path => "meet_images/:id/:style.:extension",
     :storage => :s3,
     :s3_credentials => {
       :access_key_id  => ENV['S3_KEY'],
