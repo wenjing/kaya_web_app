@@ -24,6 +24,7 @@ class MpostsController < ApplicationController
     saved = false
     @user ||= current_user
     @mpost = @user.mposts.build(@filtered_params)
+    @mpost.process_from_api
     Rails.kaya_dblock {saved = @mpost.save}
 
     if saved
@@ -31,19 +32,41 @@ class MpostsController < ApplicationController
         format.json { render :json => @mpost.to_json(JSON_MPOST_DETAIL_API) }
       end
 
-      # Expedite from backup processer to give hosted post a quick response.
-      # Under heavy load backend processser could backup to some extent.
-      # Hoster need a meet_id to kick start a host.
 #     if @mpost.is_host_owner?
 #       meet = Meet.new
 #       Rails.kaya_dblock {
-#         meet.mposts << mpost
+#         meet.mposts << @mpost
 #         @user.hosted_meets << meet
 #       }
 #       meet.host = @mpost.user
 #       meet.extract_information
 #       Rails.kaya_dblock {meet.save}
 #     else
+
+      # Expedite from backend processer to give cirkle creater post a quick response.
+      if @mpost.is_cirkle_creater?
+        meet = Meet.new
+        meet.mposts << @mpost
+        meet.extract_information([@mpost], []).save
+        cirkle_name = Mpost::cirkle_name_from_dev(@mpost.user_dev)
+        if cirkle_name.present?
+          # Set both cirkle and encounter name
+          encounter_name = "Create circle: " + cirkle_name
+          {meet=>encounter_name, meet.cirkle=>cirkle_name}.each_pair {|mm,nn|
+            next unless mm.present?
+            mview = Mview.user_meet_mview(@user, mm).first
+            if !mview
+              mview = Mview.new
+              mview.user = @user
+              mview.meet = mm
+            end
+            # Do not overwrite existing meet name
+            mview.name = nn if mview.name.blank?
+            mview.save
+          }
+        end
+
+      else
         if ENV['NO_HEROKU_DJ']
           # Enqueue directly within same server
           MeetWrapper.new.process_mpost(@mpost.id, Time.now.getutc)
@@ -53,7 +76,7 @@ class MpostsController < ApplicationController
           # Or use the worker version
           #MeetWrapper.new.delayed.process_mpost(@mpost.id, Time.now.getutc)
         end
-#     end
+      end
     else
       respond_to do |format|
         format.json { render :json => @mpost.errors.to_json, :status => :unprocessable_entity }

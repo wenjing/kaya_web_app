@@ -116,17 +116,17 @@ class MeetProcesser
   cattr_accessor :infinite_coeff, :meet_duration_loose
 
   @@timer_interval      = 1.0  # timer internal
-  @@meet_duration_tight = 5.0  # fully counted if 2 mposts are trigger within time period
-  @@meet_duration_loose = 10.0 # discounted within time period, different meets if exceed
-  # ZZZ, maximum duration as 1 hr
-  #@@meet_duration_tight = 3600.0
-  #@@meet_duration_loose = 3500.0
+  @@meet_duration_tight_compat = 5.0  # fully counted if 2 mposts are trigger within time period
+  @@meet_duration_loose_compat = 10.0 # discounted within time period, different meets if exceed
+  @@meet_duration_tight = 3600.0 # ZZZ, maximum duration as 1 hr for new API
+  @@meet_duration_loose = 3600.0
   # Process a raw cluster if its earliest mpost exceed limit AND has not receive new mpost
   # for a while and it is complete (all peer devs are included in self devs)
   @@hot_time_idle        = 2.0
   @@hot_time_threshold   = 5.0
   @@hot_time_limit       = 10.0 # force to process a raw cluster if earliest mpost exceed limit
   @@cold_time_limit      = 1800.0  # freeze processe clusters older than limit
+  @@expire_time_limit    = 3600.0*24 # discard unprocessable cluster exceed time limit
   # Shall be much larger than meet_duration_loose, 10 mins
   @@cold_time_margin = [@@meet_duration_loose*5, 600.0].max
   # Exponentially decay starting from duration_tight to durantion_loose to 10% of original value
@@ -232,7 +232,7 @@ class MeetProcesser
     Rails.kaya_dblock {
       mposts = Mpost.where("created_at >= ? AND created_at <= ? AND meet_id = nil",
                            start_time, end_time)
-      mpost.each {|mpost| mpost.id}
+      mpost.each {|mpost| mpost.check_compatible}
     }
     fresh_start
     process_mposts(mposts.map {|mpost| mpost.id}, at_time)
@@ -372,17 +372,25 @@ private
   #                 [0.0, 0.0]
   #end
 
-  def shall_process_cluster?(cluster)
-    return !cluster.is_processed? &&
-           (mpost_time_from_now(cluster.latest_mpost) > @@hot_time_idle &&
-            mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_threshold &&
-           cluster.is_complete?) ||
-           mpost_time_from_now(cluster.earliest_mpost) > @@hot_time_limit
+  def shall_discard_cluster?(cluster)
+    return false unless (!cluster.is_processed? && !cluster.is_processable?)
+    earliest_time = mpost_time_from_now(cluster.earliest_mpost)
+    return earliest_time > @@expire_time_limit
   end
 
-  def delta_time_discount(time_delta)
-    time_delta = (time_delta-@@meet_duration_tight).to_f/
-                      (@@meet_duration_loose-@@meet_duration_tight)
+  def shall_process_cluster?(cluster)
+    return false unless (!cluster.is_processed? && cluster.is_processable?)
+    earliest_time = mpost_time_from_now(cluster.earliest_mpost)
+    latest_time = mpost_time_from_now(cluster.latest_mpost)
+    return earliest_time > @@hot_time_limit ||
+           (latest_time > @@hot_time_idle && earliest_time > @@hot_time_threshold &&
+            cluster.is_complete?)
+  end
+
+  def delta_time_discount(time_delta, is_compat)
+    duration_tight = is_compat ? @@meet_duration_tight_compat : @@meet_duration_tight
+    duration_loose = is_compat ? @@meet_duration_loose_compat : @@meet_duration_loose
+    time_delta = (time_delta-duration_tight).to_f/(duration_loose-duration_tight)
     return time_delta <= 0.0 ? 1.0 :
            time_delta >  1.0 ? 0.0 :
               @@delta_time_discounts[time_delta*(@@delta_time_discounts.size-1)]
@@ -391,7 +399,8 @@ private
   # Must be only in database, skip checking on memory. No risk to cause
   # database and memory out-of-sync
   def is_definitely_cold?(mpost)
-    return mpost_time_from_now(mpost) > @@cold_time_limit + @@cold_time_margin
+    #return mpost_time_from_now(mpost) > @@cold_time_limit + @@cold_time_margin
+    return mpost_time_from_now(mpost) > @@expire_time_limit + @@cold_time_margin
   end
 
   # Must be on memory (though may be also in database), skip checking database
@@ -434,18 +443,18 @@ private
   end
 
   def assign_mposts_to_meet(mposts, meet)
-    mposts.each {|mpost|
-      Rails.kaya_dblock {meet.mposts << mpost} 
-    }
     meet.opt_lock_protected {
+      mposts.each {|mpost|
+        Rails.kaya_dblock {meet.mposts << mpost} 
+      }
       meet.extract_information(mposts, [])
       Rails.kaya_dblock {meet.save}
     }
   end
 
   def assign_mpost_to_meet(mpost, meet)
-    Rails.kaya_dblock {meet.mposts << mpost}
     meet.opt_lock_protected {
+      Rails.kaya_dblock {meet.mposts << mpost}
       meet.extract_information([mpost], [])
       Rails.kaya_dblock {meet.save}
     }
@@ -670,11 +679,11 @@ private
     # && coeff >= coeff_stats[0] * @@coeff_vs_avg_threshold
   end
 
-  def calculate_coeff(connect, time_delta)
+  def calculate_coeff(connect, time_delta, is_compat)
     return -@@infinite_coeff if time_delta > @@meet_duration_loose
     return 0.0 if connect <= 0
     coeff = (connect == 2 ? 1.0 : @@uni_connection_discount)
-    coeff *= delta_time_discount(time_delta)
+    coeff *= delta_time_discount(time_delta, is_compat)
     return coeff
   end
 
@@ -683,7 +692,7 @@ private
     connect = 0
     connect += 1 if from.see?(to)
     connect += 1 if to.see?(from)
-    return calculate_coeff(connect, time_delta)
+    return calculate_coeff(connect, time_delta, from.compatible_mode)
   end
 
   # Choose the best hosted meet and assign the mpost to it.
@@ -762,9 +771,12 @@ private
     while !done
       done = true
       raw_clusters = @meet_pool.raw_clusters.to_a
+      discard_clusters = Array.new
       raw_clusters.each {|cluster|
         if skipped_clusters.include?(cluster)
           # Skip it
+        elsif shall_discard_cluster?(cluster)
+          @meet_pool.discard_unprocessable_clusters(cluster)
         elsif !shall_process_cluster?(cluster)
           # Too early, wait until it cool down a bit
           skipped_clusters << cluster
@@ -795,7 +807,9 @@ private
     host_guests = Hash.new
     join_owners = Hash.new
     join_guests = Hash.new
+    cirkle_creaters = Array.new
     @meet_pool.pending_mposts.each {|mpost|
+      mpost.check_compatible
       if mpost.is_processed?
         # Shall we do something here?
       elsif mpost.is_host_owner?
@@ -810,6 +824,8 @@ private
         (join_owners[mpost.meet_from_host_id] ||= Array.new) << mpost
       elsif mpost.is_join_guest?
         (join_guests[mpost.meet_from_host_id] ||= Array.new) << mpost
+      elsif mpost.is_cirkle_creater?
+        cirkle_creaters << mpost
       elsif is_definitely_cold?(mpost) # must not in meet_pool, check db directly
         if !assign_mpost_to_cold_meets_if_possible(mpost)
           # Create a orphan meet and assigned this mpost as solo member
@@ -854,6 +870,25 @@ private
       meet = Meet.includes(:mposts).find_by_id(meet_id)
       ng_mposts.concat(add_guests_to_joined_meet(mposts, meet))
     }
+# cirkle creater mpost is processed at mposts_controller, shall not come here
+#   cirkle_creaters.each {|mpost|
+#     # This mpost was sent with intention to create a special type of encounter
+#     # and an enclosing cirkle for it.
+#     cirkle = create_meet_from_mpost(mpost).cirkle
+#     user = mpost.user
+#     cirkle_name = Mpost::cirkle_name_from_dev(mpost.user_dev)
+#     if cirkle && cirkle_name.present?
+#       mview = Mview.user_meet_mview(user, cirkle).first
+#       if !mview
+#         mview = Mview.new
+#         mview.user = user
+#         mview.meet = cirkle
+#       end
+#       # Do not overwrite existing meet name
+#       mview.name = cirkle_name if mview.name.blank?
+#       mview.save
+#     end
+#   }
 
     # Under normal circumstance, this shall never happen unless someone try to
     # abuse the system. We can either quitely ignore these posts, or we can play it
@@ -915,19 +950,21 @@ class MeetMasterMpost
   def initialize
     self.user_devs = Set.new
     self.device_devs = Set.new
+    @mposts = Set.new
   end
 
   def <<(mpost)
     user_devs << mpost.base_dev
     mpost.devs.each_key {|dev| device_devs << dev}
+    @mposts << mpost
   end
 
-  def see_or_seen_by?(mpost)
-    return true if device_devs.include?(mpost.base_dev) # see?
-    for dev in device_devs
-      return true if mpost.see_dev?(dev) # seen_by?
-    end
-    return false
+  def see_each_other?(mpost)
+    return @mposts.any? {|v| v.see_each_other?(mpost)}
+  end
+
+  def is_self_contain? # check if graph is self contained, however, ignore timestamp
+    return user_devs.superset?(device_devs)
   end
 
 end
@@ -946,6 +983,8 @@ class MeetCluster
     if options[:mposts]
       options[:mposts].each {|mpost| self << mpost}
     end
+    @is_complete = nil
+    @is_processable = nil
   end
 
   def is_processed?
@@ -954,7 +993,29 @@ class MeetCluster
 
   # Return true if mposts graph is self contained. No body see any outsiders.
   def is_complete?
-    return master_mpost.user_devs.superset?(master_mpost.device_devs)
+    if @is_complete.nil?
+      @is_complete = master_mpost.is_self_contain?
+    end
+    return @is_complete
+  end
+
+  # 2 case that make this cluster unprocessable:
+  # 1) Cirkle guest only, missing hoster
+  # 2) Only one member but appear to be more
+  # But we can use one simple check: user count in cluster is 1 but devs show there are more
+  def is_processable?
+    if @is_processable.nil?
+      if mposts.empty?
+        @is_processable = true
+      else
+        first_user = mposts.first.user_id
+        @is_processable =
+          mposts.any? {|mpost| mpost.is_cirkle_hoster?} ||
+          mposts.any? {|mpost| mpost.user_id != first_user} || # more than one member
+          !master_mpost.device_devs.any? {|dev| first_user != Mpost.user_id_from_dev(dev)} # at most one member
+      end
+    end
+    return @is_processable
   end
 
   def <<(mpost)
@@ -964,6 +1025,14 @@ class MeetCluster
     self.earliest_mpost  = mpost if (earliest_mpost == nil ||
                                      earliest_mpost.trigger_time > mpost.trigger_time)
     master_mpost << mpost
+    @is_complete = nil
+    @is_processable = nil
+  end
+
+  def delete(mpost)
+    mposts.delete(mpost)
+    @is_complete = nil
+    @is_processable = nil
   end
 
   # Not only check if see or be seen, also check time delta. Do not attach if this
@@ -972,14 +1041,16 @@ class MeetCluster
     margin = MeetProcesser.meet_duration_loose
     return to.trigger_time >= earliest_mpost.trigger_time-margin &&
            to.trigger_time <=   latest_mpost.trigger_time+margin &&
-           master_mpost.see_or_seen_by?(to)
-           
+           master_mpost.see_each_other?(to)
   end
 
   def size
     return mposts.size
   end
 
+  def empty?
+    return mposts.empty?
+  end
 end
 
 
@@ -1108,13 +1179,13 @@ class MeetPool
       # Create a new raw cluster from mposts and remove them from the old one
       new_cluster = create_raw_cluster(:mposts=>mposts)
       main_cluster ||= new_cluster
-      mposts.each {|mpost| cluster.mposts.delete(mpost)}
-      break if cluster.mposts.empty? # all processed
+      mposts.each {|mpost| cluster.delete(mpost)}
+      break if cluster.empty? # all processed
       # Get a new set of related mposts from remaining mposts
       mposts = Set.new
       master_mpost = MeetMasterMpost.new
       cluster.mposts.each {|mpost|
-        if (mposts.empty? || master_mpost.see_or_seen_by?(mpost))
+        if (mposts.empty? || master_mpost.see_each_other?(mpost))
           mposts << mpost
           master_mpost << mpost
         end
@@ -1127,6 +1198,10 @@ class MeetPool
 
   def move_to_processed_clusters(cluster)
     processed_clusters << cluster
+    raw_clusters.delete(cluster)
+  end
+
+  def discard_unprocessable_clusters(cluster)
     raw_clusters.delete(cluster)
   end
 
@@ -1178,7 +1253,8 @@ class MeetRelation
       node_coeff = 0.0
       meet.mposts.each {|meet_mpost| 
         #next unless meet_mpost.active?
-        if mpost.see_or_seen_by?(meet_mpost) # ZZZ, see_each_other?
+        #if mpost.see_or_seen_by?(meet_mpost) # ZZZ, see_each_other?
+        if mpost.see_each_other?(meet_mpost)
           coeff = coeff_calculator.call(mpost, meet_mpost)
           graph_mpost << [meet_mpost, coeff]
           node_coeff += coeff
@@ -1205,7 +1281,8 @@ class MeetRelation
       for to_index in ((from_index+1)...mposts.size)
         to_mpost = mposts[to_index]
         to = (graph[to_mpost] ||= Array.new)
-        if from_mpost.see_or_seen_by?(to_mpost) # ZZZ, see_each_other?
+        #if from_mpost.see_or_seen_by?(to_mpost) # ZZZ, see_each_other?
+        if from_mpost.see_each_other?(to_mpost)
           coeff = coeff_calculator.call(from_mpost, to_mpost)
           from << [to_mpost, coeff]
           to << [from_mpost, coeff]

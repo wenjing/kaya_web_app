@@ -47,7 +47,7 @@ class User < ActiveRecord::Base
 
   has_many :encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
-                  :conditions => ['mposts.status = ? AND meets.meet_type <= ?', 0, 3]
+                  :conditions => ['mposts.status = ? AND meets.meet_type IN (?)', 0, [1,2,3]]
   has_many :solo_encounters, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 1]
@@ -59,7 +59,7 @@ class User < ActiveRecord::Base
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 3]
   has_many :cirkles, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
-                  :conditions => ['mposts.status = ? AND meets.meet_type > ?', 0, 3]
+                  :conditions => ['mposts.status = ? AND meets.meet_type IN (?)', 0, [4,5,6]]
   has_many :solo_cirkles, :class_name => "Meet", :source => :meet,
                   :through => :mposts, :uniq => true,
                   :conditions => ['mposts.status = ? AND meets.meet_type = ?', 0, 4]
@@ -466,12 +466,12 @@ class User < ActiveRecord::Base
 
   def encounter_ids
     return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
-                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type <= ?", id, 0, 3)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type IN (?)", id, 0, [1,2,3])
                 .collect {|v| v.meet_id}.uniq.compact
   end
   def cirkle_ids
     return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
-                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type > ?", id, 0, 3)
+                .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type IN (?)", id, 0, [4,5,6])
                 .collect {|v| v.meet_id}.uniq.compact
   end
   def solo_encounter_ids
@@ -503,11 +503,13 @@ class User < ActiveRecord::Base
     return Mpost.select(["mposts.meet_id", "mposts.created_at"]).joins(:meet)
                 .where("mposts.user_id = ? AND mposts.status = ? AND meets.meet_type = ?", id, 0, 6)
                 .collect {|v| v.meet_id}.uniq.compact
-    #return group_meets.to_a.collect {|v| v.id}.compact
   end
 
   def dev # ZZZ, name:id:phrase:time
-    return "#{name_or_email}:#{id ? id : 0}:INTERNAL:#{Time.now.utc.to_i}"
+    return "#{name_or_email}:#{id?id:0}:INTERNAL:#{Time.now.utc.to_i}"
+  end
+  def cirkle_dev # ZZZ, name:id:phrase:cirkle_id:time
+    return "#{name_or_email}:#{id?id:0}:INTERNAL:0:#{Time.now.utc.to_i}"
   end
 
   def encrypt_password

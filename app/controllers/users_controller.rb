@@ -546,11 +546,11 @@ class UsersController < ApplicationController
         content.body = {}
         content.body[:encounter] = meet
         cirkle = cirkles_by_id[meet.cirkle_id]
-        if (cirkle && cirkle.meet_type == 6)
+#       if (cirkle && cirkle.meet_type == 6)
           # Only handle group cycle (solo and private cirkles are implicit
           # which only handle their chatters)
-          content.body[:cirkle] = cirkle
-        end
+          content.body[:cirkle] = cirkle if cirkle
+#       end
         contents << content
       }
 
@@ -567,15 +567,15 @@ class UsersController < ApplicationController
           cirkle = cirkles_by_id[cirkle_id]
           # Solo/Private cirkles not implicit cikles. Do not report back to client.
           # Instead, user user info.
-          if cirkle.meet_type == 4 # solo cirkle
-            content.body[:user] = @user
-          elsif cirkle.meet_type == 5 # private cirkle
-            friend = cirkle.loaded_users.select {|v| v.id != @user.id}.first
-            friend ||= @user # unlikely, however force to solo mode
-            content.body[:user] = friend
-          else
-            content.body[:cirkle] = cirkle
-          end
+#         if cirkle.meet_type == 4 # solo cirkle
+#           content.body[:user] = @user
+#         elsif cirkle.meet_type == 5 # private cirkle
+#           friend = cirkle.loaded_users.select {|v| v.id != @user.id}.first
+#           friend ||= @user # unlikely, however force to solo mode
+#           content.body[:user] = friend
+#         else
+            content.body[:cirkle] = cirkle if cirkle
+#         end
           contents << content
         }
       }

@@ -37,8 +37,6 @@
 # 4     solo    cirkle
 # 5     private cirkle
 # 6     group   cirkle
-# 7     user created encounter
-# 8     user created cirkle
 
 require 'geokit'
 require 'kaya_base'
@@ -114,22 +112,24 @@ class Meet < ActiveRecord::Base
   end
 
   def extract_information(new_mposts = [], deleted_mposts = [], is_extract_location=true)
+    return if is_cirkle? # shall never call this function on a cirkle
     # Extract meeting time (average time)
     #self.class.benchmark("Extract meet information") do
     self.collision = false if collision.nil?
     mpost_cirkle_id = nil
+    cirkle_hoster = nil
+    cirkle_creater = nil
     if !collision
-      # Do not check collision and cirkles on deleted mposts and non-peer mode mposts
+      # Do not check collision and cirkles on deleted mposts
       # Detect conflicting cirkle_ids, get proper cirkle_id if no confilcts
       mposts.each {|mpost|
-        next if (mpost.deleted? || !mpost.is_peer_mode?)
-        if mpost.collision?
+        next if mpost.deleted?
+        if mpost.collision? && mpost.is_none_host_mode?
           self.collision = true
-          break
-        elsif mpost.cirkle_id
+        else
           if (mpost_cirkle_id && mpost_cirkle_id != mpost.cirkle_id)
             self.collision = true
-          else
+          elsif mpost.cirkle_id
             mpost_cirkle_id = mpost.cirkle_id
           end
         end
@@ -154,7 +154,10 @@ class Meet < ActiveRecord::Base
       if host_id.blank? # only process host_id once, because they are all same
         self.host_id = mpost.host_id.split.last if (mpost.host_id.present? && !mpost.is_cirkle_mpost?)
       end
+      cirkle_hoster ||= mpost.user_id if mpost.is_cirkle_hoster?
+      cirkle_creater ||= mpost.user_id if mpost.is_cirkle_creater?
     }
+    self.hoster_id ||= cirkle_hoster if cirkle_hoster
     #For host and warm meets, there are still copies in memory cluster. Still need
     #some information for them to proceed correctly.
 #   if collision
@@ -162,8 +165,8 @@ class Meet < ActiveRecord::Base
 #   end
 
     # Get non-host mode mposts, extract time and location from them if possible
-    peer_mposts = mposts.select {|mpost| mpost.active? && mpost.is_peer_mode?}
-    peer_mposts = mposts.select {|mpost| mpost.is_peer_mode?} if peer_mposts.blank?
+    peer_mposts = mposts.select {|mpost| mpost.active? && mpost.is_none_host_mode?}
+    peer_mposts = mposts.select {|mpost| mpost.is_none_host_mode?} if peer_mposts.blank?
     peer_mposts = mposts.to_a if peer_mposts.blank?
     # Extract earliest time
     self.time = (peer_mposts.min_by {|h| h.time}).time unless peer_mposts.empty?
@@ -200,26 +203,48 @@ class Meet < ActiveRecord::Base
     self.cached_info[:users_count] = unique_users.count
     self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
     force_timestamping # make sure it has the latest updated time
+    org_meet_type = meet_type
     extract_meet_type
 
     # Finally, extract cirkle information from it
     cirkle0 = cirkle
+    if (cirkle0 && cirkle_id != mpost_cirkle_id) # check what to do with the existing cirkle
+      # Case 1, collision, remove this encounter
+      deleted_encounter = nil
+      deleted_mposts = []
+      new_mpost_ids = new_mposts.collect {|v| v.id}.to_set
+
+      if collision?
+        # Case 1, collision, remove encounter and delete previously assigned mposts from cirkle
+        remove_encounter = self
+        remove_mposts = deleted_mposts.select {|v| !new_mpost_ids.include?(v.id)}
+
+      elsif mpost_cirkle_id
+        # Case 2, cirkle id specified but it is not consistent to the existing one (the one must be 
+        # created automatically)
+        remove_encounter = self
+        remove_mposts = mposts.select {|v| !new_mpost_ids.include?(v.id)}
+
+      elsif ([1 ,2].include?(org_meet_type) && org_meet_type != meet_type)
+        # Case 3, previously categorized as Solo or Private cirkle, need to re-categorize
+        remove_encounter = self
+        remove_mposts = mposts.select {|v| !new_mpost_ids.include?(v.id)}
+      end
+
+      if (remove_encounter)
+        cirkle0.delete_encounter(remove_encounter, remove_mposts)
+        cirkle0.destory if cirkle0.is_empty?
+        cirkle0 = nil
+      end
+    end
+
     if !collision?
       if !mpost_cirkle_id
         # Case 1, no cirkle id specified in any of mposts. Find or create one from the
         # meet automatically
-        cirkle0 = Meet.get_cirkle_for_encounter(self, unique_users.to_a)
+        cirkle0 = Meet.get_cirkle_for_encounter(self, unique_users.to_a, cirkle_creater)
+
       else # Case 2, cirkle id specified. Add the meet to cirkle
-        if (cirkle0 && cirkle_id != mpost_cirkle_id)
-          # A special case, cirkle id specified, but an cirkle was already automatically created
-          # because it was initially identified as first_encounter (no cirkle specified in all mposts).
-          if (crikle0.encounters.count == 1 && crikle0.encounters.first.id = id)
-            # Removes the orginal cirkle first if this encounter is the only one in it.
-            crikle0.destroy
-          end
-          self.cirkle = nil
-          cirkle0 = nil
-        end
         if !cirkle0
           cirkle0 = Meet.find_by_id(mpost_cirkle_id)
           # Because no cirkle created yet, mark all mposts as new mposts
@@ -229,11 +254,8 @@ class Meet < ActiveRecord::Base
           cirkle0.add_encounter(self, new_mposts, false)
         end
       end
-    elsif cirkle0
-      # This encounter has been removed, remove it from cirkle.
-      new_mpost_ids = new_mposts.collect {|v| v.id}.to_set
-      cirkle0.delete_encounter(self, deleted_mposts.select {|v| !new_mpost_ids.include?(v.id)})
     end
+    puts "Processed 1 meet"
     return self
   end
 
@@ -273,7 +295,7 @@ class Meet < ActiveRecord::Base
     return unless is_cirkle?
     encounter_ids0 = encounter_ids.to_a
     self.cached_info[:encounters_count] = encounter_ids0.count
-    self.cached_info[:top_encounter_ids] = encounter_ids0.slice(0..9)
+    self.cached_info[:top_encounter_ids] = encounter_ids0.to_a.slice(0..9)
     force_timestamping
     return self
   end
@@ -623,10 +645,13 @@ class Meet < ActiveRecord::Base
 
   # Cirkle related functions
   def is_cirkle?
-    return [4, 5, 6, 8].include?(meet_type)
+    return [4, 5, 6].include?(meet_type)
   end
   def is_encounter?
     return !is_cirkle?
+  end
+  def is_empty?
+    return users_count == 0 && encounters_count == 0 && chatters_count == 0
   end
 
   def delete_encounter(encounter0, encounter_mposts0)
@@ -647,10 +672,6 @@ class Meet < ActiveRecord::Base
           end
         } if cirkle_mposts.present?
       }
-      #encounter0.opt_lock_protected {
-        encounter0.cirkle = nil
-        #encounter0.save
-      #}
       self.cached_info[:users_count] = unique_users.size
       self.cached_info[:top_user_ids] = unique_users.to_a.first(10)
       force_timestamping
@@ -659,8 +680,12 @@ class Meet < ActiveRecord::Base
 
     cirkle_mposts0.each {|mpost| mpost.save}
 
+    encounter0.opt_lock_protected {
+      encounter0.cirkle = nil
+      encounter0.save
+    }
     self.opt_lock_protected {
-      update_encounters_count
+      update_encounters_count(false, encounter0.id)
       save
     }
     return self
@@ -741,19 +766,27 @@ class Meet < ActiveRecord::Base
       }
       self.opt_lock_protected {
         update_encounters_count
+        save
       }
     end
     return self
   end
 
   # Create cirkle from existing encounters
-  def self.get_cirkle_for_encounter(encounter0, user_ids0)
+  def self.get_cirkle_for_encounter(encounter0, user_ids0, cirkle_creater=nil)
     return nil unless encounter0.present? && encounter0.meet_type != 0
     
-    if encounter0.cirkle # already assigned to a cirkle, update the cirkle
-      return encounter0.cirkle.add_encounter(encounter0, encounter0.mposts, false)
+    cirkle0 = encounter0.cirkle
+    if cirkle0 # already assigned to a cirkle, update the cirkle
+      if (![1,2].include?(cirkle0.meet_type))
+        # Update the name and description for group cirkle
+        meet_name0 = "Group cirkle with #{encounter0.peers_name_brief}"
+        cirkle0.description = meet_name0
+        cirkle0.name = meet_name0
+      end
+      return cirkle0.add_encounter(encounter0, encounter0.mposts, false)
 
-    elsif (encounter0.meet_type == 1 || encounter0.meet_type == 2)
+    elsif ([1,2].include?(encounter0.meet_type))
       # For solo and private encounters, collect all encounters under same
       # cirkle with same members.
       users0 = User.find(user_ids0)
@@ -764,11 +797,13 @@ class Meet < ActiveRecord::Base
       # collect them basing on members. Instead, create a new cirkle for each encounter
       # as if it is the first one in it.
       meet_type = 6
-      meet_name0 = "Group cirkle with #{encounter0.peers_name_brief}"
+      meet_name0 = cirkle_creater ? "Group cirkle created by #{encounter0.peers_name_brief}"
+                                  : "Group cirkle with #{encounter0.peers_name_brief}"
       cirkle0 = Meet.new
       cirkle0.meet_type = meet_type
       cirkle0.description = meet_name0
       cirkle0.name = meet_name0
+      cirkle0.hoster_id = cirkle_creater if cirkle_creater
       return cirkle0.add_encounter(encounter0, encounter0.mposts, true)
     end
   end
@@ -901,10 +936,47 @@ private
     return address
   end
 
+  # Have to proceed with cautious. Can not simply rely on user count as sole factor for
+  # meet_type. For solo and private meet, they have to be that way by intention not by
+  # accident. To mark as solo and private meet, mposts' devs have to back the user count.
+  # Otherwise, for any uncertain solo/private meets, assign them temperaory as misc type.
   def extract_meet_type
-    self.meet_type = users_count == 1 ? 1 :
-                     users_count == 2 ? 2 :
-                     users_count >= 3 ? 3 : 0
+    if (users_count >= 3 || meet_type == 3)
+      # Definitely a group type, and once a group type stays as a group type
+      self.meet_type = 3
+    elsif users_count == 0
+      self.meet_type = 0 # this is unexpected
+    else # have to look detail into mposts to figure it out
+      is_cirkle_creater = false
+      is_cirkle_guest = false
+      is_cirkle_hoster = false
+      users_in_devs = Set.new
+      mposts.each {|mpost|
+        is_cirkle_creater ||= mpost.is_cirkle_creater?
+        is_cirkle_guest ||= mpost.is_cirkle_guest?
+        is_cirkle_hoster ||= mpost.is_cirkle_hoster?
+        users_in_devs << Mpost.user_id_from_dev(mpost.user_dev)
+        mpost.devs.each_key {|dev|
+          users_in_devs << Mpost.user_id_from_dev(dev)
+        }
+      }
+      if is_cirkle_creater
+        # Cirkle creater, automatically a group cirkle
+        self.meet_type = 3
+      elsif (users_count == 1 && is_cirkle_guest && !is_cirkle_hoster)
+        # Orphan guests, meaningless
+        self.meet_type = 0
+      elsif (users_count == 1 && users_in_devs.size > 1)
+        # Orphan in a none-Solo meet
+        self.meet_type = 0
+      elsif (users_count == 2 && users_in_devs.size > 2)
+        # Not a true private meet, assign to group
+        self.meet_type = 3
+      else
+        # Passed all sanity check, must be either solo or private
+        self.meet_type = users_count == 1 ? 1 : 2;
+      end
+    end
     return self
   end
 

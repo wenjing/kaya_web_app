@@ -36,7 +36,7 @@ class Mpost < ActiveRecord::Base
 
   attr_accessible :time, :lng, :lat, :lerror, :user_dev,
                   :devs, :note, :host_mode, :host_id, :collision, :cirkle_id
-
+  attr_accessor   :compatible_mode
 
   belongs_to :user, :inverse_of => :mposts
   belongs_to :meet, :inverse_of => :mposts
@@ -52,7 +52,7 @@ class Mpost < ActiveRecord::Base
                                       :less_than_or_equal_to    => BigDecimal(" 90.0") }
   validates :lerror, :numericality => { :allow_nil => true, :greater_than_or_equal_to => 0.0 }
   validates :user_dev, :presence => true, :length => { :in => 1..200 }  
-  validates :devs, :presence => true, :length => { :in => 0..40000 } # at least 200 devs  
+  validates :devs, :length => { :allow_nil =>true, :in => 0..40000 } # at least 200 devs  
   #validates :host_mode, :presence => true
 
   default_scope :order => 'mposts.created_at DESC'
@@ -104,9 +104,14 @@ class Mpost < ActiveRecord::Base
   # structure.
   # Assgin to devs_str instead of assigning devs directly: :devs_str=>"dev1,dev2,dev3"
   def devs=(str)
-    devs = Hash.new
-    str.split(/[,]+/).each {|dev| devs[dev] = nil} # assign to nil yield least yaml string
-    write_attribute(:devs, devs)
+    devs0 = {}
+    str.split(/[,]+/).each {|dev|
+      dev_items = dev.split(DEV_DELIMITER)
+      dev_time = dev_items.pop # the last item is always timestamp, seperate it from the rest
+      dev = dev_items.join(DEV_DELIMITER)
+      devs0[dev] = dev_time.to_i
+    }
+    write_attribute(:devs, devs0)
   end
 
   # Following functions are by hong.zhao
@@ -135,14 +140,102 @@ class Mpost < ActiveRecord::Base
     self.host_id = nil
   end
 
-  def meet_from_host_id # extract meet_id from host_id
-    return host_id.present? ? host_id.split(":").last : nil
+  # For new api interface, it is different from the old version of host mode
+  def check_compatible
+    @compatible_mode = Mpost.is_compatible_user_dev?(user_dev)
   end
+  def is_none_host_mode?
+    # The new host mode API is completely different from the old one. It is
+    # more like a special version peer mode.
+    return !Mpost.is_compatible_user_dev?(user_dev) || is_peer_mode?
+  end
+  def is_cirkle_hoster?
+    return host_mode == 1 && host_id.nil?
+  end
+  def is_cirkle_guest?
+    return host_mode == 2 && host_id.nil?
+  end
+  def is_cirkle_creater?
+    return host_mode == 3 && host_id.nil?
+  end
+
+  CIRKLE_DEV_ITEM_COUNT = 5 # user_name:user_id:meet_name:meet_id:timestamp
+  PEER_DEV_ITEM_COUNT = 4 # user_name:user_id:meet_name:timestamp
+  DEV_DELIMITER = ":"
+  def self.is_compatible_user_dev?(dev)
+    dev.split(DEV_DELIMITER).size == 2
+  end
+  def self.is_peer_user_dev?(dev)
+    dev.split(DEV_DELIMITER).size == PEER_DEV_ITEM_COUNT
+  end
+  def self.is_cirkle_user_dev?(dev)
+    dev.split(DEV_DELIMITER).size == CIRKLE_DEV_ITEM_COUNT
+  end
+  def self.is_peer_devs?(dev)
+    dev.split(DEV_DELIMITER).size == PEER_DEV_ITEM_COUNT-1
+  end
+  def self.is_cirkle_devs?(dev)
+    dev.split(DEV_DELIMITER).size == CIRKLE_DEV_ITEM_COUNT-1
+  end
+  def self.user_id_from_dev(dev)
+    dev.split(DEV_DELIMITER).second.to_i
+  end
+  def self.cirkle_name_from_dev(dev)
+    dev.split(DEV_DELIMITER).third
+  end
+  def self.cirkle_id_from_dev(dev)
+    dev.split(DEV_DELIMITER).fourth.to_i
+  end
+  def self.timestamp_from_dev(dev) # always the last one regardless its mdoe
+    dev.split(DEV_DELIMITER).last.to_i
+  end
+
+  # Some data directly from API have to be processed before can proceed further.
+  def process_from_api
+    # No further process for older version API
+    is_peer_dev = Mpost.is_peer_user_dev?(user_dev)
+    is_cirkle_dev = Mpost.is_cirkle_user_dev?(user_dev)
+    return unless is_peer_dev || is_cirkle_dev
+
+    delta_time = Time.now.utc - time # estimate time difference between server and client
+    # Ajust devs' client time to match those in server's
+    self.devs ||= ""
+    devs.each_key {|dev| self.devs[dev] += delta_time}
+
+    # The time is mpost's send time. Now all time adjustments are done, change it to event time so
+    # it is consistent to older version of mpost.
+    self.time = Time.at(Mpost.timestamp_from_dev(user_dev)).getutc
+
+    # Process host_mode and related data
+    self.host_mode = 0 # default to peer mode
+    if is_cirkle_dev # hoster or creater
+      cirkle_id0 = Mpost.cirkle_id_from_dev(user_dev)
+      if cirkle_id0 == 0 # cirkle creater
+        self.host_mode = 3
+      else
+        self.host_mode = 1 # cirkle hoster
+        self.cirkle_id = cirkle_id0
+      end
+    else # peer mode or cirkle guest
+      # Check if a guest by probing its devs list for any cirkle hoster
+      hoster_dev = devs.find {|dev,tm| Mpost.is_cirkle_devs?(dev)}
+      if hoster_dev # set to cirkle guest mode and only keep the hoster's dev in devs list
+        self.host_mode = 2
+        self.devs = hoster_dev.join(DEV_DELIMITER)
+        self.cirkle_id = Mpost.cirkle_id_from_dev(hoster_dev[0])
+      end
+    end
+  end
+
+  # hoster_id is same as user_dev (hoster) and devs (guest)
   def hoster_from_host_id # extract hoster's user_id from host_id
-    return (is_host_owner? || is_host_guest?) ? host_id.split(":").second : nil
+    return (is_host_owner? || is_host_guest?) ? host_id.split(DEV_DELIMITER).second.to_i : nil
   end
   def meet_name_from_host_id # extract meet_name from host_id
-    return (is_host_owner? || is_host_guest?) ? host_id.split(":").third : nil
+    return (is_host_owner? || is_host_guest?) ? host_id.split(DEV_DELIMITER).third : nil
+  end
+  def meet_from_host_id # extract meet_id from host_id
+    return host_id.present? ? host_id.split(DEV_DELIMITER).fourth.to_i : nil
   end
 
   # Trigger time is when the mpost is sampled. Shall be same as time. This one
@@ -152,21 +245,21 @@ class Mpost < ActiveRecord::Base
     return !time? ? created_at.getutc : [time.getutc, created_at.getutc].min
   end
 
-  # Extract base part by removing time: name:id:phrase:time
+  # Extract base part of user_dev (compatible to previous veresion) by removing timestamp
   def base_dev
-    items = user_dev.split(":")
-    if items.size == 4 # this is the format what we expected
-      return items.slice(0..-2).join(":")
-    else
-      return user_dev
+    items = user_dev.split(DEV_DELIMITER)
+    if (items.size == CIRKLE_DEV_ITEM_COUNT || items.size == PEER_DEV_ITEM_COUNT)
+      items.pop # remove the last item which is timestamp
     end
+    return items.join(DEV_DELIMITER)
   end
   # Return true if its devs include other's user_dev. No time consideration.
   def see_dev?(other_dev)
     return other_dev ? (base_dev == other_dev || devs.include?(other_dev)) : false
   end
   def see?(other)
-    return other ? (base_dev == other.base_dev || devs.include?(other.base_dev)) : false
+    other_base = other.base_dev
+    return other ? (base_dev == other_base || devs.include?(other_base)) : false
   end
   def seen_by?(other)
     return other ? other.see?(self) : false
@@ -184,14 +277,16 @@ class Mpost < ActiveRecord::Base
   # Once special case, return true if A and B has exact same user_dev
   def see_each_other?(other)
     # If from same user and exact same session (user_dev has session builtin), return true
-    # Do not use base_dev at here, that is for a more loosely check.
     return true if user_dev == other.user_dev
 
-    # OK, at least they have to see each other, without time consideration
-    return false if !see?(other) || !seen_by?(other)
-    time_from_other = other.devs[base_dev]
-    other_time = devs[other.base_dev]
-    return (time_from_other == other_time) ||
+    # However, if from same user but with different session, return false
+    base_dev0 = base_dev
+    other_base = other.base_dev
+    return false if base_dev0 == other_base
+
+    time_from_other = other.devs.include?(base_dev0) ? (other.devs[base_dev0]||0) : nil
+    other_time = devs.include?(other_base) ? (devs[other_base]||0) : nil
+    return time_from_other && other_time &&
            (time_from_other - other_time).abs <= DEV_TIME_TOLERANCE
   end
 
