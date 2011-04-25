@@ -222,7 +222,8 @@ class Mpost < ActiveRecord::Base
       if hoster_dev # set to cirkle guest mode and only keep the hoster's dev in devs list
         self.host_mode = 2
         self.devs = hoster_dev.join(DEV_DELIMITER)
-        self.cirkle_id = Mpost.cirkle_id_from_dev(hoster_dev[0])
+        #self.cirkle_id = Mpost.cirkle_id_from_dev(hoster_dev[0])
+        self.cirkle_id = nil # cirkle guest do not carry cirkle information
       end
     end
   end

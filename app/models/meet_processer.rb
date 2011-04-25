@@ -1009,9 +1009,6 @@ class MeetCluster
         @is_processable = true
       else
         first_user = mposts.first.user_id
-        puts mposts.any? {|mpost| mpost.is_cirkle_hoster?}
-        puts mposts.any? {|mpost| mpost.user_id != first_user}
-        puts master_mpost.device_devs.any? {|dev| first_user != Mpost.user_id_from_dev(dev)}
         @is_processable =
           mposts.any? {|mpost| mpost.is_cirkle_hoster?} ||
           mposts.any? {|mpost| mpost.user_id != first_user} || # more than one member
