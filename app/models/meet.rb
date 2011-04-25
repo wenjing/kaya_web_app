@@ -409,7 +409,7 @@ class Meet < ActiveRecord::Base
   end
   def peers_name_brief
     except0 = @friends_name_list_params ? @friends_name_list_params[:except] : nil
-    delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ","
+    delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ", "
     max_length0 = @friends_name_list_params ? @friends_name_list_params[:max_length] : 40
     return friends_name_list(except0, delimiter0, max_length0)[1]
   end
@@ -417,7 +417,7 @@ class Meet < ActiveRecord::Base
     res = meet_name
     if res.blank?
       except0 = @friends_name_list_params ? @friends_name_list_params[:except] : nil
-      delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ","
+      delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ", "
       res = peers_name_brief
       if except0
         if users_count <= 1 # Solo or empty (???), set as Me

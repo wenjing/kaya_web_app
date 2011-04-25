@@ -961,7 +961,7 @@ class UsersController < ApplicationController
       has_pending = content_meets.any? {|v| v.is_pending}
       attach_meet_infos(@user, content_meets, has_pending)
       content_meets.each {|meet|
-        meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>80}
+        meet.friends_name_list_params = {:except=>current_user,:delimiter=>", ",:max_length=>35}
         #meet.friends_name_list_params = {:except=>nil,:delimiter=>", ",:max_length=>40}
       }
       content_chatters = Set.new
