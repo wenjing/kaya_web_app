@@ -125,7 +125,7 @@ class MeetProcesser
   @@hot_time_idle        = 2.0
   @@hot_time_threshold   = 5.0
   @@hot_time_limit       = 10.0 # force to process a raw cluster if earliest mpost exceed limit
-  @@cold_time_limit      = 1800.0  # freeze processe clusters older than limit
+  @@cold_time_limit      = 3600.0  # freeze processe clusters older than limit
   @@expire_time_limit    = 3600.0*24 # discard unprocessable cluster exceed time limit
   # Shall be much larger than meet_duration_loose, 10 mins
   @@cold_time_margin = [@@meet_duration_loose*5, 600.0].max
@@ -1009,6 +1009,9 @@ class MeetCluster
         @is_processable = true
       else
         first_user = mposts.first.user_id
+        puts mposts.any? {|mpost| mpost.is_cirkle_hoster?}
+        puts mposts.any? {|mpost| mpost.user_id != first_user}
+        puts master_mpost.device_devs.any? {|dev| first_user != Mpost.user_id_from_dev(dev)}
         @is_processable =
           mposts.any? {|mpost| mpost.is_cirkle_hoster?} ||
           mposts.any? {|mpost| mpost.user_id != first_user} || # more than one member
