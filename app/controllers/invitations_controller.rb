@@ -96,10 +96,12 @@ class InvitationsController < ApplicationController
 
       invitees.each {|invitee|
         if invitee.invitation_pending?
-          InvitationMailer.signup_invitation(root_url, pending_user_url(invitee), @user, invitee,
+          #InvitationMailer.signup_invitation(root_url, pending_user_url(invitee), @user, invitee,
+          InvitationMailer.signup_invitation(root_url, root_url, @user, invitee,
                                              @invitation.message, @meet).deliver
         elsif @meet
-          InvitationMailer.meet_invitation(root_url, pending_meets_user_url(@meet), @user, invitee,
+          #InvitationMailer.meet_invitation(root_url, pending_meets_user_url(@meet), @user, invitee,
+          InvitationMailer.meet_invitation(root_url, root_url, @user, invitee,
                                            @invitation.message, @meet).deliver
         end
       }
