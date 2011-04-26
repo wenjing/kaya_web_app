@@ -72,7 +72,7 @@ module SessionsHelper
   end
   # 10 digit random number
   def passcode
-     Array.new(10) {("0".."9").to_a.sample}.join
+     Array.new(6) {("0".."9").to_a.sample}.join
   end
   def pending_user_url(user)
     if (user.pending? && user.temp_password)
