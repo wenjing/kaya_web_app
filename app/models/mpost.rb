@@ -204,7 +204,8 @@ class Mpost < ActiveRecord::Base
 
     # The time is mpost's send time. Now all time adjustments are done, change it to event time so
     # it is consistent to older version of mpost.
-    self.time = Time.at(Mpost.timestamp_from_dev(user_dev)).getutc
+    #self.time = Time.at(Mpost.timestamp_from_dev(user_dev)).getutc
+    self.time = Time.zone.parse("1 January 2001, GMT")+Mpost.timestamp_from_dev(user_dev)
 
     # Process host_mode and related data
     self.host_mode = 0 # default to peer mode
