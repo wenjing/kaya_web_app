@@ -127,7 +127,8 @@ class Meet < ActiveRecord::Base
         if mpost.collision? && mpost.is_none_host_mode?
           self.collision = true
         else
-          if (mpost_cirkle_id && mpost_cirkle_id != mpost.cirkle_id)
+          if (mpost_cirkle_id && mpost.cirkle_id &&
+              mpost_cirkle_id != mpost.cirkle_id)
             self.collision = true
           elsif mpost.cirkle_id
             mpost_cirkle_id = mpost.cirkle_id
