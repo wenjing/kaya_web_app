@@ -158,7 +158,11 @@ class MeetsController < ApplicationController
             @meet.extract_information_from_extra_user(current_user, pending_mposts)
             @meet.save
           end
-          pending_mposts.each {|mpost| mpost.status = 0; mpost.save}
+          pending_mposts.each {|mpost|
+            mpost.recovery
+            mpost.cirkle_ref_count = 1 if mpost.is_cirkle_mpost?
+            mpost.save
+          }
         }
       else
         delete_mposts(pending_mposts)

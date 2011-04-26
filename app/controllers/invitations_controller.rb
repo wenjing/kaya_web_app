@@ -72,8 +72,14 @@ class InvitationsController < ApplicationController
         invitees.each {|invitee|
           # This is a bit tricky. Since meet and user are related through mpost.
           # Have to create a mpost first.
-          mpost = invitee.mposts.build(:time=>@meet.time, :user_dev=>invitee.dev, :devs=>"invitee.dev",
-                                       :lng=>@meet.lng, :lat=>@meet.lat, :lerror=>@meet.lerror)
+          if @meet.is_encounter?
+            mpost = invitee.mposts.build(:time=>@meet.time, :user_dev=>invitee.dev, :devs=>invitee.dev,
+                                         :lng=>@meet.lng, :lat=>@meet.lat, :lerror=>@meet.lerror)
+          else
+            mpost = invitee.mposts.build(:time=>@meet.time, :user_dev=>Mpost::CIRKLE_MARKER, :devs=>"",
+                                         :host_id=>Mpost::CIRKLE_MARKER, :cirkle_ref_count=>0,
+                                         :lng=>@meet.lng, :lat=>@meet.lat, :lerror=>@meet.lerror)
+          end
           mpost.status = 2 # invitation pending
           @meet.mposts << mpost
           @invitation.pending_mposts << mpost

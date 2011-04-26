@@ -731,7 +731,7 @@ class Meet < ActiveRecord::Base
           cirkle_mpost.lat = mpost.lat
           cirkle_mpost.lng = mpost.lng
           cirkle_mpost.lerror = mpost.lerror
-          cirkle_mpost.devs = Mpost::CIRKLE_MARKER
+          cirkle_mpost.devs = ""
           cirkle_mpost.user_dev = Mpost::CIRKLE_MARKER
           cirkle_mpost.host_id = Mpost::CIRKLE_MARKER
           cirkle_mpost.cirkle_ref_count = 0
@@ -835,7 +835,8 @@ class Meet < ActiveRecord::Base
     }
 
     cirkle0_ids = users0.first.meet_ids_of_type(meet_type).compact.uniq
-    cirkle0 = users0.last.meets_of_type(meet_type).where("meets.id IN (?)", cirkle0_ids).first
+    cirkle0 = users0.last.meets_of_type(meet_type).where("meets.id IN (?)", cirkle0_ids)
+                    .find {|v| v.users_count == users0.size}
     is_first_encounter = false
     if !cirkle0
       cirkle0 = Meet.new
