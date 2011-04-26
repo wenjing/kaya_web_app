@@ -97,7 +97,7 @@ class User < ActiveRecord::Base
   # Paperclips
   has_attached_file :photo,
     :styles => {
-      :original => "245x245#",
+      :original => "245x245>",
       :normal => "54x54#"
     },
     #:convert_options => {:all => "-auto-orient"},
@@ -506,10 +506,10 @@ class User < ActiveRecord::Base
   end
 
   def dev # ZZZ, name:id:phrase:time
-    return "#{name_or_email}:#{id?id:0}:INTERNAL:#{Time.now.utc.to_i}"
+    return "#{name_or_email}:#{id ? id : 0}:INTERNAL:#{Time.now.utc.to_i}"
   end
   def cirkle_dev # ZZZ, name:id:phrase:cirkle_id:time
-    return "#{name_or_email}:#{id?id:0}:INTERNAL:0:#{Time.now.utc.to_i}"
+    return "#{name_or_email}:#{id ? id : 0}:INTERNAL:0:#{Time.now.utc.to_i}"
   end
 
   def encrypt_password
