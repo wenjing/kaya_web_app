@@ -10,7 +10,7 @@
 #
 # It's strongly recommended to check this file into your version control system.
 
-ActiveRecord::Schema.define(:version => 20110417030424) do
+ActiveRecord::Schema.define(:version => 20110427025132) do
 
   create_table "chatters", :force => true do |t|
     t.integer   "user_id"
@@ -24,7 +24,9 @@ ActiveRecord::Schema.define(:version => 20110417030424) do
     t.integer   "meet_id"
     t.integer   "topic_id"
     t.text      "cached_info"
-    t.boolean   "toggle_flag",        :default => false
+    t.boolean   "toggle_flag",                                        :default => false
+    t.decimal   "lng",                :precision => 15, :scale => 10
+    t.decimal   "lat",                :precision => 15, :scale => 10
   end
 
   add_index "chatters", ["created_at"], :name => "index_chatters_on_created_at"
@@ -140,7 +142,7 @@ ActiveRecord::Schema.define(:version => 20110417030424) do
     t.string    "photo_file_name"
     t.string    "photo_content_type"
     t.integer   "photo_file_size"
-    t.datetime  "photo_updated_at"
+    t.timestamp "photo_updated_at"
   end
 
   add_index "mviews", ["updated_at"], :name => "index_mviews_on_updated_at"

@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20110417030424
+# Schema version: 20110427025132
 #
 # Table name: mviews
 #
@@ -15,7 +15,7 @@
 #  photo_file_name    :string(255)
 #  photo_content_type :string(255)
 #  photo_file_size    :integer
-#  photo_updated_at   :datetime
+#  photo_updated_at   :timestamp
 #
 
 class Mview < ActiveRecord::Base

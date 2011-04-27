@@ -32,7 +32,7 @@ require 'meet_processer'
 
 class Mpost < ActiveRecord::Base
   CIRKLE_MARKER = '#cirkle#'
-  DEV_TIME_TOLERANCE = 3.0 # time diff tolerance when 2 BT saw each other
+  DEV_TIME_TOLERANCE = 5.0 # time diff tolerance when 2 BT saw each other
 
   attr_accessible :time, :lng, :lat, :lerror, :user_dev,
                   :devs, :note, :host_mode, :host_id, :collision, :cirkle_id
@@ -103,13 +103,35 @@ class Mpost < ActiveRecord::Base
   # automatically. Mpost relations are checked by device ids. It performs better by using Set
   # structure.
   # Assgin to devs_str instead of assigning devs directly: :devs_str=>"dev1,dev2,dev3"
+  # The delimiter seperating devs is ',', which could conflict with cirkle name. Can
+  # not split by it directly. Split by dev delimiter ':' first and check each item to figure
+  # out the devs' seperator.
   def devs=(str)
     devs0 = {}
-    str.split(/[,]+/).each {|dev|
-      dev_items = dev.split(DEV_DELIMITER)
-      dev_time = dev_items.pop # the last item is always timestamp, seperate it from the rest
-      dev = dev_items.join(DEV_DELIMITER)
-      devs0[dev] = dev_time.to_i
+#   str.split(DEV_LIST_DELIMITER).each {|dev|
+#     dev_items = dev.split(DEV_DELIMITER)
+#     dev_time = dev_items.pop # the last item is always timestamp, seperate it from the rest
+#     dev = dev_items.join(DEV_DELIMITER)
+#     devs0[dev] = dev_time.to_i
+#   }
+    dev_items = []
+    items = str.split(DEV_DELIMITER)
+    (0..items.size-1).each {|ii|
+      item = items[ii]
+      is_last_item = (ii == items.size-1)
+      if (is_last_item || dev_items.size == 4 || # must be last item in a dev
+          (dev_items.size == 3 && item.include?(DEV_LIST_DELIMITER)))
+        part1, part2 = *item.split(DEV_LIST_DELIMITER, 2) # becareful, user name could include delimiter
+        dev_items << part1
+        dev_time = dev_items.pop # the last item is always timestamp, seperate it from the rest
+        dev = dev_items.join(DEV_DELIMITER)
+        devs0[dev] = dev_time.to_i
+        # For next dev, pass the second part to next dev
+        dev_items = []
+        dev_items << part2 if part2.present?
+      else
+        dev_items << item
+      end
     }
     write_attribute(:devs, devs0)
   end
@@ -162,6 +184,7 @@ class Mpost < ActiveRecord::Base
   CIRKLE_DEV_ITEM_COUNT = 5 # user_name:user_id:meet_name:meet_id:timestamp
   PEER_DEV_ITEM_COUNT = 4 # user_name:user_id:meet_name:timestamp
   DEV_DELIMITER = ":"
+  DEV_LIST_DELIMITER = ","
   def self.is_compatible_user_dev?(dev)
     dev.split(DEV_DELIMITER).size == 2
   end

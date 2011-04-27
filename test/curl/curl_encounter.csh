@@ -38,9 +38,9 @@ curl -H "$http_head" -u encounter.test.1@kaya-labs.com:password -X POST \
 
 # Cirkle hoster
 curl -H "$http_head" -u encounter.test.2@kaya-labs.com:password -X POST \
-     -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 2:4247:from encounter test 2:1303351452&devs=encounter test 1:4246:hoster encounter test 1:32294:1303350010,encounter test 3:4248:from encounter test 3:1303350013" ${url_root}/mposts
+     -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 2:4247:from encounter test 2:1303351452&devs=encounter test 1:4246:hoster encounter test 1:32267:1303350010,encounter test 3:4248:from encounter test 3:1303350013" ${url_root}/mposts
 curl -H "$http_head" -u encounter.test.3@kaya-labs.com:password -X POST \
-     -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 3:4248:from encounter test 3:1303351452&devs=encounter test 1:4246:hoster encounter test 1:32294:1303350012,encounter test 2:4247:from encounter test 2:1303350010" ${url_root}/mposts
+     -d "time=2010-11-27T09:27:12-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 3:4248:from encounter test 3:1303351452&devs=encounter test 1:4246:hoster encounter test 1:32267:1303350012,encounter test 2:4247:from encounter test 2:1303350010" ${url_root}/mposts
 sleep 1
 curl -H "$http_head" -u encounter.test.1@kaya-labs.com:password -X POST \
-     -d "time=2010-11-27T09:27:13-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 1:4246:hoster encounter test 1:32294:1303351452&devs=encounter test 2:4247:from encounter test 2:1303350011,encounter test 3:4248:from encounter test 3:1303350014" ${url_root}/mposts
+     -d "time=2010-11-27T09:27:13-08:00&lng=-97.7428&lat=30.2669&lerror=2&user_dev=encounter test 1:4246:hoster encounter test 1:32267:1303351452&devs=encounter test 2:4247:from encounter test 2:1303350011,encounter test 3:4248:from encounter test 3:1303350014" ${url_root}/mposts

@@ -42,6 +42,7 @@ GEM
     diff-lcs (1.1.2)
     erubis (2.6.6)
       abstract (>= 1.0.0)
+    exifr (1.0.5)
     factory_girl (1.3.3)
     factory_girl_rails (1.0)
       factory_girl (~> 1.3)
@@ -122,6 +123,7 @@ DEPENDENCIES
   annotate-models (= 1.0.4)
   aws-s3
   delayed_job
+  exifr
   factory_girl_rails (= 1.0)
   faker (= 0.3.1)
   geokit

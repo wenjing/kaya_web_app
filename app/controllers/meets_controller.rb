@@ -24,7 +24,7 @@ class MeetsController < ApplicationController
                                        :cirkle_id, :name, :description, :image_url, :host_id, :meet_type, :hoster_id],
                            :methods => [:marked_name, :marked_image,
                                         :marked_users, :marked_chatters] }
-  JSON_MEET_CIRKLE_API = { :only => [:id, :time, :mage_url, :updated_at],
+  JSON_MEET_CIRKLE_API = { :only => [:id, :time, :updated_at],
                            :methods => [:marked_name, :marked_image, :marked_top_users,
                                         :users_count, :topics_count, :chatters_count, :photos_count] }
   JSON_MEET_LIST_API   = { :except => [:created_at, :cached_info, :lock_version, :collision, :toggle_flag,

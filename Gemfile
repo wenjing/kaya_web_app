@@ -13,6 +13,7 @@ gem 'paperclip'
 gem 'aws-s3', :require => 'aws/s3'
 gem 'jquery-rails', '>= 0.2.6'
 gem 'delayed_job'
+gem 'exifr'
 
 group :development do
   gem 'rspec-rails', '2.0.1'

@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20110417030424
+# Schema version: 20110427025132
 #
 # Table name: chatters
 #
@@ -16,6 +16,8 @@
 #  topic_id           :integer
 #  cached_info        :text
 #  toggle_flag        :boolean
+#  lng                :decimal(15, 10)
+#  lat                :decimal(15, 10)
 #
 
 class Chatter < ActiveRecord::Base
