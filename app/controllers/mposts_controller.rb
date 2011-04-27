@@ -52,7 +52,7 @@ class MpostsController < ApplicationController
         cirkle_name = Mpost::cirkle_name_from_dev(@mpost.user_dev)
         if cirkle_name.present?
           # Set both cirkle and encounter name
-          encounter_name = "Create circle: " + cirkle_name
+          encounter_name = "Started circle \"" + cirkle_name + "\""
           {meet=>encounter_name, meet.cirkle=>cirkle_name}.each_pair {|mm,nn|
             next unless mm.present?
             mview = Mview.user_meet_mview(@user, mm).first
