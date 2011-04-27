@@ -62,6 +62,13 @@ class Mview < ActiveRecord::Base
     meet_ids =  meets.collect {|meet| meet.id}
     where("mviews.user_id = ? AND mviews.meet_id IN (?)", user.id, meet_ids)
   }
+  scope :user_id_meet_mview, lambda {|user_id, meet|
+    where("mviews.user_id = ? AND mviews.meet_id = ?", user_id, meet.id).limit(1)
+  }
+  scope :user_id_meets_mview, lambda {|user_id, meets|
+    meet_ids =  meets.collect {|meet| meet.id}
+    where("mviews.user_id = ? AND mviews.meet_id IN (?)", user_id, meet_ids)
+  }
 
   def fillin_from_meet(meet)
     self.name = meet.meet_name 

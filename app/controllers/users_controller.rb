@@ -676,6 +676,7 @@ class UsersController < ApplicationController
         # directly again, we shall let her go through without trigger email already
         # taken error.
         @user = pending_user
+        @user.attributes = @filtered_params
       elsif (pending_user.status == 1)
         # Free up the record of a deleted user if someone try to signup using it.
         pending_user.destroy
@@ -703,6 +704,7 @@ class UsersController < ApplicationController
         format.json { render :json => @user.to_json(JSON_USER_DETAIL_API) }
       end
     else
+      puts @user.errors
       @title = "Sign up"
       respond_to do |format|
         format.html { render 'new' }
@@ -883,10 +885,17 @@ class UsersController < ApplicationController
     end
 
     def attach_meet_mviews(user, meets)
-      mviews = Mview.user_meets_mview(user, meets).to_a
+      mviews = Mview.user_id_meets_mview(user.id, meets).index_by(&:meet_id)
+      mviews_by_hoster = {}
+      meets.group_by(&:hoster_id).each_pair {|hoster_id, hosted_meets|
+        next if hoster_id == user.id
+        mviews_by_hoster[hoster_id] = Mview.user_id_meets_mview(hoster_id, hosted_meets).index_by(&:meet_id)
+      }
       meets.each {|meet|
-        meet.meet_mview = mviews.select {|mview| mview.meet_id == meet.id}.first
-        meet.hoster_mview = Mview.user_meet_mview(meet.hoster, meet).first if meet.has_hoster?
+        meet.meet_mview = mviews[meet.id]
+        if (meet.has_hoster? && meet.hoster_id != user.id)
+          meet.hoster_mview = mviews_by_hoster[meet.hoster_id][meet.id]
+        end
       }
     end
 
