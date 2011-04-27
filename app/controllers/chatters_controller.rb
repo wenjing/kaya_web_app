@@ -12,28 +12,28 @@ class ChattersController < ApplicationController
                               #:include => {:user => UsersController::JSON_USER_BRIEF_API},
                               :except => [:cached_info, :user_id, :meet_id, :topic_id, :toggle_flag,
                                           :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at, :lat, :lng] }
+                                          :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_MARKED_COMMENT_API= { :methods => [:chatter_photo, :is_new_chatter, :marked_user],
                               #:include => {:user => UsersController::JSON_USER_BRIEF_API},
                               :except => [:cached_info, :user_id, :meet_id, :topic_id, :toggle_flag,
                                           :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at, :lat, :lng] }
+                                          :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_LIST_API   = { :methods => [:chatter_photo, :comments_count],
                               :include => {:user => UsersController::JSON_USER_BRIEF_API},
                               :except => [:cached_info, :user_id, :meet_id, :topic_id, :toggle_flag,
                                           :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at, :lat, :lng] }
+                                          :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_COMMENT_API= { :methods => [:chatter_photo],
                               :include => {:user => UsersController::JSON_USER_BRIEF_API},
                               :except => [:cached_info, :user_id, :meet_id, :topic_id, :toggle_flag,
                                           :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at, :lat, :lng] }
+                                          :photo_file_size, :photo_updated_at] }
   JSON_CHATTER_DETAIL_API = { :methods => [:chatter_photo],
                               :include => {:comments => JSON_CHATTER_COMMENT_API,
                                            :user => UsersController::JSON_USER_BRIEF_API},
                               :except => [:cached_info, :user_id, :meet_id, :topic_id, :toggle_flag,
                                           :photo_content_type, :photo_file_name,
-                                          :photo_file_size, :photo_updated_at, :lat, :lng] }
+                                          :photo_file_size, :photo_updated_at] }
 
   def create
     assert_internal_error(@user||@meet)

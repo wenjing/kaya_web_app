@@ -1,5 +1,5 @@
 # == Schema Information
-# Schema version: 20110427025132
+# Schema version: 20110427070451
 #
 # Table name: chatters
 #
@@ -18,12 +18,13 @@
 #  toggle_flag        :boolean
 #  lng                :decimal(15, 10)
 #  lat                :decimal(15, 10)
+#  lerror             :float
 #
 
 class Chatter < ActiveRecord::Base
   attr_accessor :loaded_top_comments, :loaded_comments, :new_comment_ids, :loaded_user
   attr_writer   :is_new_chatter
-  attr_accessible :content, :photo 
+  attr_accessible :content, :photo, :lat, :lng, :lerror
 
   belongs_to :meet, :inverse_of => :chatters
   belongs_to :user, :inverse_of => :chatters
