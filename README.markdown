@@ -1,3 +1,8 @@
+We are starting to tag release versions starting now.
+The first version is: v0.1.
+
+Wenjing 4/27/2011
+
 
 Adam C. 10/21/2010:
 
