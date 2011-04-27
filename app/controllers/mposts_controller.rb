@@ -47,6 +47,7 @@ class MpostsController < ApplicationController
       if @mpost.is_cirkle_creater?
         meet = Meet.new
         meet.mposts << @mpost
+        meet.hoster = @user
         meet.extract_information([@mpost], []).save
         cirkle_name = Mpost::cirkle_name_from_dev(@mpost.user_dev)
         if cirkle_name.present?

@@ -418,6 +418,7 @@ class Meet < ActiveRecord::Base
     res = meet_name
     if res.blank?
       except0 = @friends_name_list_params ? @friends_name_list_params[:except] : nil
+      except0 = nil if except0 && !top_user_ids.include?(except0.id)
       delimiter0 = @friends_name_list_params ? @friends_name_list_params[:delimiter] : ", "
       res = peers_name_brief
       if except0
